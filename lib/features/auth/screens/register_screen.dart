@@ -51,11 +51,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("فشل تحميل الصفوف: $e")),
-      );
-      print("Grades Response: ${e}");
-
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("فشل تحميل الصفوف: $e")));
     }
   }
 
@@ -77,9 +75,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("خدمة الموقع غير مفعلة")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("خدمة الموقع غير مفعلة")));
         return;
       }
 
@@ -87,9 +85,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("تم رفض إذن الموقع")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("تم رفض إذن الموقع")));
           return;
         }
       }
@@ -110,9 +108,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _longitude = pos.longitude;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("فشل الحصول على الموقع: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("فشل الحصول على الموقع: $e")));
     }
   }
 
@@ -133,9 +131,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _gender == null ||
         _gradeId == null ||
         _birthDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("الرجاء ملء جميع الحقول")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("الرجاء ملء جميع الحقول")));
       return;
     }
 
@@ -159,7 +157,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (_sendLocation) ...{
         "latitude": _latitude ?? 33.37771840,
         "longitude": _longitude ?? 44.51151040,
-      }
+      },
     };
 
     try {
@@ -174,9 +172,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -199,19 +197,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 12),
-            AuthTextField(controller: _passwordController, label: "كلمة المرور", obscureText: true),
+            AuthTextField(
+              controller: _passwordController,
+              label: "كلمة المرور",
+              obscureText: true,
+            ),
             const SizedBox(height: 12),
-            AuthTextField(controller: _studentPhoneController, label: "هاتف الطالب"),
+            AuthTextField(
+              controller: _studentPhoneController,
+              label: "هاتف الطالب",
+            ),
             const SizedBox(height: 12),
-            AuthTextField(controller: _parentPhoneController, label: "هاتف ولي الأمر"),
+            AuthTextField(
+              controller: _parentPhoneController,
+              label: "هاتف ولي الأمر",
+            ),
             const SizedBox(height: 12),
-            AuthTextField(controller: _schoolNameController, label: "اسم المدرسة"),
+            AuthTextField(
+              controller: _schoolNameController,
+              label: "اسم المدرسة",
+            ),
             const SizedBox(height: 12),
 
             // Gender select
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: "الجنس"),
-              value: _gender,
+              initialValue: _gender,
               items: const [
                 DropdownMenuItem(value: "male", child: Text("ذكر")),
                 DropdownMenuItem(value: "female", child: Text("أنثى")),
@@ -223,12 +234,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
             // Grades select
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: "الصف"),
-              value: _gradeId,
+              initialValue: _gradeId,
               items: _grades
-                  .map((g) => DropdownMenuItem<String>(
-                value: g["id"] as String,
-                child: Text(g["name"] as String),
-              ))
+                  .map(
+                    (g) => DropdownMenuItem<String>(
+                      value: g["id"] as String,
+                      child: Text(g["name"] as String),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) => setState(() => _gradeId = v),
             ),

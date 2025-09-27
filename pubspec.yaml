@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
 
   dio: ^5.7.0
+  intl: ^0.20.2
   get: ^4.6.6
   google_sign_in: ^6.1.5
   cupertino_icons: ^1.0.8
@@ -19,6 +20,7 @@ dependencies:
   geolocator: ^12.0.0
   flutter_localizations:   # ✅ مهم عشان DatePicker واللغات
     sdk: flutter
+  onesignal_flutter: ^5.1.4
 
 dev_dependencies:
   flutter_test:

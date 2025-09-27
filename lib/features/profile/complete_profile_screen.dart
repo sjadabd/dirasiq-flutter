@@ -34,7 +34,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   String? _gender;
   String? _gradeId;
-  String? _studyYear = "2025-2026";
+  final String? _studyYear = "2025-2026";
   DateTime? _birthDate;
 
   bool _sendLocation = false;
@@ -70,7 +70,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   void _updateBirthDateDisplay() {
     if (_birthDate != null) {
-      _birthDateController.text = "${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}";
+      _birthDateController.text =
+          "${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}";
     } else {
       _birthDateController.text = "";
     }
@@ -85,7 +86,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       _parentPhoneController.text = (user['parentPhone'] ?? '').toString();
       _schoolNameController.text = (user['schoolName'] ?? '').toString();
       _addressController.text = (user['address'] ?? '').toString();
-      _formattedAddressController.text = (user['formattedAddress'] ?? '').toString();
+      _formattedAddressController.text = (user['formattedAddress'] ?? '')
+          .toString();
       _countryController.text = (user['country'] ?? '').toString();
       _cityController.text = (user['city'] ?? '').toString();
       _stateController.text = (user['state'] ?? '').toString();
@@ -162,6 +164,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       helpText: 'اختر تاريخ الميلاد',
       cancelText: 'إلغاء',
       confirmText: 'تأكيد',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: const Color(0xFF6366F1),
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && mounted) {
       setState(() {
@@ -174,9 +187,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: const Color(0xFFEF4444),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -184,9 +205,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -253,15 +282,38 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     }
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).primaryColor,
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(top: 24, bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -273,16 +325,36 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     TextInputType? keyboardType,
     bool readOnly = false,
     VoidCallback? onTap,
+    IconData? prefixIcon,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: controller,
         decoration: InputDecoration(
           labelText: required ? "$label *" : label,
-          border: const OutlineInputBorder(),
+          prefixIcon: prefixIcon != null
+              ? Icon(prefixIcon, color: const Color(0xFF6366F1))
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+          ),
           filled: true,
-          fillColor: Theme.of(context).cardColor,
+          fillColor: const Color(0xFFF9FAFB),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
         ),
         keyboardType: keyboardType,
         readOnly: readOnly,
@@ -295,21 +367,40 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   Widget _buildGradeDropdown(List<Map<String, dynamic>> grades) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: "المرحلة / الصف *",
-          border: OutlineInputBorder(),
+          prefixIcon: const Icon(Icons.school, color: Color(0xFF6366F1)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+          ),
           filled: true,
+          fillColor: const Color(0xFFF9FAFB),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
-        value: _gradeId,
+        initialValue: _gradeId,
         isExpanded: true,
         items: grades
-            .map((g) => DropdownMenuItem<String>(
-          value: g["id"] as String,
-          child: Text(g["name"] as String),
-        ))
+            .map(
+              (g) => DropdownMenuItem<String>(
+                value: g["id"] as String,
+                child: Text(g["name"] as String),
+              ),
+            )
             .toList(),
         onChanged: (v) {
           if (v != _gradeId) {
@@ -321,14 +412,154 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     );
   }
 
+  Widget _buildGenderDropdown() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        decoration: InputDecoration(
+          labelText: "الجنس *",
+          prefixIcon: const Icon(Icons.person, color: Color(0xFF6366F1)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+          ),
+          filled: true,
+          fillColor: const Color(0xFFF9FAFB),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+        ),
+        initialValue: _gender,
+        isExpanded: true,
+        items: const [
+          DropdownMenuItem(value: "male", child: Text("ذكر")),
+          DropdownMenuItem(value: "female", child: Text("أنثى")),
+        ],
+        onChanged: (v) {
+          if (v != _gender) {
+            setState(() => _gender = v);
+          }
+        },
+        validator: (v) => v == null ? "اختر الجنس" : null,
+      ),
+    );
+  }
+
+  Widget _buildLocationCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: CheckboxListTile(
+        isThreeLine:
+            _locationLoading || (_latitude != null && _longitude != null),
+        title: const Text(
+          "إرسال موقعي الحالي",
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: _locationLoading
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: const [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      "جاري الحصول على الموقع...",
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ),
+                ],
+              )
+            : _latitude != null && _longitude != null
+            ? Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  "تم الحصول على الموقع: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}",
+                  style: const TextStyle(
+                    color: Color(0xFF10B981),
+                    fontSize: 12,
+                  ),
+                ),
+              )
+            : null,
+        value: _sendLocation,
+        onChanged: _locationLoading
+            ? null
+            : (val) {
+                setState(() => _sendLocation = val ?? false);
+                if (_sendLocation) _getLocation();
+              },
+        secondary: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF6366F1).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: _locationLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.location_on, color: Color(0xFF6366F1)),
+        ),
+        activeColor: const Color(0xFF6366F1),
+        contentPadding: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text("إكمال البيانات الشخصية"),
+        title: const Text(
+          "إكمال البيانات الشخصية",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF1F2937),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+          ),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -336,36 +567,106 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           future: _gradesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text("جاري تحميل البيانات..."),
-                  ],
+              return Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFF6366F1),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        "جاري تحميل البيانات...",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
 
             if (snapshot.hasError) {
               return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text("خطأ في تحميل البيانات: ${snapshot.error}"),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _gradesFuture = _apiService.fetchGrades();
-                        });
-                      },
-                      child: const Text("إعادة المحاولة"),
-                    ),
-                  ],
+                child: Container(
+                  margin: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Color(0xFFEF4444),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        "خطأ في تحميل البيانات",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "${snapshot.error}",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFF6B7280)),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _gradesFuture = _apiService.fetchGrades();
+                          });
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text("إعادة المحاولة"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
@@ -373,109 +674,111 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             final grades = snapshot.data ?? [];
 
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               children: [
                 // Contact Information Section
-                _buildSectionHeader("معلومات التواصل"),
+                _buildSectionHeader("معلومات التواصل", Icons.contact_phone),
                 _buildTextField(
                   controller: _studentPhoneController,
                   label: "هاتف الطالب",
                   required: true,
                   keyboardType: TextInputType.phone,
+                  prefixIcon: Icons.phone,
                 ),
                 _buildTextField(
                   controller: _parentPhoneController,
                   label: "هاتف ولي الأمر",
                   keyboardType: TextInputType.phone,
+                  prefixIcon: Icons.phone_android,
                 ),
                 _buildTextField(
                   controller: _schoolNameController,
                   label: "اسم المدرسة",
+                  prefixIcon: Icons.school,
                 ),
 
                 // Educational Information Section
-                _buildSectionHeader("المعلومات التعليمية"),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: "الجنس *",
-                      border: OutlineInputBorder(),
-                      filled: true,
-                    ),
-                    value: _gender,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(value: "male", child: Text("ذكر")),
-                      DropdownMenuItem(value: "female", child: Text("أنثى")),
-                    ],
-                    onChanged: (v) {
-                      if (v != _gender) {
-                        setState(() => _gender = v);
-                      }
-                    },
-                    validator: (v) => v == null ? "اختر الجنس" : null,
-                  ),
-                ),
-
+                _buildSectionHeader("المعلومات التعليمية", Icons.school),
+                _buildGenderDropdown(),
                 _buildGradeDropdown(grades),
-
                 _buildTextField(
                   controller: _birthDateController,
                   label: "تاريخ الميلاد",
                   required: true,
                   readOnly: true,
                   onTap: _pickBirthDate,
+                  prefixIcon: Icons.calendar_today,
                 ),
 
                 // Address Section
-                _buildSectionHeader("العنوان"),
-                _buildTextField(controller: _addressController, label: "العنوان"),
-                // Location Section
-                _buildSectionHeader("الموقع"),
-                Card(
-                  child: CheckboxListTile(
-                    title: const Text("إرسال موقعي الحالي"),
-                    subtitle: _locationLoading
-                        ? const Text("جاري الحصول على الموقع...")
-                        : _latitude != null && _longitude != null
-                        ? Text("تم الحصول على الموقع: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}")
-                        : null,
-                    value: _sendLocation,
-                    onChanged: _locationLoading ? null : (val) {
-                      setState(() => _sendLocation = val ?? false);
-                      if (_sendLocation) _getLocation();
-                    },
-                    secondary: _locationLoading
-                        ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                        : const Icon(Icons.location_on),
-                  ),
+                _buildSectionHeader("العنوان", Icons.location_city),
+                _buildTextField(
+                  controller: _addressController,
+                  label: "العنوان",
+                  prefixIcon: Icons.home,
                 ),
+
+                // Location Section
+                _buildSectionHeader("الموقع", Icons.location_on),
+                _buildLocationCard(),
 
                 const SizedBox(height: 32),
 
                 // Submit Button
-                SizedBox(
-                  height: 50,
-                  child: _loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : ElevatedButton.icon(
-                    icon: const Icon(Icons.save),
-                    label: const Text("حفظ البيانات"),
-                    onPressed: _handleSubmit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
+                    ],
                   ),
+                  child: _loading
+                      ? Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+                        )
+                      : ElevatedButton.icon(
+                          icon: const Icon(Icons.save, size: 20),
+                          label: const Text(
+                            "حفظ البيانات",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onPressed: _handleSubmit,
+                          style:
+                              ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ).copyWith(
+                                backgroundColor: MaterialStateProperty.all(
+                                  Colors.transparent,
+                                ),
+                              ),
+                        ),
                 ),
+                const SizedBox(height: 24),
               ],
             );
           },

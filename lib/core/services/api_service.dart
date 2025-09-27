@@ -1,41 +1,75 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get/get.dart';
+import 'package:dirasiq/core/config/app_config.dart';
 
 class ApiService {
-  final Dio _dio;
+  late final Dio _dio;
 
   static String getBaseUrl() {
-    // ✅ بدل الـ IP بعنوان السيرفر عند النشر
-    const String baseUrl = "http://192.168.68.103:3000/api";
+    const String baseUrl = AppConfig.apiBaseUrl;
 
     if (Platform.isAndroid) {
-      return baseUrl; // عند تشغيل التطبيق على Android Emulator أو جهاز
+      return baseUrl;
     } else if (Platform.isIOS) {
-      return baseUrl; // نفس الشيء لـ iOS
+      return baseUrl;
     } else {
-      return baseUrl; // للويب أو الديسكتوب
+      return baseUrl;
     }
   }
 
-  ApiService()
-      : _dio = Dio(
-    BaseOptions(
-      baseUrl: getBaseUrl(),
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-    ),
-  ) {
-    // ✅ إضافة Interceptor لطباعة الطلبات والردود (للتصحيح)
-    _dio.interceptors.add(LogInterceptor(
-      request: true,
-      requestBody: true,
-      responseBody: true,
-      error: true,
-    ));
+  ApiService() {
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: getBaseUrl(),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+      ),
+    );
+
+    // ✅ Interceptors
+    _dio.interceptors.add(
+      LogInterceptor(
+        request: true,
+        requestBody: true,
+        responseBody: true,
+        error: true,
+      ),
+    );
+
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final token = prefs.getString('token');
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+          } catch (_) {}
+          return handler.next(options);
+        },
+        onError: (DioException e, handler) async {
+          final status = e.response?.statusCode;
+          if (status == 401 || status == 403) {
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('token');
+              await prefs.remove('user');
+            } catch (_) {}
+            if (Get.currentRoute != '/login') {
+              Get.offAllNamed('/login');
+            }
+          }
+          return handler.next(e);
+        },
+      ),
+    );
   }
 
   Dio get dio => _dio;
@@ -44,7 +78,6 @@ class ApiService {
   Future<List<Map<String, dynamic>>> fetchGrades() async {
     try {
       final response = await _dio.get("/grades/all-student");
-
       if (response.statusCode == 200 && response.data["success"] == true) {
         return List<Map<String, dynamic>>.from(response.data["data"]);
       } else {
@@ -55,11 +88,10 @@ class ApiService {
     }
   }
 
-  /// ✅ مثال: جلب الصفوف للمعلمين (لو عندك API مختلف)
+  /// ✅ جلب الصفوف للمعلمين
   Future<List<Map<String, dynamic>>> fetchTeacherGrades() async {
     try {
       final response = await _dio.get("/grades/all-teacher");
-
       if (response.statusCode == 200 && response.data["success"] == true) {
         return List<Map<String, dynamic>>.from(response.data["data"]);
       } else {
@@ -67,6 +99,296 @@ class ApiService {
       }
     } catch (e) {
       throw Exception("❌ خطأ أثناء تحميل صفوف المعلم: $e");
+    }
+  }
+
+  /// ✅ جلب الدورات المقترحة للطالب
+  Future<List<Map<String, dynamic>>> fetchSuggestedCourses({
+    int page = 1,
+    int limit = 10,
+    double? maxDistance,
+  }) async {
+    try {
+      final response = await _dio.get(
+        "/student/courses/suggested",
+        queryParameters: {
+          "page": page,
+          "limit": limit,
+          "maxDistance": maxDistance, // يرسل null إذا ما محدد
+        },
+      );
+
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        // ✅ المسار الصحيح: data.courses
+        final courses = response.data["data"]["courses"] as List;
+        return List<Map<String, dynamic>>.from(courses);
+      } else {
+        throw Exception(response.data["message"] ?? "فشل تحميل الدورات");
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الدورات: $e");
+    }
+  }
+
+  /// ✅ جلب تفاصيل دورة معينة للطالب
+  Future<Map<String, dynamic>> fetchCourseDetails(String courseId) async {
+    try {
+      final response = await _dio.get("/student/courses/$courseId");
+
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        // ✅ البيانات موجودة في response.data["data"]
+        return Map<String, dynamic>.from(response.data["data"]);
+      } else {
+        throw Exception(response.data["message"] ?? "فشل تحميل تفاصيل الدورة");
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل الدورة: $e");
+    }
+  }
+
+  /// ✅ جلب آخر الأخبار (ثابت: newsType = mobile)
+  Future<List<Map<String, dynamic>>> fetchLatestNews({
+    int page = 1,
+    int limit = 5,
+    String? search,
+    bool isActive = true,
+  }) async {
+    try {
+      final response = await _dio.get(
+        "/news",
+        queryParameters: {
+          "page": page,
+          "limit": limit,
+          "search": search ?? "null",
+          "isActive": isActive,
+          "newsType": "mobile", // ثابت
+        },
+      );
+
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final newsList = response.data["data"] as List; // ✅ صح هنا
+        return List<Map<String, dynamic>>.from(newsList);
+      } else {
+        throw Exception(response.data["message"] ?? "فشل تحميل الأخبار");
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الأخبار: $e");
+    }
+  }
+
+  /// ✅ جلب إشعارات المستخدم الحالي
+  Future<Map<String, dynamic>> fetchMyNotifications({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await _dio.get(
+        "/notifications/user/my-notifications",
+        queryParameters: {"page": page, "limit": limit},
+      );
+
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        return Map<String, dynamic>.from(response.data["data"]);
+      } else {
+        throw Exception(response.data["message"] ?? "فشل تحميل الإشعارات");
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الإشعارات: $e");
+    }
+  }
+
+  /// ✅ تعليم إشعار كمقروء
+  Future<void> markNotificationAsRead(String id) async {
+    try {
+      final response = await _dio.put("/notifications/$id/read");
+      if (response.statusCode != 200 || response.data["success"] != true) {
+        throw Exception(response.data["message"] ?? "فشل تحديث حالة الإشعار");
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحديث حالة الإشعار: $e");
+    }
+  }
+
+  /// ✅ عدد الإشعارات غير المقروءة (حل مرن حتى لو الواجهة لا تدعم العد مباشرة)
+  Future<int> fetchUnreadNotificationsCount() async {
+    try {
+      // محاولة استخدام فلترة بالحالة إذا الخادم يدعمها
+      final response = await _dio.get(
+        "/notifications/user/my-notifications",
+        queryParameters: {
+          "page": 1,
+          "limit": 50,
+          "status": "sent", // أو "delivered" حسب النظام لديك
+        },
+      );
+
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = Map<String, dynamic>.from(response.data["data"]);
+        final list = List<Map<String, dynamic>>.from(
+          (data['items'] ?? data['notifications'] ?? data['data'] ?? [])
+              as List,
+        );
+        // عد العناصر غير المقروءة بناءً على isRead/readAt من الخادم
+        int unread = 0;
+        for (final n in list) {
+          final isRead = (n['isRead'] == true) || (n['readAt'] != null);
+          if (!isRead) unread++;
+        }
+        return unread;
+      } else {
+        return 0;
+      }
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  // =============================
+  // حجوزات الطالب (الكورسات)
+  // =============================
+
+  /// إنشاء حجز أولي لدورة
+  Future<Map<String, dynamic>> createCourseBooking({
+    required String courseId,
+    required String studentMessage,
+  }) async {
+    try {
+      final response = await _dio.post(
+        "/student/bookings",
+        data: {"courseId": courseId, "studentMessage": studentMessage},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل إنشاء الحجز");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء إنشاء الحجز: $e");
+    }
+  }
+
+  /// جلب قائمة حجوزات الطالب
+  Future<Map<String, dynamic>> fetchStudentBookings({
+    String? studyYear,
+    int page = 1,
+    int limit = 10,
+    String? status, // pending, approved, rejected, canceled
+  }) async {
+    try {
+      final qp = {
+        "page": page,
+        "limit": limit,
+        if (studyYear != null) "studyYear": studyYear,
+        if (status != null && status.isNotEmpty) "status": status,
+      };
+      final response = await _dio.get("/student/bookings", queryParameters: qp);
+      if (response.statusCode == 200) {
+        print(response.data);
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل الحجوزات");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الحجوزات: $e");
+    }
+  }
+
+  /// جلب تفاصيل حجز واحد
+  Future<Map<String, dynamic>> fetchBookingDetails(String bookingId) async {
+    try {
+      final response = await _dio.get("/student/bookings/$bookingId");
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل تفاصيل الحجز");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل الحجز: $e");
+    }
+  }
+
+  /// إحصائيات الحجوزات
+  Future<Map<String, dynamic>> fetchBookingsStatsSummary({
+    String? studyYear,
+  }) async {
+    try {
+      final response = await _dio.get(
+        "/student/bookings/stats/summary",
+        queryParameters: {if (studyYear != null) "studyYear": studyYear},
+      );
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(
+        response.data["message"] ?? "فشل تحميل إحصائيات الحجوزات",
+      );
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الإحصائيات: $e");
+    }
+  }
+
+  /// إلغاء حجز
+  Future<void> cancelBooking({
+    required String bookingId,
+    required String reason,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        "/student/bookings/$bookingId/cancel",
+        data: {"reason": reason},
+      );
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception(response.data["message"] ?? "فشل إلغاء الحجز");
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء إلغاء الحجز: $e");
+    }
+  }
+
+  /// إعادة تفعيل/إرسال طلب الحجز
+  Future<Map<String, dynamic>> reactivateBooking(String bookingId) async {
+    try {
+      final response = await _dio.patch(
+        "/student/bookings/$bookingId/reactivate",
+      );
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      // في حال لم تكن 200 اعتبرها فشل وحاول استخراج الرسائل
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : <String, dynamic>{};
+      final msg = (data["message"] ?? "فشل إعادة تفعيل الحجز").toString();
+      final errors =
+          (data["errors"] is List && (data["errors"] as List).isNotEmpty)
+          ? (data["errors"] as List).join("، ")
+          : null;
+      final suggestion = data["suggestion"]?.toString();
+      final composed = [
+        msg,
+        if (errors != null) errors,
+        if (suggestion != null) suggestion,
+      ].where((e) => e.toString().trim().isNotEmpty).join(" | ");
+      throw Exception(composed);
+    } on DioException catch (e) {
+      final res = e.response;
+      if (res != null) {
+        final data = res.data is Map<String, dynamic>
+            ? res.data as Map<String, dynamic>
+            : <String, dynamic>{};
+        final msg = (data["message"] ?? "فشل إعادة تفعيل الحجز").toString();
+        final errors =
+            (data["errors"] is List && (data["errors"] as List).isNotEmpty)
+            ? (data["errors"] as List).join("، ")
+            : null;
+        final suggestion = data["suggestion"]?.toString();
+        final composed = [
+          msg,
+          if (errors != null) errors,
+          if (suggestion != null) suggestion,
+        ].where((e) => e.toString().trim().isNotEmpty).join(" | ");
+        throw Exception(composed);
+      }
+      throw Exception("❌ خطأ أثناء إعادة تفعيل الحجز: ${e.message}");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء إعادة تفعيل الحجز: $e");
     }
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dirasiq/core/services/auth_service.dart';
-import 'package:dirasiq/features/profile/complete_profile_screen.dart';
 
 class ProfileCompletionGuard extends StatefulWidget {
   final Widget child;

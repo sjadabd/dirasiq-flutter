@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'package:dirasiq/core/services/notification_service.dart';
 
 class AuthService {
   final ApiService _apiService = ApiService();
@@ -9,9 +10,17 @@ class AuthService {
   /// ✅ تسجيل طالب جديد
   Future<String?> registerStudent(Map<String, dynamic> data) async {
     try {
+      // أرسل OneSignal player id مع بيانات التسجيل إن وُجد
+      final playerId = await NotificationService.instance.getPlayerId();
+      final payload = {
+        ...data,
+        if (playerId != null && playerId.isNotEmpty)
+          'oneSignalPlayerId': playerId,
+      };
+
       final response = await _apiService.dio.post(
         "/auth/register/student",
-        data: data,
+        data: payload,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -24,6 +33,8 @@ class AuthService {
           await prefs.setString("user", jsonEncode(response.data["user"]));
         }
 
+        // إعادة ربط OneSignal باليوزر بعد الحفظ المحلي
+        await NotificationService.instance.rebindExternalUserId();
         return null; // ✅ نجاح
       }
 
@@ -33,35 +44,117 @@ class AuthService {
     }
   }
 
-  /// ✅ تسجيل الدخول
-  Future<bool> login(String email, String password) async {
+  /// ✅ تحديث الملف الشخصي
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
     try {
       final response = await _apiService.dio.post(
-        "/auth/login",
-        data: {"email": email, "password": password},
+        "/auth/update-profile",
+        data: data,
       );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final prefs = await SharedPreferences.getInstance();
+        if (response.data["data"]?['user'] != null) {
+          await prefs.setString(
+            "user",
+            jsonEncode(response.data["data"]["user"]),
+          );
+        }
+        return {"success": true, "data": response.data["data"]};
+      }
+
+      return {
+        "success": false,
+        "message": response.data["message"] ?? "فشل تحديث البيانات",
+      };
+    } on DioException catch (e) {
+      return {
+        "success": false,
+        "message": e.response?.data?["message"] ?? "خطأ في السيرفر",
+      };
+    }
+  }
+
+  /// ✅ طلب إعادة تعيين كلمة المرور
+  Future<String?> requestPasswordReset(String email) async {
+    try {
+      final response = await _apiService.dio.post(
+        "/auth/request-password-reset",
+        data: {"email": email},
+      );
+
+      if (response.statusCode == 200 && (response.data["success"] == true)) {
+        return null; // نجاح
+      }
+
+      return response.data["message"] ?? "فشل طلب إعادة التعيين";
+    } on DioException catch (e) {
+      return e.response?.data?["message"] ?? "خطأ في السيرفر";
+    }
+  }
+
+  /// ✅ تنفيذ إعادة تعيين كلمة المرور
+  Future<String?> resetPassword(
+    String email,
+    String codeOrToken,
+    String newPassword,
+  ) async {
+    try {
+      final response = await _apiService.dio.post(
+        "/auth/reset-password",
+        data: {
+          "email": email,
+          "code": codeOrToken, // الخادم يقبل code أو resetToken
+          "newPassword": newPassword,
+        },
+      );
+
+      if (response.statusCode == 200 && (response.data["success"] == true)) {
+        // إعادة ربط OneSignal باليوزر بعد الحفظ المحلي
+        await NotificationService.instance.rebindExternalUserId();
+        return null;
+      }
+
+      return response.data["message"] ?? "فشل إعادة تعيين كلمة المرور";
+    } on DioException catch (e) {
+      return e.response?.data?["message"] ?? "خطأ في السيرفر";
+    }
+  }
+
+  /// ✅ تسجيل الدخول
+  Future<String?> login(String email, String password) async {
+    try {
+      // أرسل OneSignal player id مع بيانات تسجيل الدخول إن وُجد
+      final playerId = await NotificationService.instance.getPlayerId();
+      final payload = {
+        "email": email,
+        "password": password,
+        if (playerId != null && playerId.isNotEmpty)
+          "oneSignalPlayerId": playerId,
+      };
+
+      final response = await _apiService.dio.post("/auth/login", data: payload);
 
       if (response.statusCode == 200 && response.data["success"] == true) {
         final prefs = await SharedPreferences.getInstance();
 
-        // 🟢 حفظ التوكن
-        if (response.data["token"] != null) {
-          await prefs.setString("token", response.data["token"]);
-        }
+        final data = response.data["data"];
+        final user = data["user"];
+        final token = data["token"];
 
-        // 🟢 حفظ بيانات المستخدم
-        if (response.data["data"]?["user"] != null) {
-          await prefs.setString(
-              "user", jsonEncode(response.data["data"]["user"]));
-        }
+        await prefs.setString("token", token);
+        await prefs.setString("user", jsonEncode(user));
 
-        return true;
+        return null;
       }
 
-      return false;
+      return response.data["message"] ?? "فشل تسجيل الدخول";
     } on DioException catch (e) {
-      print("❌ Login error: ${e.response?.data ?? e.message}");
-      return false;
+      final message =
+          e.response?.data?["message"] ?? e.message ?? "خطأ في الشبكة";
+      return message;
+    } catch (e) {
+      return "حدث خطأ غير متوقع";
     }
   }
 
@@ -108,6 +201,8 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove("token");
     await prefs.remove("user");
+    // فك الارتباط من OneSignal
+    await NotificationService.instance.logoutOneSignal();
   }
 
   /// ✅ جلب بيانات المستخدم من التخزين
@@ -118,7 +213,6 @@ class AuthService {
     if (userStr != null) {
       return jsonDecode(userStr);
     }
-
     return null;
   }
 
@@ -127,9 +221,8 @@ class AuthService {
     final user = await getUser();
     if (user == null) return false;
 
-    // 🟡 تحقق من الحقول الإلزامية
     if ((user["studentPhone"] == null ||
-        user["studentPhone"].toString().isEmpty) ||
+            user["studentPhone"].toString().isEmpty) ||
         (user["gender"] == null || user["gender"].toString().isEmpty) ||
         (user["birthDate"] == null)) {
       return false;
@@ -140,26 +233,22 @@ class AuthService {
 
   /// ✅ إكمال بيانات الملف الشخصي
   Future<Map<String, dynamic>> completeProfile(
-      Map<String, dynamic> data) async {
+    Map<String, dynamic> data,
+  ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString("token");
-
       final response = await _apiService.dio.post(
         "/auth/complete-profile",
         data: data,
-        options: Options(
-          headers: {"Authorization": "Bearer $token"},
-        ),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // 🟢 تخزين بيانات المستخدم بعد التحديث
+        final prefs = await SharedPreferences.getInstance();
         if (response.data["data"]?["user"] != null) {
           await prefs.setString(
-              "user", jsonEncode(response.data["data"]["user"]));
+            "user",
+            jsonEncode(response.data["data"]["user"]),
+          );
         }
-
         return {"success": true, "data": response.data["data"]};
       }
 
