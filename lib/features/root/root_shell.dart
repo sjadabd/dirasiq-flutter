@@ -44,7 +44,7 @@ class _RootShellState extends State<RootShell> {
   Widget _buildCurrentPage() {
     final page = _pages[_currentIndex];
     return KeyedSubtree(
-      key: ValueKey('tab-${_currentIndex}-${_tabVersion[_currentIndex]}'),
+      key: ValueKey('tab-$_currentIndex-${_tabVersion[_currentIndex]}'),
       child: page,
     );
   }

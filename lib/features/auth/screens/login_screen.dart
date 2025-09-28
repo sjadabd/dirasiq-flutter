@@ -44,7 +44,7 @@ class LoginScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Container(
+        child: SizedBox(
           height: screenHeight,
           child: Column(
             children: [
@@ -111,7 +111,7 @@ class LoginScreen extends StatelessWidget {
                       Column(
                         children: [
                           // Compact email field
-                          Container(
+                          SizedBox(
                             height: isSmallScreen ? 50 : 56,
                             child: AuthTextField(
                               controller: _emailController,
@@ -123,7 +123,7 @@ class LoginScreen extends StatelessWidget {
                           SizedBox(height: isSmallScreen ? 12 : 16),
 
                           // Compact password field
-                          Container(
+                          SizedBox(
                             height: isSmallScreen ? 50 : 56,
                             child: AuthTextField(
                               controller: _passwordController,

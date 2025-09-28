@@ -42,10 +42,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadUnread() async {
     try {
-      final count = await _api.fetchUnreadNotificationsCount();
+      // نجلب إشعارات المستخدم ونحسب غير المقروء محلياً لضمان التوافق مع صيغ الحقول
+      final resp = await _api.fetchMyNotifications(page: 1, limit: 50);
+      final list = List<Map<String, dynamic>>.from(
+        (resp['items'] ?? resp['notifications'] ?? resp['data'] ?? []) as List,
+      );
+
+      int unread = 0;
+      for (final n in list) {
+        final status = (n['status'] ?? '').toString().toLowerCase();
+        final isReadFlag = (n['is_read'] == true) || (n['isRead'] == true);
+        final hasReadAt = (n['read_at'] != null) || (n['readAt'] != null);
+        final hasUserReadAt =
+            (n['user_read_at'] != null) || (n['userReadAt'] != null);
+
+        final isRead = isReadFlag || hasReadAt || hasUserReadAt ||
+            status == 'read' || status == 'seen';
+        if (!isRead) unread++;
+      }
+
       if (!mounted) return;
-      setState(() => _unreadCount = count);
-    } catch (_) {}
+      setState(() => _unreadCount = unread);
+    } catch (_) {
+      // في حال الفشل، لا نغيّر الحالة لعدم إزعاج المستخدم
+    }
   }
 
   Future<void> _refreshAll() async {

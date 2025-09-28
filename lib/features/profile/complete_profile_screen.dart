@@ -34,7 +34,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   String? _gender;
   String? _gradeId;
-  final String? _studyYear = "2025-2026";
+  final String _studyYear = "2025-2026";
   DateTime? _birthDate;
 
   bool _sendLocation = false;
@@ -772,7 +772,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                               ).copyWith(
-                                backgroundColor: MaterialStateProperty.all(
+                                backgroundColor: WidgetStateProperty.all(
                                   Colors.transparent,
                                 ),
                               ),

@@ -277,7 +277,7 @@ class _BookingsListScreenState extends State<BookingsListScreen>
         borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonFormField<String?>(
-        value: _statusFilter,
+        initialValue: _statusFilter,
         isExpanded: true,
         items: [
           const DropdownMenuItem(

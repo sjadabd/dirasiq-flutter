@@ -465,7 +465,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
           fillColor: AppColors.surfaceVariant,
           labelStyle: TextStyle(color: AppColors.textSecondary),
         ),
-        value: _gender,
+        initialValue: _gender,
         items: const [
           DropdownMenuItem(value: 'male', child: Text('ذكر')),
           DropdownMenuItem(value: 'female', child: Text('أنثى')),

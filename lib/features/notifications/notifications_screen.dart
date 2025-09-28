@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dirasiq/features/bookings/screens/booking_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:intl/intl.dart';
@@ -187,7 +188,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _openNotificationTarget(Map<String, dynamic> n) {
-    // نوع الإشعار قد يأتي بأسماء مختلفة
     final type =
         (n['type'] ??
                 n['category'] ??
@@ -199,29 +199,33 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final payload = _parsePayload(n);
 
-    String? _extractCourseId(
-      Map<String, dynamic> p,
-      Map<String, dynamic> root,
-    ) {
-      final direct =
-          (p['courseId'] ??
-                  p['course_id'] ??
-                  root['courseId'] ??
-                  root['course_id'])
+    // ✅ إذا الإشعار يخص الحجز
+    if (type == 'booking_status') {
+      final bookingId =
+          (payload['bookingId'] ??
+                  payload['booking_id'] ??
+                  n['bookingId'] ??
+                  n['booking_id'])
               ?.toString();
-      if (direct != null && direct.isNotEmpty) return direct;
-      // nested: payload.data.courseId
-      final data = p['data'];
-      if (data is Map<String, dynamic>) {
-        final nested = (data['courseId'] ?? data['course_id'])?.toString();
-        if (nested != null && nested.isNotEmpty) return nested;
+      if (bookingId != null && bookingId.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BookingDetailsScreen(bookingId: bookingId),
+          ),
+        );
+        return;
       }
-      return null;
     }
 
-    final courseIdFromPayload = _extractCourseId(payload, n);
+    // ✅ إذا الإشعار يخص الكورسات
+    final courseIdFromPayload =
+        (payload['courseId'] ??
+                payload['course_id'] ??
+                n['courseId'] ??
+                n['course_id'])
+            ?.toString();
 
-    // التوجّه حسب النوع أو عند توفر courseId مباشرة
     if (type == 'new_course_available' ||
         type == 'course' ||
         type == 'open_course' ||
@@ -238,9 +242,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
-    // أنواع أخرى يمكن دعمها هنا لاحقاً ...
-
-    // إن لم نجد وجهة؛ اعرض التفاصيل للمساعدة على التشخيص
+    // fallback
     final debugPayload = payload.isNotEmpty ? payload.toString() : n.toString();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('لا توجد وجهة مخصصة لهذا الإشعار\n$debugPayload')),
@@ -264,31 +266,41 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 40, color: Colors.red),
-              const SizedBox(height: 8),
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () => _fetch(refresh: true),
-                child: const Text('إعادة المحاولة'),
-              ),
-            ],
+      // اجعل الحالة قابلة للسحب للتحديث
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          const SizedBox(height: 60),
+          const Icon(Icons.error_outline, size: 40, color: Colors.red),
+          const SizedBox(height: 8),
+          Text(_error!, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          Center(
+            child: ElevatedButton(
+              onPressed: () => _fetch(refresh: true),
+              child: const Text('إعادة المحاولة'),
+            ),
           ),
-        ),
+        ],
       );
     }
     if (_items.isEmpty) {
-      return const Center(child: Text('لا توجد إشعارات حالياً'));
+      // قائمة فارغة لكن قابلة للسحب للتحديث
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: const [
+          SizedBox(height: 80),
+          Center(child: Text('لا توجد إشعارات حالياً')),
+        ],
+      );
     }
+
 
     return ListView.separated(
       controller: _scroll,
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _items.length + (_hasMore ? 1 : 0),
       separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -316,7 +328,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             leading: CircleAvatar(
               backgroundColor: isUnread
                   ? scheme.primary.withOpacity(.15)
-                  : scheme.surfaceVariant,
+                  : scheme.surfaceContainerHighest,
               child: Icon(
                 isUnread
                     ? Icons.notifications_active
@@ -332,18 +344,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             trailing: Text(time, style: TextStyle(color: scheme.outline)),
             onTap: () {
-              // حدّث الواجهة فوراً ثم أخبر الخادم
-              setState(() {
-                final idx = _items.indexWhere(
-                  (e) => (e['id'] ?? e['_id']) == id,
-                );
-                if (idx != -1) {
-                  _items[idx]['status'] = 'read';
-                  _items[idx]['isRead'] = true;
-                  _items[idx]['readAt'] = DateTime.now().toIso8601String();
+              final idx = _items.indexWhere((e) => (e['id'] ?? e['_id']) == id);
+              if (idx != -1) {
+                final current = _items[idx];
+
+                // ✅ تحقق إذا الإشعار مقروء بالفعل
+                final alreadyRead =
+                    current['isRead'] == true ||
+                    current['readAt'] != null ||
+                    current['status'] == 'read';
+
+                if (!alreadyRead) {
+                  // حدّث الواجهة فوراً
+                  setState(() {
+                    _items[idx]['status'] = 'read';
+                    _items[idx]['isRead'] = true;
+                    _items[idx]['readAt'] = DateTime.now().toIso8601String();
+                  });
+
+                  // أرسل إلى الخادم مرة وحدة فقط
+                  _markAsRead(id);
                 }
-              });
-              _markAsRead(id);
+              }
+
               _showNotificationDialog(n);
             },
           ),

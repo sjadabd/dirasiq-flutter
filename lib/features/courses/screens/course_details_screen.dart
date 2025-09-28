@@ -34,6 +34,8 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       final apiService = ApiService();
       final details = await apiService.fetchCourseDetails(widget.courseId);
 
+      print(details);
+
       setState(() {
         courseDetails = details['course'];
         isLoading = false;
@@ -43,6 +45,25 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
         error = e.toString();
         isLoading = false;
       });
+    }
+  }
+
+  String _translateBookingStatus(String status) {
+    switch (status) {
+      case 'pending':
+        return 'قيد الانتظار';
+      case 'pre_approved':
+        return 'موافقة أولية من المدرس';
+      case 'confirmed':
+        return 'تم تأكيد الحجز';
+      case 'approved':
+        return 'موافق عليه نهائياً';
+      case 'rejected':
+        return 'مرفوض';
+      case 'cancelled':
+        return 'ملغي';
+      default:
+        return 'غير معروف';
     }
   }
 
@@ -556,6 +577,44 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
   }
 
   Widget _buildEnrollButton(Map<String, dynamic> course) {
+    final bookingStatus = course['bookingStatus']; // جاي من الـ API
+
+    if (bookingStatus != null) {
+      // عنده حجز سابق => لا تعرض الزر، بل الحالة
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "حالة الحجز: ${_translateBookingStatus(bookingStatus)}",
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ما عنده حجز => يعرض الزر
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -576,7 +635,6 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                 backgroundColor: AppColors.success,
               ),
             );
-            // الانتقال إلى قائمة الحجوزات
             Navigator.pushNamed(context, '/bookings');
           } catch (e) {
             if (!mounted) return;
