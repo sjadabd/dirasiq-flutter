@@ -41,8 +41,23 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
         isLoading = false;
       });
     } catch (e) {
+      final msg = e.toString();
+      if (mounted && msg.contains('الدورة غير متاحة')) {
+        // Show friendly message and go back
+        setState(() {
+          isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('الدورة غير متاحة'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        Navigator.pop(context);
+        return;
+      }
       setState(() {
-        error = e.toString();
+        error = msg;
         isLoading = false;
       });
     }
@@ -541,8 +556,8 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
           const SizedBox(height: 12),
 
           _buildDetailRow("السنة الدراسية", course['study_year'] ?? ''),
-          _buildDetailRow("المادة", course['subject_name'] ?? ''),
-          _buildDetailRow("الصف", course['grade_name'] ?? ''),
+          _buildDetailRow("المادة", course['subject']['name'] ?? ''),
+          _buildDetailRow("الصف", course['grade']['name'] ?? ''),
         ],
       ),
     );

@@ -1,6 +1,8 @@
+import 'package:dirasiq/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:dirasiq/core/services/api_service.dart';
+import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 
 class BookingsListScreen extends StatefulWidget {
   final void Function(int index)? onNavigateToTab; // 👈 الكولباك
@@ -30,10 +32,8 @@ class _BookingsListScreenState extends State<BookingsListScreen>
     'pending': 'قيد الانتظار',
     'pre_approved': 'موافقة أولية من المدرس',
     'confirmed': 'تم تأكيد الحجز',
-    'approved': 'موافق عليه نهائياً',
     'rejected': 'مرفوض',
     'cancelled': 'ملغي',
-    'canceled': 'ملغي', // دعم تهجئة أخرى إن وُجدت
   };
 
   static const Map<String, IconData> statusIcons = {
@@ -141,16 +141,7 @@ class _BookingsListScreenState extends State<BookingsListScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'حجوزاتي',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
+      appBar: const GlobalAppBar(title: 'حجوزاتي', centerTitle: true),
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: RefreshIndicator(
@@ -374,7 +365,7 @@ class _BookingsListScreenState extends State<BookingsListScreen>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(
-                      "http://192.168.68.103:3000$courseImage",
+                      "${AppConfig.serverBaseUrl}$courseImage",
                       height: 160,
                       width: double.infinity,
                       fit: BoxFit.cover,
@@ -630,13 +621,10 @@ class _BookingsListScreenState extends State<BookingsListScreen>
       case 'pre_approved':
         return AppColors.info; // موافقة أولية
       case 'confirmed':
-        return Colors.blue; // تم التأكيد
-      case 'approved':
-        return AppColors.success; // موافق نهائياً
+        return AppColors.success; // تم التأكيد
       case 'rejected':
         return AppColors.error; // مرفوض
       case 'cancelled':
-      case 'canceled':
         return Colors.grey; // ملغي
       default:
         return AppColors.info;

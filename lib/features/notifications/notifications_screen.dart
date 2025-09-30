@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:dirasiq/features/courses/screens/course_details_screen.dart';
+import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:dirasiq/core/services/notification_events.dart';
+import 'dart:async';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -20,17 +23,67 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   int _page = 1;
   bool _hasMore = true;
   final _scroll = ScrollController();
+  StreamSubscription<void>? _notifSub;
+  StreamSubscription<Map<String, dynamic>>? _payloadSub;
 
   @override
   void initState() {
     super.initState();
     _fetch();
     _scroll.addListener(_onScroll);
+    _notifSub = NotificationEvents.instance.onNewNotification.listen((_) async {
+      // جلب أحدث إشعار فقط وإضافته للقائمة فوراً بدون ريفرش ثقيل
+      try {
+        final res = await _api.fetchMyNotifications(page: 1, limit: 1);
+        final list = List<Map<String, dynamic>>.from(
+          (res['items'] ?? res['notifications'] ?? res['data'] ?? []) as List,
+        );
+        if (list.isNotEmpty) {
+          final latest = Map<String, dynamic>.from(list.first);
+          final latestId = (latest['id'] ?? latest['_id'])?.toString();
+          if (latestId != null && latestId.isNotEmpty) {
+            final exists = _items.any((e) => (e['id'] ?? e['_id']).toString() == latestId);
+            if (!exists) {
+              if (!mounted) return;
+              setState(() {
+                _items.insert(0, latest);
+                // عندما نضيف عنصر جديد، من المنطقي اعتبار وجود المزيد
+                _hasMore = true;
+                _loading = false;
+                _error = null;
+              });
+            }
+          }
+        }
+      } catch (_) {
+        // fallback: إعادة تحميل بسيطة في حال الفشل
+        if (mounted) _fetch(refresh: true);
+      }
+    });
+
+    // استمع لحمولة الإشعار المباشرة من OneSignal وأضفها فوراً
+    _payloadSub = NotificationEvents.instance.onNotificationPayload.listen((n) {
+      try {
+        final id = (n['id'] ?? n['_id'] ?? n['notificationId'])?.toString();
+        if (id == null || id.isEmpty) return;
+        final exists = _items.any((e) => (e['id'] ?? e['_id'] ?? e['notificationId']).toString() == id);
+        if (!exists) {
+          if (!mounted) return;
+          setState(() {
+            _items.insert(0, Map<String, dynamic>.from(n));
+            _loading = false;
+            _error = null;
+          });
+        }
+      } catch (_) {}
+    });
   }
 
   @override
   void dispose() {
     _scroll.dispose();
+    _notifSub?.cancel();
+    _payloadSub?.cancel();
     super.dispose();
   }
 
@@ -80,14 +133,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _markAsRead(String id) async {
     try {
-      await _api.markNotificationAsRead(id);
-      if (!mounted) return;
+      // حدث الواجهة محلياً
       setState(() {
         final idx = _items.indexWhere((e) => (e['id'] ?? e['_id']) == id);
         if (idx != -1) {
           _items[idx]['status'] = 'read';
+          _items[idx]['isRead'] = true;
+          _items[idx]['readAt'] = DateTime.now().toIso8601String();
         }
       });
+
+      // حدث السيرفر
+      await _api.markNotificationAsRead(id);
+
+      // أبلغ GlobalAppBar بتحديث الشارة
+      NotificationEvents.instance.emitNewNotification();
     } catch (_) {}
   }
 
@@ -253,7 +313,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('الإشعارات')),
+      appBar: const GlobalAppBar(title: 'الإشعارات', centerTitle: true),
       body: RefreshIndicator(
         onRefresh: () => _fetch(refresh: true),
         child: _buildBody(scheme),
@@ -296,7 +356,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       );
     }
-
 
     return ListView.separated(
       controller: _scroll,

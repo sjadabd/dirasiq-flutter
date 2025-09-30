@@ -45,5 +45,8 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- إذن الكاميرا لمسح أكواد QR -->
+	<key>NSCameraUsageDescription</key>
+	<string>نحتاج إلى استخدام الكاميرا لمسح رمز QR لتسجيل حضورك.</string>
 </dict>
 </plist>

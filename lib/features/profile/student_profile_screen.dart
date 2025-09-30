@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/services/auth_service.dart';
 import '../../shared/themes/app_colors.dart';
+import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 import 'package:intl/intl.dart';
 
 class StudentProfileScreen extends StatefulWidget {
@@ -93,24 +94,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'ملف الطالب',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: AppColors.gradientWelcome,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      appBar: const GlobalAppBar(title: 'ملف الطالب', centerTitle: true),
       body: _user == null
           ? Center(
               child: CircularProgressIndicator(

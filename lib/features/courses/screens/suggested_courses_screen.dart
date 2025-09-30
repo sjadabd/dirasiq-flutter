@@ -3,6 +3,7 @@ import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:dirasiq/core/config/app_config.dart';
 import 'package:intl/intl.dart';
+import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 
 class SuggestedCoursesScreen extends StatefulWidget {
   const SuggestedCoursesScreen({super.key});
@@ -111,15 +112,7 @@ class _SuggestedCoursesScreenState extends State<SuggestedCoursesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(
-          "الكورسات المقترحة",
-          style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        iconTheme: IconThemeData(color: AppColors.white),
-      ),
+      appBar: const GlobalAppBar(title: "الكورسات المقترحة", centerTitle: true),
       body: RefreshIndicator(
         onRefresh: _loadSuggestedCourses,
         color: AppColors.primary,

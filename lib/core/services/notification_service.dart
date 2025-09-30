@@ -3,6 +3,7 @@ import 'package:dirasiq/core/config/app_config.dart';
 import 'package:get/get.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dirasiq/core/services/notification_events.dart';
 
 class NotificationService {
   NotificationService._();
@@ -23,6 +24,26 @@ class NotificationService {
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
       event.preventDefault(); // منع السلوك الافتراضي
       event.notification.display(); // عرض الإشعار يدويًا
+      // أبلغ الواجهة بوجود إشعار جديد لتحديث الشارة والقوائم
+      NotificationEvents.instance.emitNewNotification();
+      // أرسل حمولة فورية لإضافتها مباشرة إلى القائمة
+      try {
+        final n = event.notification;
+        final payload = <String, dynamic>{
+          'id': n.notificationId,
+          'title': n.title,
+          'message': n.body,
+          'status': 'sent',
+          'createdAt': DateTime.now().toIso8601String(),
+          'isRead': false,
+          ...?n.additionalData?.map((k, v) => MapEntry(k.toString(), v)),
+        };
+        NotificationEvents.instance.emitNotificationPayload(payload);
+      } catch (_) {}
+      // في بعض الأحيان يتأخر حفظ الإشعار في الـ API لحظات بسيطة
+      Future.delayed(const Duration(milliseconds: 600), () {
+        NotificationEvents.instance.emitNewNotification();
+      });
     });
 
     // ✅ عند الضغط على الإشعار
@@ -31,6 +52,25 @@ class NotificationService {
         final data = event.notification.additionalData ?? {};
         _handleNotificationNavigation(data);
       } catch (_) {}
+      // أبلغ الواجهة (قد تتغير حالة المقروء/فتح صفحة الإشعارات)
+      NotificationEvents.instance.emitNewNotification();
+      // حمولة فورية (قد يحتاج الواجهة للإضافة السريعة)
+      try {
+        final n = event.notification;
+        final payload = <String, dynamic>{
+          'id': n.notificationId,
+          'title': n.title,
+          'message': n.body,
+          'status': 'sent',
+          'createdAt': DateTime.now().toIso8601String(),
+          'isRead': false,
+          ...?n.additionalData?.map((k, v) => MapEntry(k.toString(), v)),
+        };
+        NotificationEvents.instance.emitNotificationPayload(payload);
+      } catch (_) {}
+      Future.delayed(const Duration(milliseconds: 400), () {
+        NotificationEvents.instance.emitNewNotification();
+      });
     });
   }
 

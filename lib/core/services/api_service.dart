@@ -74,6 +74,30 @@ class ApiService {
 
   Dio get dio => _dio;
 
+  /// ✅ جلب الدورات المسجّل بها الطالب
+  Future<Map<String, dynamic>> fetchStudentEnrollments({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await _dio.get(
+        "/student/enrollments",
+        queryParameters: {"page": page, "limit": limit},
+      );
+
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        // يرجع: data: [ ... ], pagination: {...}
+        return Map<String, dynamic>.from(response.data);
+      } else {
+        throw Exception(
+          response.data["message"] ?? "فشل تحميل الدورات المسجّل بها",
+        );
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الدورات المسجّل بها: $e");
+    }
+  }
+
   /// ✅ جلب الصفوف (للطلاب)
   Future<List<Map<String, dynamic>>> fetchGrades() async {
     try {
@@ -141,6 +165,13 @@ class ApiService {
       } else {
         throw Exception(response.data["message"] ?? "فشل تحميل تفاصيل الدورة");
       }
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 404) {
+        // دورة غير متاحة/غير موجودة
+        throw Exception("الدورة غير متاحة");
+      }
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل الدورة: ${e.message}");
     } catch (e) {
       throw Exception("❌ خطأ أثناء تحميل تفاصيل الدورة: $e");
     }
@@ -212,13 +243,13 @@ class ApiService {
   /// ✅ عدد الإشعارات غير المقروءة (حل مرن حتى لو الواجهة لا تدعم العد مباشرة)
   Future<int> fetchUnreadNotificationsCount() async {
     try {
-      // محاولة استخدام فلترة بالحالة إذا الخادم يدعمها
+      // 1) اطلب بفلترة لتقليل الحجم لكن لا تعتمد عليها
       final response = await _dio.get(
         "/notifications/user/my-notifications",
         queryParameters: {
           "page": 1,
-          "limit": 50,
-          "status": "sent", // أو "delivered" حسب النظام لديك
+          "limit": 100,
+          "status": "sent", // اعتبرها غير مقروءة في نظامك
         },
       );
 
@@ -228,19 +259,73 @@ class ApiService {
           (data['items'] ?? data['notifications'] ?? data['data'] ?? [])
               as List,
         );
-        // عد العناصر غير المقروءة بناءً على isRead/readAt من الخادم
+        // احسب محلياً لضمان الدقة حتى لو تجاهل الخادم الفلترة
         int unread = 0;
         for (final n in list) {
-          final isRead = (n['isRead'] == true) || (n['readAt'] != null);
-          if (!isRead) unread++;
+          final status = (n['status'] ?? '').toString().toLowerCase();
+          final isReadFlag = (n['is_read'] == true) || (n['isRead'] == true);
+          final hasReadAt = (n['read_at'] != null) || (n['readAt'] != null);
+          final hasUserReadAt =
+              (n['user_read_at'] != null) || (n['userReadAt'] != null);
+          final isUnreadFlag =
+              (n['is_unread'] == true) || (n['isUnread'] == true);
+
+          final isRead =
+              isReadFlag ||
+              hasReadAt ||
+              hasUserReadAt ||
+              status == 'read' ||
+              status == 'seen' ||
+              status == 'opened';
+
+          final isUnread = isUnreadFlag || !isRead;
+          if (isUnread) unread++;
         }
         return unread;
       } else {
         return 0;
       }
     } catch (_) {
-      return 0;
+      // تجاهل ونحاول طريقة بديلة بالأسفل
     }
+
+    // 2) خطة بديلة: اجلب بدون فلترة واحسب محلياً
+    try {
+      final response = await _dio.get(
+        "/notifications/user/my-notifications",
+        queryParameters: {"page": 1, "limit": 100},
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = Map<String, dynamic>.from(response.data["data"]);
+        final list = List<Map<String, dynamic>>.from(
+          (data['items'] ?? data['notifications'] ?? data['data'] ?? [])
+              as List,
+        );
+        int unread = 0;
+        for (final n in list) {
+          final status = (n['status'] ?? '').toString().toLowerCase();
+          final isReadFlag = (n['is_read'] == true) || (n['isRead'] == true);
+          final hasReadAt = (n['read_at'] != null) || (n['readAt'] != null);
+          final hasUserReadAt =
+              (n['user_read_at'] != null) || (n['userReadAt'] != null);
+          final isUnreadFlag =
+              (n['is_unread'] == true) || (n['isUnread'] == true);
+
+          final isRead =
+              isReadFlag ||
+              hasReadAt ||
+              hasUserReadAt ||
+              status == 'read' ||
+              status == 'seen' ||
+              status == 'opened';
+
+          final isUnread = isUnreadFlag || !isRead;
+          if (isUnread) unread++;
+        }
+        return unread;
+      }
+    } catch (_) {}
+    return 0;
   }
 
   // =============================
@@ -389,6 +474,59 @@ class ApiService {
       throw Exception("❌ خطأ أثناء إعادة تفعيل الحجز: ${e.message}");
     } catch (e) {
       throw Exception("❌ خطأ أثناء إعادة تفعيل الحجز: $e");
+    }
+  }
+
+  Future<Map<String, dynamic>> checkInAttendance({
+    required String teacherId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        "/student/attendance/check-in",
+        data: {"teacherId": teacherId},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return Map<String, dynamic>.from(response.data);
+      }
+
+      // ✅ لو السيرفر رجّع رسالة خطأ، نرميها
+      final serverMsg =
+          (response.data is Map && response.data["message"] != null)
+          ? response.data["message"].toString()
+          : "فشل تسجيل الحضور";
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        error: serverMsg,
+      );
+    } on DioException catch (e) {
+      // ✅ هنا نمرر الرسالة القادمة من السيرفر
+      final data = e.response?.data;
+      final serverMsg = (data is Map && data['message'] != null)
+          ? data['message'].toString()
+          : null;
+      throw Exception(serverMsg ?? "فشل تسجيل الحضور");
+    } catch (e) {
+      throw Exception("❌ خطأ غير متوقع: $e");
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchWeeklyScheduleByCourse(
+    String courseId,
+  ) async {
+    try {
+      final response = await _dio.get(
+        "/student/enrollments/schedule/weekly/by-course/$courseId",
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final list = response.data["data"] as List;
+        return List<Map<String, dynamic>>.from(list);
+      } else {
+        throw Exception(response.data["message"] ?? "فشل تحميل جدول الأسبوع");
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل جدول الأسبوع: $e");
     }
   }
 }

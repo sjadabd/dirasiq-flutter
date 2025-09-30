@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:dirasiq/features/home/screens/home_screen.dart';
-import 'package:dirasiq/features/notifications/notifications_screen.dart';
-import 'package:dirasiq/features/profile/student_profile_screen.dart';
 import 'package:dirasiq/features/courses/screens/suggested_courses_screen.dart';
 import 'package:dirasiq/features/bookings/screens/bookings_list_screen.dart';
+import 'package:dirasiq/features/enrollments/screens/enrollments_screen.dart';
 
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
@@ -20,7 +19,7 @@ class _RootShellState extends State<RootShell> {
   late final List<Widget> _pages;
 
   // نسخة لكل تبويب لإجبار إعادة البناء عند تغييره
-  final List<int> _tabVersion = [0, 0, 0, 0, 0];
+  final List<int> _tabVersion = [0, 0, 0, 0];
 
   @override
   void initState() {
@@ -28,9 +27,8 @@ class _RootShellState extends State<RootShell> {
     _pages = [
       const HomeScreen(),
       const SuggestedCoursesScreen(),
+      const EnrollmentsScreen(),
       BookingsListScreen(onNavigateToTab: navigateToTab),
-      const NotificationsScreen(),
-      const StudentProfileScreen(),
     ];
   }
 
@@ -119,19 +117,14 @@ class _RootShellState extends State<RootShell> {
                 label: 'الدورات',
               ),
               NavigationDestination(
+                icon: Icon(Icons.school_outlined),
+                selectedIcon: Icon(Icons.school),
+                label: 'دوراتي',
+              ),
+              NavigationDestination(
                 icon: Icon(Icons.event_note_outlined),
                 selectedIcon: Icon(Icons.event_note),
                 label: 'حجوزاتي',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.notifications_outlined),
-                selectedIcon: Icon(Icons.notifications),
-                label: 'الإشعارات',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'الحساب',
               ),
             ],
           ),

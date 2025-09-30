@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- إذن إشعارات لأندرويد 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- إذن الكاميرا لمسح QR -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:label="dirasiq"

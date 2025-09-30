@@ -1,7 +1,9 @@
+import 'package:dirasiq/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:dirasiq/core/services/api_service.dart';
+import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 
 class BookingDetailsScreen extends StatefulWidget {
   final String? bookingId;
@@ -209,11 +211,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('تفاصيل الحجز'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
-      ),
+      appBar: const GlobalAppBar(title: 'تفاصيل الحجز', centerTitle: true),
       body: _buildBody(),
     );
   }
@@ -271,7 +269,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
         _buildTimelineCard(booking),
         const SizedBox(height: 16),
 
-        _buildActionButtons(status),
+        _buildActionButtons(status, booking),
       ],
     );
   }
@@ -327,6 +325,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
 
   Widget _buildCourseCard(Map<String, dynamic> course) {
     final images = course['courseImages'] as List<dynamic>?;
+    final hasReservation = course['hasReservation'];
     return Card(
       elevation: 4,
       child: Padding(
@@ -359,7 +358,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                         borderRadius: BorderRadius.circular(8),
                         image: DecorationImage(
                           image: NetworkImage(
-                            'https://your-api-base-url${images[index]}',
+                            '${AppConfig.serverBaseUrl}${images[index]}',
                           ),
                           fit: BoxFit.cover,
                         ),
@@ -372,6 +371,8 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
             _row('اسم الكورس', course['courseName']?.toString() ?? 'غير محدد'),
             _row('الوصف', course['description']?.toString() ?? 'غير متوفر'),
             _row('السعر', '${course['price'] ?? '0'} دينار'),
+            if (hasReservation == true || hasReservation?.toString() == 'true')
+              _row('مبلغ الحجز', '${course['reservationAmount'] ?? '0'} دينار'),
             _row('عدد المقاعد', course['seatsCount']?.toString() ?? 'غير محدد'),
             _row(
               'تاريخ البداية',
@@ -551,35 +552,64 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     );
   }
 
-  Widget _buildActionButtons(String status) {
-    return Row(
+  Widget _buildActionButtons(String status, Map<String, dynamic> booking) {
+    final rejectedBy = booking['rejectedBy']?.toString().toLowerCase();
+    final rejectedByTeacher = rejectedBy == 'teacher';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (status == 'pending' || status == 'approved')
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: _cancel,
-              icon: const Icon(Icons.cancel),
-              label: const Text('إلغاء الحجز'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+        Row(
+          children: [
+            if (status == 'pending' || status == 'approved')
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _cancel,
+                  icon: const Icon(Icons.cancel),
+                  label: const Text('إلغاء الحجز'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
               ),
+            if ((status == 'rejected' || status == 'canceled' || status == 'cancelled') && !rejectedByTeacher) ...[
+              if (status == 'pending' || status == 'approved') const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _reactivate,
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text('إعادة الإرسال'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (status == 'rejected' && rejectedByTeacher) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.shade200),
             ),
-          ),
-        if (status == 'rejected' ||
-            status == 'canceled' ||
-            status == 'cancelled') ...[
-          if (status == 'pending' || status == 'approved')
-            const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: _reactivate,
-              icon: const Icon(Icons.restart_alt),
-              label: const Text('إعادة الإرسال'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, color: Colors.amber.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'تم رفض طلبك من قبل المدرس. يرجى مراجعة الأستاذ لمعرفة أسباب الرفض.',
+                    style: TextStyle(color: Colors.amber.shade800),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

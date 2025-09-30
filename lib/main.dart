@@ -17,6 +17,10 @@ import 'features/courses/screens/course_details_screen.dart';
 import 'features/root/root_shell.dart';
 import 'features/bookings/screens/bookings_list_screen.dart';
 import 'features/bookings/screens/booking_details_screen.dart';
+import 'features/enrollments/screens/enrollments_screen.dart';
+import 'features/enrollments/screens/enrollment_actions_screen.dart';
+import 'features/qr/qr_scan_screen.dart';
+import 'features/enrollments/screens/course_weekly_schedule_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -123,6 +127,40 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: "/notifications",
           page: () => const NotificationsScreen(),
+        ),
+        GetPage(
+          name: "/enrollments",
+          page: () => const EnrollmentsScreen(),
+        ),
+        GetPage(
+          name: "/enrollment-actions",
+          page: () {
+            final args = Get.arguments as Map<String, dynamic>?;
+            final courseId = args?['courseId']?.toString() ?? '';
+            final courseName = args?['courseName']?.toString();
+            final teacherId = args?['teacherId']?.toString();
+            return EnrollmentActionsScreen(
+              courseId: courseId,
+              courseName: courseName,
+              teacherId: teacherId,
+            );
+          },
+        ),
+        GetPage(
+          name: "/qr-scan",
+          page: () => const QrScanScreen(),
+        ),
+        GetPage(
+          name: "/course-weekly-schedule",
+          page: () {
+            final args = Get.arguments as Map<String, dynamic>?;
+            final courseId = args?['courseId']?.toString() ?? '';
+            final courseName = args?['courseName']?.toString();
+            return CourseWeeklyScheduleScreen(
+              courseId: courseId,
+              courseName: courseName,
+            );
+          },
         ),
         GetPage(
           name: "/suggested-courses",
