@@ -21,6 +21,7 @@ import 'features/enrollments/screens/enrollments_screen.dart';
 import 'features/enrollments/screens/enrollment_actions_screen.dart';
 import 'features/qr/qr_scan_screen.dart';
 import 'features/enrollments/screens/course_weekly_schedule_screen.dart';
+import 'features/enrollments/screens/course_attendance_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -157,6 +158,18 @@ class MyApp extends StatelessWidget {
             final courseId = args?['courseId']?.toString() ?? '';
             final courseName = args?['courseName']?.toString();
             return CourseWeeklyScheduleScreen(
+              courseId: courseId,
+              courseName: courseName,
+            );
+          },
+        ),
+        GetPage(
+          name: "/course-attendance",
+          page: () {
+            final args = Get.arguments as Map<String, dynamic>?;
+            final courseId = args?['courseId']?.toString() ?? '';
+            final courseName = args?['courseName']?.toString();
+            return CourseAttendanceScreen(
               courseId: courseId,
               courseName: courseName,
             );

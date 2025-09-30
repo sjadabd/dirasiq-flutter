@@ -56,7 +56,9 @@ class ApiService {
         },
         onError: (DioException e, handler) async {
           final status = e.response?.statusCode;
-          if (status == 401 || status == 403) {
+          // Only force logout on 401 (unauthorized). 403 may be a business rule (e.g., not enrolled),
+          // so we should NOT clear auth or navigate away on 403.
+          if (status == 401) {
             try {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('token');
@@ -211,11 +213,18 @@ class ApiService {
   Future<Map<String, dynamic>> fetchMyNotifications({
     int page = 1,
     int limit = 10,
+    String? type, // homework, message, report, notice, installments, attendance, daily_summary, birthday, daily_exam
   }) async {
     try {
+      final qp = {
+        "page": page,
+        "limit": limit,
+        // Backend expects 'subType' as the key
+        if (type != null) "subType": type,
+      };
       final response = await _dio.get(
         "/notifications/user/my-notifications",
-        queryParameters: {"page": page, "limit": limit},
+        queryParameters: qp,
       );
 
       if (response.statusCode == 200 && response.data["success"] == true) {
@@ -527,6 +536,29 @@ class ApiService {
       }
     } catch (e) {
       throw Exception("❌ خطأ أثناء تحميل جدول الأسبوع: $e");
+    }
+  }
+
+  /// ✅ جلب سجل الحضور/الغياب/الإجازات للطالب لكورس معيّن
+  Future<Map<String, dynamic>> fetchMyAttendanceByCourse(String courseId) async {
+    try {
+      final response = await _dio.get(
+        "/student/attendance/by-course/$courseId",
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        // نتوقع أن يكون تحت المفتاح data
+        final data = response.data["data"];
+        if (data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
+        return {"items": data};
+      } else {
+        throw Exception(
+          response.data["message"] ?? "فشل تحميل سجل الحضور",
+        );
+      }
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل سجل الحضور: $e");
     }
   }
 }

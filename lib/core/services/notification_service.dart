@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:dirasiq/core/config/app_config.dart';
 import 'package:get/get.dart';
+import 'package:dirasiq/features/enrollments/screens/course_attendance_screen.dart';
+import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dirasiq/core/services/notification_events.dart';
@@ -112,11 +114,28 @@ class NotificationService {
 
   void _handleNotificationNavigation(Map<String, dynamic> data) {
     final route = data['route']?.toString();
-    final courseId = data['courseId']?.toString();
+    final nested = (data['data'] is Map) ? Map<String, dynamic>.from(data['data'] as Map) : <String, dynamic>{};
+    final courseId = (data['courseId'] ?? nested['courseId'])?.toString();
     final url = data['url']?.toString();
+    final type = data['type']?.toString();
+    final hasAttendanceMarkers =
+        data.containsKey('status') || data.containsKey('attendanceStatus') || data.containsKey('date') ||
+        nested.containsKey('status') || nested.containsKey('attendanceStatus') || nested.containsKey('date');
 
     if (route != null && route.isNotEmpty) {
       Get.toNamed(route, arguments: data);
+      return;
+    }
+
+    // If it's a course update, decide destination by payload markers
+    if (type == 'course_update' && courseId != null && courseId.isNotEmpty) {
+      if (hasAttendanceMarkers) {
+        // attendance status update
+        Get.to(() => CourseAttendanceScreen(courseId: courseId));
+      } else {
+        // schedule update
+        Get.to(() => CourseWeeklyScheduleScreen(courseId: courseId));
+      }
       return;
     }
 

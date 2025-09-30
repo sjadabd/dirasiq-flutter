@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:dirasiq/features/courses/screens/course_details_screen.dart';
+import 'package:dirasiq/features/enrollments/screens/course_attendance_screen.dart';
+import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
 import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 import 'package:dirasiq/core/services/notification_events.dart';
 import 'dart:async';
+import 'package:url_launcher/url_launcher.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -25,6 +28,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final _scroll = ScrollController();
   StreamSubscription<void>? _notifSub;
   StreamSubscription<Map<String, dynamic>>? _payloadSub;
+  String? _typeFilter; // null = all
+
+  static const List<Map<String, String?>> _filters = [
+    {"text": "الكل", "value": null},
+    {"text": "واجب بيتي", "value": "homework"},
+    {"text": "رسالة", "value": "message"},
+    {"text": "تقرير", "value": "report"},
+    {"text": "تبليغ", "value": "notice"},
+    {"text": "أقساط", "value": "installments"},
+    {"text": "حضور", "value": "attendance"},
+    {"text": "ملخص درس اليومي", "value": "daily_summary"},
+    {"text": "أعياد ميلاد", "value": "birthday"},
+    {"text": "امتحان يومي", "value": "daily_exam"},
+  ];
 
   @override
   void initState() {
@@ -34,7 +51,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _notifSub = NotificationEvents.instance.onNewNotification.listen((_) async {
       // جلب أحدث إشعار فقط وإضافته للقائمة فوراً بدون ريفرش ثقيل
       try {
-        final res = await _api.fetchMyNotifications(page: 1, limit: 1);
+        final res = await _api.fetchMyNotifications(
+          page: 1,
+          limit: 1,
+          type: _typeFilter,
+        );
         final list = List<Map<String, dynamic>>.from(
           (res['items'] ?? res['notifications'] ?? res['data'] ?? []) as List,
         );
@@ -42,8 +63,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           final latest = Map<String, dynamic>.from(list.first);
           final latestId = (latest['id'] ?? latest['_id'])?.toString();
           if (latestId != null && latestId.isNotEmpty) {
-            final exists = _items.any((e) => (e['id'] ?? e['_id']).toString() == latestId);
-            if (!exists) {
+            final exists = _items.any(
+              (e) => (e['id'] ?? e['_id']).toString() == latestId,
+            );
+            if (!exists && _matchesCurrentFilter(latest)) {
               if (!mounted) return;
               setState(() {
                 _items.insert(0, latest);
@@ -66,8 +89,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       try {
         final id = (n['id'] ?? n['_id'] ?? n['notificationId'])?.toString();
         if (id == null || id.isEmpty) return;
-        final exists = _items.any((e) => (e['id'] ?? e['_id'] ?? e['notificationId']).toString() == id);
-        if (!exists) {
+        final exists = _items.any(
+          (e) => (e['id'] ?? e['_id'] ?? e['notificationId']).toString() == id,
+        );
+        if (!exists && _matchesCurrentFilter(n)) {
           if (!mounted) return;
           setState(() {
             _items.insert(0, Map<String, dynamic>.from(n));
@@ -101,7 +126,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       if (!_hasMore && !refresh) return;
 
-      final res = await _api.fetchMyNotifications(page: _page, limit: 10);
+      final res = await _api.fetchMyNotifications(
+        page: _page,
+        limit: 10,
+        type: _typeFilter,
+      );
       final List<dynamic> list =
           res['items'] ?? res['notifications'] ?? res['data'] ?? [];
       final total = res['total'] ?? 0;
@@ -157,6 +186,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final createdAt = n['createdAt']?.toString();
     final time = _formatDate(createdAt);
     final payload = _parsePayload(n);
+    final senderName = payload['sender'] is Map
+        ? (payload['sender']['name']?.toString() ?? '')
+        : '';
+    final attachments = payload['attachments'] is Map
+        ? Map<String, dynamic>.from(payload['attachments'])
+        : <String, dynamic>{};
+    final String? pdfUrl = (() {
+      final raw = attachments['pdfUrl']?.toString();
+      if (raw == null || raw.isEmpty) return null;
+      return _resolveUrl(raw);
+    })();
+    final imageUrls = attachments['imageUrls'] is List
+        ? List<String>.from(
+            (attachments['imageUrls'] as List).map(
+              (e) => _resolveUrl(e.toString()),
+            ),
+          )
+        : <String>[];
+    final String? link = (() {
+      final raw = (payload['link'] ?? payload['url'])?.toString();
+      if (raw == null || raw.isEmpty) return null;
+      if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+      return _resolveUrl(raw);
+    })();
     final studyYear =
         (payload['studyYear'] ??
                 payload['study_year'] ??
@@ -169,21 +222,87 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       builder: (context) {
         return AlertDialog(
           title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (message.isNotEmpty) Text(message),
-              const SizedBox(height: 8),
-              Text(
-                time,
-                style: TextStyle(color: Theme.of(context).colorScheme.outline),
-              ),
-              if (studyYear != null && studyYear.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text('السنة الدراسية: $studyYear'),
-              ],
-            ],
+          content: SingleChildScrollView(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Ensure dialog content gets a bounded width so Rows/Buttons don't receive infinite width
+                return ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (message.isNotEmpty) Text(message),
+                      const SizedBox(height: 8),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                      if (senderName.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text('المرسل: $senderName'),
+                      ],
+                      if (imageUrls.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'الصور',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 90,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: imageUrls.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (_, i) {
+                              final url = imageUrls[i];
+                              return GestureDetector(
+                                onTap: () => _openImagePreview(url),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    url,
+                                    height: 90,
+                                    width: 90,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                      if (pdfUrl != null && pdfUrl.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'ملف PDF',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        _linkRow('فتح/نسخ ملف PDF', pdfUrl),
+                      ],
+                      if (link != null && link.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'رابط',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        _linkRow('فتح/نسخ الرابط', link),
+                      ],
+                      if (studyYear != null && studyYear.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text('السنة الدراسية: $studyYear'),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
           actions: [
             TextButton(
@@ -259,6 +378,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final payload = _parsePayload(n);
 
+    // Course updates: decide destination based on payload
+    if (type == 'course_update') {
+      final courseId =
+          (payload['courseId'] ??
+                  payload['course_id'] ??
+                  n['courseId'] ??
+                  n['course_id'])
+              ?.toString();
+      final hasAttendanceMarkers =
+          payload.containsKey('status') ||
+          payload.containsKey('attendanceStatus') ||
+          payload.containsKey('date') ||
+          n.containsKey('status') ||
+          n.containsKey('attendanceStatus') ||
+          n.containsKey('date');
+      if (courseId != null && courseId.isNotEmpty) {
+        if (hasAttendanceMarkers) {
+          // Attendance status update: open attendance screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CourseAttendanceScreen(courseId: courseId),
+            ),
+          );
+        } else {
+          // Schedule update: open weekly schedule
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CourseWeeklyScheduleScreen(courseId: courseId),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     // ✅ إذا الإشعار يخص الحجز
     if (type == 'booking_status') {
       final bookingId =
@@ -309,14 +465,162 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  String _resolveUrl(String raw) {
+    var s = raw.trim();
+    // Normalize backslashes even if it's already an absolute URL
+    s = s.replaceAll('\\', '/');
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('./')) s = s.substring(2);
+    // Remove trailing slash from base and ensure single slash join
+    final base = ApiService.getBaseUrl().replaceAll(RegExp(r"/+$"), '');
+    if (s.startsWith('/')) {
+      return '$base$s';
+    } else {
+      return '$base/${s.replaceFirst(RegExp(r"^/+"), '')}';
+    }
+  }
+
+  Future<void> _launchUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط')));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط')));
+    }
+  }
+
+  Widget _linkRow(String label, String url) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            url,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: scheme.primary),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () => _launchUrl(url),
+          child: Text(label.isEmpty ? 'فتح' : label.replaceAll('نسخ', 'فتح')),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openImagePreview(String url) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4,
+          child: Image.network(url, fit: BoxFit.contain),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: const GlobalAppBar(title: 'الإشعارات', centerTitle: true),
-      body: RefreshIndicator(
-        onRefresh: () => _fetch(refresh: true),
-        child: _buildBody(scheme),
+      body: Column(
+        children: [
+          // Fixed filters header
+          _filtersChips(scheme),
+          const Divider(height: 1),
+          // List content with pull-to-refresh
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => _fetch(refresh: true),
+              child: _buildBody(scheme),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String? _canonicalType(Map<String, dynamic> n) {
+    // Extract base type
+    final rawType =
+        (n['type'] ??
+                n['category'] ??
+                n['event'] ??
+                n['notificationType'] ??
+                n['template'] ??
+                n['action'])
+            ?.toString()
+            .toLowerCase();
+    if (rawType == null || rawType.isEmpty) return null;
+
+    // Map course_update with attendance markers to 'attendance'
+    final payload = _parsePayload(n);
+    final hasAttendanceMarkers =
+        payload.containsKey('status') ||
+        payload.containsKey('attendanceStatus') ||
+        payload.containsKey('date') ||
+        n.containsKey('status') ||
+        n.containsKey('attendanceStatus') ||
+        n.containsKey('date');
+    if (rawType == 'course_update' && hasAttendanceMarkers) return 'attendance';
+
+    return rawType;
+  }
+
+  bool _matchesCurrentFilter(Map<String, dynamic> n) {
+    if (_typeFilter == null) return true;
+    final t = _canonicalType(n);
+    return t == _typeFilter;
+  }
+
+  Widget _filtersChips(ColorScheme scheme) {
+    return SizedBox(
+      height: 40,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            for (final f in _filters) ...[
+              _buildChip(f, scheme),
+              const SizedBox(width: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChip(Map<String, String?> f, ColorScheme scheme) {
+    final val = f['value'];
+    final selected = _typeFilter == val;
+    return ChoiceChip(
+      label: Text(f['text'] ?? ''),
+      selected: selected,
+      onSelected: (_) {
+        setState(() {
+          _typeFilter = val;
+        });
+        _fetch(refresh: true);
+      },
+      selectedColor: scheme.primary.withOpacity(.12),
+      side: BorderSide(
+        color: selected ? scheme.primary : scheme.outlineVariant,
       ),
     );
   }
@@ -326,12 +630,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      // اجعل الحالة قابلة للسحب للتحديث
+      // حالة الخطأ بدون إخفاء السحب للتحديث
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
-          const SizedBox(height: 60),
           const Icon(Icons.error_outline, size: 40, color: Colors.red),
           const SizedBox(height: 8),
           Text(_error!, textAlign: TextAlign.center),
@@ -346,13 +649,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
     if (_items.isEmpty) {
-      // قائمة فارغة لكن قابلة للسحب للتحديث
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
-        children: const [
-          SizedBox(height: 80),
-          Center(child: Text('لا توجد إشعارات حالياً')),
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Center(child: Text('لا توجد إشعارات لهذا الفلتر حالياً')),
         ],
       );
     }
@@ -362,7 +663,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _items.length + (_hasMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (index == _items.length) {
           return const Padding(
@@ -374,6 +675,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final id = (n['id'] ?? n['_id'])?.toString() ?? '';
         final title = n['title']?.toString() ?? 'إشعار';
         final message = n['message']?.toString() ?? '';
+        final payload = _parsePayload(n);
+        final senderName = payload['sender'] is Map
+            ? (payload['sender']['name']?.toString() ?? '')
+            : '';
         final status = n['status']?.toString() ?? 'sent';
         final isReadFlag = n['isRead'] == true;
         final readAtVal = n['readAt'];
@@ -396,10 +701,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
             title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              message,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(message, maxLines: 2, overflow: TextOverflow.ellipsis),
+                if (senderName.isNotEmpty)
+                  Text(
+                    'المرسل: $senderName',
+                    style: TextStyle(color: scheme.outline),
+                  ),
+              ],
             ),
             trailing: Text(time, style: TextStyle(color: scheme.outline)),
             onTap: () {

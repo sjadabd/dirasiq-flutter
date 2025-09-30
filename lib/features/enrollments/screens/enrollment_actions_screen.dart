@@ -4,6 +4,8 @@ import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 import 'package:dirasiq/core/services/permission_service.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:get/get.dart';
+import 'package:dirasiq/features/enrollments/screens/course_attendance_screen.dart';
+import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
 
 class EnrollmentActionsScreen extends StatefulWidget {
   final String courseId;
@@ -51,6 +53,14 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
               color: Colors.teal,
               onTap: _onOpenWeeklySchedule,
             ),
+            const SizedBox(height: 12),
+            _actionCard(
+              icon: Icons.fact_check,
+              title: 'سجل الحضور والغياب',
+              subtitle: 'اعرض حضورك وغيابك وإجازاتك لهذا الكورس',
+              color: Colors.orange,
+              onTap: _onOpenAttendance,
+            ),
           ],
         ),
       ),
@@ -58,10 +68,29 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
   }
 
   void _onOpenWeeklySchedule() {
-    Get.toNamed(
-      '/course-weekly-schedule',
-      arguments: {'courseId': widget.courseId, 'courseName': widget.courseName},
-    );
+    if (widget.courseId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن فتح الجدول: معرف الكورس مفقود')),
+      );
+      return;
+    }
+    Get.to(() => CourseWeeklyScheduleScreen(
+          courseId: widget.courseId,
+          courseName: widget.courseName,
+        ));
+  }
+
+  void _onOpenAttendance() {
+    if (widget.courseId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن فتح السجل: معرف الكورس مفقود')),
+      );
+      return;
+    }
+    Get.to(() => CourseAttendanceScreen(
+          courseId: widget.courseId,
+          courseName: widget.courseName,
+        ));
   }
 
   Widget _actionCard({
