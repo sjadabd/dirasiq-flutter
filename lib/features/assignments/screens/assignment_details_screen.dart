@@ -7,6 +7,7 @@ import 'package:dirasiq/core/config/app_config.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 
 class AssignmentDetailsScreen extends StatefulWidget {
   final String assignmentId;
@@ -23,18 +24,88 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
   Map<String, dynamic>? mySubmission;
   bool _loading = true;
   String? _error;
+  Timer? _notifTimer;
+  bool _gradedNotified = false;
+  // Feature flag: auto-refresh by polling notifications (disabled by default)
+  final bool _enableAutoRefresh = false;
 
   @override
   void initState() {
     super.initState();
     _fetch();
+    // Poll for graded notification while on this screen (disabled by default)
+    if (_enableAutoRefresh) {
+      _notifTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        _checkGradedNotice();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _notifTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkGradedNotice() async {
+    // If already graded or we already refreshed due to a notice, skip
+    final status = (mySubmission?['status']?.toString() ?? '').toLowerCase();
+    if (status == 'graded' || _gradedNotified) return;
+    try {
+      final res = await _api.fetchMyNotifications(
+        page: 1,
+        limit: 10,
+        type: 'homework',
+      );
+      final data = Map<String, dynamic>.from(res);
+      final list = List<Map<String, dynamic>>.from(
+        (data['items'] ?? data['notifications'] ?? data['data'] ?? []) as List,
+      );
+      final aid = widget.assignmentId;
+      bool hit = false;
+      for (final n in list) {
+        final title = (n['title'] ?? '').toString();
+        final msg = (n['message'] ?? '').toString();
+        final ndata = n['data'] is Map<String, dynamic>
+            ? n['data'] as Map<String, dynamic>
+            : <String, dynamic>{};
+        final nid = (ndata['assignmentId'] ?? ndata['assignment_id'] ?? '')
+            .toString();
+        if ((title.contains('نتيجة واجبك') || msg.contains('نتيجة واجبك')) &&
+            nid == aid) {
+          hit = true;
+          break;
+        }
+      }
+      if (hit) {
+        _gradedNotified = true;
+        await _fetch();
+      }
+    } catch (_) {
+      // ignore polling errors silently
+    }
   }
 
   Future<void> _openViewSubmission() async {
-    final sub = mySubmission;
+    // Always try to fetch the latest submission from the server
+    final assignmentId = assignment?['id']?.toString() ?? widget.assignmentId;
+    Map<String, dynamic>? sub;
+    try {
+      sub = await _api.fetchMyAssignmentSubmission(assignmentId);
+    } catch (e) {
+      // Fallback to the locally cached submission if available
+      sub = mySubmission;
+      _showMessage(_cleanErrorMessage(e));
+    }
     if (sub == null) {
       _showMessage('لا يوجد تسليم لعرضه');
       return;
+    }
+    // keep local state in sync with the latest fetched data
+    if (mounted) {
+      setState(() {
+        mySubmission = sub;
+      });
     }
     final String contentText = (sub['content_text']?.toString() ?? '').trim();
     final String linkUrl = (sub['link_url']?.toString() ?? '').trim();
@@ -90,9 +161,71 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                     final String url = (a['url']?.toString() ?? '').trim();
                     final String base64 = (a['base64']?.toString() ?? '')
                         .trim();
-                    IconData icon = type == 'pdf'
+
+                    // عرض الصور داخل التطبيق
+                    if (type == 'image') {
+                      Widget? imageWidget;
+                      if (url.isNotEmpty) {
+                        final abs = _toAbsoluteUrl(url);
+                        imageWidget = GestureDetector(
+                          onTap: () => _openImagePreview(abs),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              abs,
+                              height: 180,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 180,
+                                color: Colors.grey.shade300,
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.broken_image, size: 48),
+                              ),
+                            ),
+                          ),
+                        );
+                      } else if (base64.isNotEmpty) {
+                        final bytes = UriData.parse(base64).contentAsBytes();
+                        imageWidget = GestureDetector(
+                          onTap: () async {
+                            await showDialog(
+                              context: context,
+                              builder: (c2) => Dialog(
+                                insetPadding: const EdgeInsets.all(12),
+                                child: InteractiveViewer(
+                                  minScale: 0.5,
+                                  maxScale: 4,
+                                  child: Image.memory(
+                                    bytes,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.memory(
+                              bytes,
+                              height: 180,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        );
+                      }
+                      if (imageWidget == null) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: imageWidget,
+                      );
+                    }
+
+                    // ملفات غير الصور: عرض زر لفتح الملف (مثلاً PDF)
+                    final IconData icon = type == 'pdf'
                         ? Icons.picture_as_pdf
-                        : Icons.image;
+                        : Icons.insert_drive_file;
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(icon),
@@ -105,21 +238,9 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                         onPressed: () async {
                           if (url.isNotEmpty) {
                             _launchUrl(_toAbsoluteUrl(url));
-                          } else if (base64.isNotEmpty && type == 'image') {
-                            // show preview for image base64
-                            await showDialog(
-                              context: context,
-                              builder: (c2) => Dialog(
-                                insetPadding: const EdgeInsets.all(12),
-                                child: InteractiveViewer(
-                                  minScale: 0.5,
-                                  maxScale: 4,
-                                  child: Image.memory(
-                                    UriData.parse(base64).contentAsBytes(),
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              ),
+                          } else if (base64.isNotEmpty) {
+                            _showMessage(
+                              'لا يمكن فتح الملف المضغوط هنا، يرجى إعادة الرفع كرابط',
                             );
                           } else {
                             _showMessage('لا يمكن فتح المرفق');
@@ -130,7 +251,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         icon: Icon(icon, size: 18),
-                        label: const Text('فتح'),
+                        label: const Text('عرض الملف'),
                       ),
                     );
                   }).toList(),
@@ -199,11 +320,31 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
       text: existing?['link_url']?.toString() ?? '',
     );
     String status = (existing?['status']?.toString() ?? 'submitted');
-    final submissionType = (assignment?['submission_type']?.toString() ?? '')
-        .toLowerCase();
-    final assignedIso = assignment?['assigned_date']?.toString();
-    final dueIso = assignment?['due_date']?.toString();
-    final bool isActive = assignment?['is_active'] == true;
+    // Normalize submission_type to allowed values: text|link|file|mixed
+    String submissionType =
+        (assignment?['submission_type']?.toString() ??
+                assignment?['submissionType']?.toString() ??
+                '')
+            .toLowerCase();
+    const allowedTypes = {'text', 'link', 'file', 'mixed'};
+    if (!allowedTypes.contains(submissionType) ||
+        submissionType == 'electronic' ||
+        submissionType == 'online') {
+      submissionType = 'mixed';
+    }
+    // Accept multiple key variants coming from backend
+    final assignedIso =
+        (assignment?['assigned_date'] ??
+                assignment?['assigned_at'] ??
+                assignment?['assignedAt'])
+            ?.toString();
+    final dueIso =
+        (assignment?['due_date'] ??
+                assignment?['due_at'] ??
+                assignment?['dueAt'])
+            ?.toString();
+    final bool isActive =
+        (assignment?['is_active'] == true) || (assignment?['isActive'] == true);
     DateTime? assignedAt;
     DateTime? dueAt;
     try {
@@ -214,6 +355,10 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
     try {
       dueAt = dueIso != null ? DateTime.parse(dueIso).toLocal() : null;
     } catch (_) {}
+
+    // Persist bottom sheet state across rebuilds
+    bool submitting = false;
+    final List<Map<String, dynamic>> attachments = [];
 
     await showModalBottomSheet(
       context: context,
@@ -231,9 +376,13 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
           ),
           child: StatefulBuilder(
             builder: (context, setModal) {
-              bool submitting = false;
-              final List<Map<String, dynamic>> attachments = [];
-
+              // Show fields based on submission_type
+              final bool showText =
+                  submissionType == 'text' || submissionType == 'mixed';
+              final bool showLink =
+                  submissionType == 'link' || submissionType == 'mixed';
+              final bool showFiles =
+                  submissionType == 'file' || submissionType == 'mixed';
               Future<void> _pickFiles({required bool images}) async {
                 try {
                   final res = await FilePicker.platform.pickFiles(
@@ -283,14 +432,17 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
               String? validateInputs() {
                 // Active state check
                 if (!isActive) {
+                  debugPrint('[submit] blocked: assignment not active');
                   return 'الواجب غير مفعّل حالياً';
                 }
                 // Time window checks
                 final now = DateTime.now();
                 if (assignedAt != null && now.isBefore(assignedAt)) {
+                  debugPrint('[submit] blocked: before assigned time');
                   return 'لم يبدأ وقت التسليم بعد';
                 }
                 if (dueAt != null && now.isAfter(dueAt)) {
+                  debugPrint('[submit] blocked: after due time');
                   return 'انتهى وقت التسليم';
                 }
                 final textVal = contentController.text.trim();
@@ -302,39 +454,61 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
 
                 switch (submissionType) {
                   case 'text':
-                    if (!hasText)
+                    if (!hasText) {
+                      debugPrint(
+                        '[submit] blocked: submissionType=text requires text',
+                      );
                       return 'نوع التسليم نصي، يرجى إدخال نص الإجابة';
+                    }
                     break;
                   case 'link':
-                    if (!hasLink)
+                    if (!hasLink) {
+                      debugPrint(
+                        '[submit] blocked: submissionType=link requires link',
+                      );
                       return 'نوع التسليم رابط، يرجى إدخال رابط صحيح';
+                    }
                     break;
                   case 'file':
-                    if (!hasFiles)
+                    if (!hasFiles) {
+                      debugPrint(
+                        '[submit] blocked: submissionType=file requires file',
+                      );
                       return 'هذا الواجب يتطلب رفع ملفات (صورة أو PDF)';
+                    }
                     break;
                   case 'mixed':
-                  case 'electronic':
-                    if (!hasAny)
+                    if (!hasAny) {
+                      debugPrint(
+                        '[submit] blocked: submissionType=mixed requires any of text/link/file',
+                      );
                       return 'يرجى إدخال نص أو رابط (أو مرفقات) للتسليم';
+                    }
                     break;
                   default:
                     // No strict requirement
                     break;
                 }
-
+                debugPrint('[submit] validation OK');
                 return null;
               }
 
               Future<void> doSubmit() async {
+                debugPrint('[submit] button pressed');
                 if (submitting) return;
                 final err = validateInputs();
                 if (err != null) {
+                  debugPrint(
+                    '[submit] aborted due to validation error: ' + err,
+                  );
                   _showMessage(err);
                   return;
                 }
                 setModal(() => submitting = true);
                 try {
+                  debugPrint(
+                    '[submit] calling ApiService.submitAssignment ...',
+                  );
                   final res = await _api.submitAssignment(
                     assignmentId: assignmentId,
                     contentText: contentController.text.trim().isEmpty
@@ -354,12 +528,15 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                       mySubmission = data;
                     });
                   }
+                  debugPrint('[submit] success');
                   if (mounted) Navigator.of(ctx).pop();
                   _showMessage('تم إرسال الإجابة بنجاح');
                   await _fetch();
                 } catch (e) {
+                  debugPrint('[submit] error: ' + e.toString());
                   _showMessage(_cleanErrorMessage(e));
                 } finally {
+                  debugPrint('[submit] done, resetting submitting=false');
                   if (mounted) setModal(() => submitting = false);
                 }
               }
@@ -384,110 +561,117 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      TextField(
-                        controller: contentController,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          labelText: 'نص الإجابة (اختياري)',
-                          border: OutlineInputBorder(),
+                      if (showText) ...[
+                        TextField(
+                          controller: contentController,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            labelText: 'نص الإجابة',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: linkController,
-                        decoration: const InputDecoration(
-                          labelText: 'رابط خارجي (اختياري)',
-                          hintText: 'https://...',
-                          border: OutlineInputBorder(),
+                        const SizedBox(height: 12),
+                      ],
+                      if (showLink) ...[
+                        TextField(
+                          controller: linkController,
+                          decoration: const InputDecoration(
+                            labelText: 'رابط خارجي',
+                            hintText: 'https://...',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 12),
+                      ],
                       // Attachments UI
-                      Card(
-                        elevation: 1,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: const [
-                                  Icon(Icons.attach_file),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'المرفقات (اختياري)',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
+                      if (showFiles)
+                        Card(
+                          elevation: 1,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: const [
+                                    Icon(Icons.attach_file),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'المرفقات (اختياري)',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => _pickFiles(images: true),
-                                    icon: const Icon(Icons.image),
-                                    label: const Text('إضافة صورة'),
-                                    style: ElevatedButton.styleFrom(
-                                      minimumSize: const Size(0, 40),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                  ),
-                                  ElevatedButton.icon(
-                                    onPressed: () => _pickFiles(images: false),
-                                    icon: const Icon(Icons.picture_as_pdf),
-                                    label: const Text('إضافة PDF'),
-                                    style: ElevatedButton.styleFrom(
-                                      minimumSize: const Size(0, 40),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (attachments.isNotEmpty) ...[
+                                  ],
+                                ),
                                 const SizedBox(height: 8),
                                 Wrap(
                                   spacing: 8,
                                   runSpacing: 8,
-                                  children: attachments.asMap().entries.map((
-                                    e,
-                                  ) {
-                                    final i = e.key;
-                                    final it = e.value;
-                                    final name = (it['name'] ?? 'ملف')
-                                        .toString();
-                                    final type = (it['type'] ?? '').toString();
-                                    return Chip(
-                                      label: Text(
-                                        name,
-                                        overflow: TextOverflow.ellipsis,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () => _pickFiles(images: true),
+                                      icon: const Icon(Icons.image),
+                                      label: const Text('إضافة صورة'),
+                                      style: ElevatedButton.styleFrom(
+                                        minimumSize: const Size(0, 40),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
                                       ),
-                                      avatar: Icon(
-                                        type == 'pdf'
-                                            ? Icons.picture_as_pdf
-                                            : Icons.image,
-                                        size: 18,
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: () =>
+                                          _pickFiles(images: false),
+                                      icon: const Icon(Icons.picture_as_pdf),
+                                      label: const Text('إضافة PDF'),
+                                      style: ElevatedButton.styleFrom(
+                                        minimumSize: const Size(0, 40),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
                                       ),
-                                      deleteIcon: const Icon(Icons.close),
-                                      onDeleted: () => setModal(() {
-                                        attachments.removeAt(i);
-                                      }),
-                                    );
-                                  }).toList(),
+                                    ),
+                                  ],
                                 ),
+                                if (attachments.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: attachments.asMap().entries.map((
+                                      e,
+                                    ) {
+                                      final i = e.key;
+                                      final it = e.value;
+                                      final name = (it['name'] ?? 'ملف')
+                                          .toString();
+                                      final type = (it['type'] ?? '')
+                                          .toString();
+                                      return Chip(
+                                        label: Text(
+                                          name,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        avatar: Icon(
+                                          type == 'pdf'
+                                              ? Icons.picture_as_pdf
+                                              : Icons.image,
+                                          size: 18,
+                                        ),
+                                        deleteIcon: const Icon(Icons.close),
+                                        onDeleted: () => setModal(() {
+                                          attachments.removeAt(i);
+                                        }),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                      ),
                       const SizedBox(height: 12),
                       Wrap(
                         alignment: WrapAlignment.spaceBetween,
@@ -557,6 +741,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -1261,7 +1446,30 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                   _buildResourcesCard(),
                   const SizedBox(height: 16),
                   _buildEvaluationCard(),
-                  if (mySubmission != null) ...[
+                  // Show "عرض إجابتي" depending on delivery_mode
+                  if ((() {
+                    // read delivery_mode from attachments.meta
+                    String deliveryMode = '';
+                    final atts = assignment?['attachments'];
+                    if (atts is Map) {
+                      final meta = atts['meta'];
+                      if (meta is Map) {
+                        deliveryMode = (meta['delivery_mode'] ?? meta['deliveryMode'] ?? '')
+                            .toString()
+                            .toLowerCase();
+                      }
+                    }
+                    if (mySubmission == null) return false;
+                    if (deliveryMode == 'paper') {
+                      final content = (mySubmission?['content_text']?.toString() ?? '').trim();
+                      final link = (mySubmission?['link_url']?.toString() ?? '').trim();
+                      final sAtts = mySubmission?['attachments'];
+                      final hasAtts = sAtts is List && sAtts.isNotEmpty;
+                      return content.isNotEmpty || link.isNotEmpty || hasAtts;
+                    }
+                    // non-paper: show if there is a submission record at all
+                    return true;
+                  })()) ...[
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
@@ -1273,14 +1481,35 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                     ),
                   ],
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _openSubmitBottomSheet,
-                      icon: const Icon(Icons.assignment_turned_in),
-                      label: const Text('إرسال إجابتي'),
+                  // Hide submit button if already graded OR delivery_mode=paper (ورقي)
+                  if ((() {
+                    final status = (mySubmission?['status']?.toString() ?? '')
+                        .toLowerCase();
+                    final isGraded = status == 'graded';
+                    String deliveryMode = '';
+                    final atts = assignment?['attachments'];
+                    if (atts is Map) {
+                      final meta = atts['meta'];
+                      if (meta is Map) {
+                        deliveryMode =
+                            (meta['delivery_mode'] ??
+                                    meta['deliveryMode'] ??
+                                    '')
+                                .toString()
+                                .toLowerCase();
+                      }
+                    }
+                    final isPaper = deliveryMode == 'paper';
+                    return !(isGraded || isPaper);
+                  })())
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _openSubmitBottomSheet,
+                        icon: const Icon(Icons.assignment_turned_in),
+                        label: const Text('إرسال إجابتي'),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 20),
                 ],
               ),

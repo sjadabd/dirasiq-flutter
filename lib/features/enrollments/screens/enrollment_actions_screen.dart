@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-  import 'package:dirasiq/shared/themes/app_colors.dart';
-  import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-  import 'package:dirasiq/core/services/permission_service.dart';
-  import 'package:dirasiq/core/services/api_service.dart';
-  import 'package:get/get.dart';
-  import 'package:dirasiq/features/enrollments/screens/course_attendance_screen.dart';
-  import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
-  import 'package:dirasiq/features/assignments/screens/student_assignments_screen.dart';
+import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:dirasiq/core/services/permission_service.dart';
+import 'package:dirasiq/core/services/api_service.dart';
+import 'package:get/get.dart';
+import 'package:dirasiq/features/enrollments/screens/course_attendance_screen.dart';
+import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
+import 'package:dirasiq/features/assignments/screens/student_assignments_screen.dart';
+import 'package:dirasiq/features/exams/screens/student_exams_screen.dart';
+import 'package:dirasiq/features/exams/screens/student_exam_grades_screen.dart';
 
 class EnrollmentActionsScreen extends StatefulWidget {
   final String courseId;
@@ -70,6 +72,30 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
               color: Colors.orange,
               onTap: _onOpenAttendance,
             ),
+            const SizedBox(height: 12),
+            _actionCard(
+              icon: Icons.today,
+              title: 'امتحان يومي',
+              subtitle: 'قائمة الامتحانات اليومية',
+              color: Colors.purple,
+              onTap: _onOpenDailyExams,
+            ),
+            const SizedBox(height: 12),
+            _actionCard(
+              icon: Icons.calendar_month,
+              title: 'امتحان شهري',
+              subtitle: 'قائمة الامتحانات الشهرية',
+              color: Colors.deepPurple,
+              onTap: _onOpenMonthlyExams,
+            ),
+            const SizedBox(height: 12),
+            _actionCard(
+              icon: Icons.grade,
+              title: 'الدرجات',
+              subtitle: 'تقرير بالدرجات حسب النوع والاطّلاع على درجتي',
+              color: Colors.green,
+              onTap: _onOpenExamGrades,
+            ),
           ],
         ),
       ),
@@ -104,6 +130,24 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
 
   void _onOpenAssignments() {
     Get.to(() => const StudentAssignmentsScreen());
+  }
+
+  void _onOpenDailyExams() {
+    Get.to(() => const StudentExamsScreen(
+          fixedType: 'daily',
+          title: 'امتحانات يومية',
+        ));
+  }
+
+  void _onOpenMonthlyExams() {
+    Get.to(() => const StudentExamsScreen(
+          fixedType: 'monthly',
+          title: 'امتحانات شهرية',
+        ));
+  }
+
+  void _onOpenExamGrades() {
+    Get.to(() => const StudentExamGradesScreen());
   }
 
   Widget _actionCard({

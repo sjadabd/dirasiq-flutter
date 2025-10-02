@@ -12,6 +12,8 @@ import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dirasiq/features/assignments/screens/student_assignments_screen.dart';
 import 'package:dirasiq/features/assignments/screens/assignment_details_screen.dart';
+import 'package:dirasiq/features/exams/screens/student_exams_screen.dart';
+import 'package:dirasiq/features/exams/screens/student_exam_grades_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -405,6 +407,46 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
+    // Exams routing (daily/monthly) — prioritize over course routing
+    final payloadExamType = (payload['exam_type'] ?? payload['examType'] ?? payload['kind'] ?? n['exam_type'] ?? n['examType'])
+        ?.toString()
+        .toLowerCase();
+    final isExamNotification = (typeLower?.contains('exam') ?? false) ||
+        (payloadExamType == 'daily' || payloadExamType == 'monthly') ||
+        ((payload['type'] ?? payload['category'])?.toString().toLowerCase() == 'exam');
+    if (isExamNotification) {
+      final isMonthly = payloadExamType == 'monthly' || typeLower == 'monthly_exam';
+
+      if (isMonthly) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const StudentExamsScreen(fixedType: 'monthly', title: 'امتحانات شهرية'),
+          ),
+        );
+        return;
+      }
+      // default to daily when unknown
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const StudentExamsScreen(fixedType: 'daily', title: 'امتحانات يومية'),
+        ),
+      );
+      return;
+    }
+
+    // Exam grade routing — prioritize over course routing
+    if (typeLower != null && (typeLower == 'exam_grade' || typeLower.contains('grade') || (payload['grade'] != null))) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const StudentExamGradesScreen(),
+        ),
+      );
+      return;
+    }
+
     if (type == 'course_update') {
       final courseId =
           (payload['courseId'] ??
@@ -464,10 +506,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 n['course_id'])
             ?.toString();
 
-    if (type == 'new_course_available' ||
+    if (!isExamNotification && (
+        type == 'new_course_available' ||
         type == 'course' ||
         type == 'open_course' ||
-        courseIdFromPayload != null) {
+        courseIdFromPayload != null)) {
       final courseId = courseIdFromPayload;
       if (courseId != null && courseId.isNotEmpty) {
         Navigator.push(

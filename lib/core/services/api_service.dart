@@ -19,6 +19,84 @@ class ApiService {
     }
   }
 
+  // =============================
+  // امتحانات الطالب
+  // =============================
+
+  /// جلب قائمة الامتحانات للطالب
+  Future<Map<String, dynamic>> fetchStudentExams({
+    int page = 1,
+    int limit = 10,
+    String? type, // daily | weekly | monthly | final ... (حسب السيرفر)
+  }) async {
+    try {
+      final qp = {
+        "page": page,
+        "limit": limit,
+        if (type != null && type.isNotEmpty) "type": type,
+      };
+      final response = await _dio.get(
+        "/student/exams",
+        queryParameters: qp,
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل الامتحانات");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الامتحانات: $e");
+    }
+  }
+
+  /// جلب تفاصيل امتحان
+  Future<Map<String, dynamic>> fetchStudentExamById(String examId) async {
+    try {
+      final response = await _dio.get("/student/exams/$examId");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        return Map<String, dynamic>.from(response.data["data"]);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل تفاصيل الامتحان");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل الامتحان: $e");
+    }
+  }
+
+  /// درجتي في امتحان محدد
+  Future<Map<String, dynamic>?> fetchStudentExamMyGrade(String examId) async {
+    try {
+      final response = await _dio.get("/student/exams/$examId/my-grade");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data["data"];
+        if (data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
+        return null;
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل درجتي");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل درجتي: $e");
+    }
+  }
+
+  /// تقرير الامتحانات حسب النوع
+  Future<List<Map<String, dynamic>>> fetchStudentExamReportByType({
+    required String type, // monthly | daily | ...
+  }) async {
+    try {
+      final response = await _dio.get(
+        "/student/exams/report/by-type",
+        queryParameters: {"type": type},
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final list = response.data["data"] as List;
+        return List<Map<String, dynamic>>.from(list);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل التقرير");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل التقرير: $e");
+    }
+  }
+
   /// ✅ جلب إرسال الطالب الحالي لهذا الواجب
   Future<Map<String, dynamic>?> fetchMyAssignmentSubmission(String assignmentId) async {
     try {
