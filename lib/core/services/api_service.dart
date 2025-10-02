@@ -19,6 +19,33 @@ class ApiService {
     }
   }
 
+  /// ✅ جلب إرسال الطالب الحالي لهذا الواجب
+  Future<Map<String, dynamic>?> fetchMyAssignmentSubmission(String assignmentId) async {
+    try {
+      final response = await _dio.get("/student/assignments/$assignmentId/submission");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data["data"];
+        if (data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
+        return null;
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل إرسال الطالب");
+    } on DioException catch (e) {
+      final res = e.response;
+      if (res != null) {
+        final data = res.data is Map<String, dynamic>
+            ? res.data as Map<String, dynamic>
+            : <String, dynamic>{};
+        final serverMsg = (data["message"] ?? "فشل تحميل إرسال الطالب").toString();
+        throw Exception(serverMsg);
+      }
+      throw Exception("❌ خطأ أثناء تحميل إرسال الطالب: ${e.message}");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل إرسال الطالب: $e");
+    }
+  }
+
   ApiService() {
     _dio = Dio(
       BaseOptions(
@@ -335,6 +362,81 @@ class ApiService {
       }
     } catch (_) {}
     return 0;
+  }
+
+  // =============================
+  // واجبات الطالب
+  // =============================
+
+  /// جلب قائمة واجبات الطالب
+  Future<Map<String, dynamic>> fetchStudentAssignments({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _dio.get(
+        "/student/assignments",
+        queryParameters: {"page": page, "limit": limit},
+      );
+      if ((response.statusCode == 200) && (response.data["success"] == true)) {
+        // يرجع: data: [...], pagination: {page, limit, total}
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل الواجبات");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الواجبات: $e");
+    }
+  }
+
+  /// جلب تفاصيل واجب
+  Future<Map<String, dynamic>> fetchAssignmentById(String assignmentId) async {
+    try {
+      final response = await _dio.get("/student/assignments/$assignmentId");
+      if ((response.statusCode == 200) && (response.data["success"] == true)) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل تفاصيل الواجب");
+    } on DioException catch (e) {
+      final res = e.response;
+      if (res != null) {
+        final data = res.data is Map<String, dynamic>
+            ? res.data as Map<String, dynamic>
+            : <String, dynamic>{};
+        final serverMsg = (data["message"] ?? "فشل تحميل تفاصيل الواجب").toString();
+        // أعِد رسالة الخادم مباشرة لتُعرض للمستخدم (مثل: هذا الواجب غير متوفر لك)
+        throw Exception(serverMsg);
+      }
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل الواجب: ${e.message}");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل الواجب: $e");
+    }
+  }
+
+  /// إرسال/تحديث تسليم واجب
+  Future<Map<String, dynamic>> submitAssignment({
+    required String assignmentId,
+    String? contentText,
+    String? linkUrl,
+    List<dynamic>? attachments,
+    String status = 'submitted',
+  }) async {
+    try {
+      final response = await _dio.post(
+        "/student/assignments/$assignmentId/submit",
+        data: {
+          "content_text": contentText,
+          "link_url": linkUrl,
+          "attachments": attachments ?? [],
+          "status": status,
+        },
+      );
+      if ((response.statusCode == 200) && (response.data["success"] == true)) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل إرسال التسليم");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء إرسال التسليم: $e");
+    }
   }
 
   // =============================
