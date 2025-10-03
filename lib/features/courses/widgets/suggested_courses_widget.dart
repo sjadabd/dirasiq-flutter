@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:dirasiq/core/config/app_config.dart';
 import 'package:get/get.dart';
@@ -52,6 +51,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -60,15 +60,11 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: AppColors.gradientLearning,
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: cs.surface,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.2),
+                  color: Colors.black.withOpacity(0.08),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -76,28 +72,33 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
             ),
             child: Row(
               children: [
-                Icon(Icons.recommend, color: AppColors.white, size: 24),
-                const SizedBox(width: 12),
+                Icon(
+                  Icons.recommend,
+                  color: cs.primary,
+                  size: 16,
+                ), // أيقونة أصغر
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     "الكورسات المقترحة لك",
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.white,
+                      fontSize: 12, // أصغر من 18
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface,
                     ),
                   ),
                 ),
                 TextButton(
                   onPressed: () {
-                    Get.toNamed("/suggested-courses"); // ✅ بدل Navigator
+                    Get.toNamed("/suggested-courses");
                   },
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.white,
+                    foregroundColor: cs.primary,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                      horizontal: 8,
+                      vertical: 4, // زر أصغر
                     ),
+                    minimumSize: Size(0, 28), // يمنع التوسع
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -105,16 +106,16 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
                       Text(
                         "عرض المزيد",
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.white,
+                          fontSize: 12, // أصغر
+                          fontWeight: FontWeight.w500,
+                          color: cs.primary,
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 3),
                       Icon(
                         Icons.arrow_forward_ios,
-                        size: 14,
-                        color: AppColors.white,
+                        size: 12, // أيقونة أصغر
+                        color: cs.primary,
                       ),
                     ],
                   ),
@@ -139,32 +140,34 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
   }
 
   Widget _buildLoadingWidget() {
+    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       height: 120,
       child: Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+          valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
         ),
       ),
     );
   }
 
   Widget _buildErrorWidget() {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
+        color: cs.errorContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+        border: Border.all(color: cs.error.withOpacity(0.3)),
       ),
       child: Column(
         children: [
-          Icon(Icons.error_outline, color: AppColors.error, size: 32),
+          Icon(Icons.error_outline, color: cs.error, size: 32),
           const SizedBox(height: 8),
           Text(
             "حدث خطأ في تحميل الكورسات",
             style: TextStyle(
-              color: AppColors.error,
+              color: cs.onErrorContainer,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -173,8 +176,8 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
           ElevatedButton(
             onPressed: _loadSuggestedCourses,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: AppColors.white,
+              backgroundColor: cs.error,
+              foregroundColor: cs.onError,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -187,16 +190,17 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
   }
 
   Widget _buildEmptyWidget() {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Icon(Icons.school_outlined, color: AppColors.textSecondary, size: 48),
+          Icon(Icons.school_outlined, color: cs.onSurfaceVariant, size: 48),
           const SizedBox(height: 12),
           Text(
             "لا توجد كورسات مقترحة حالياً",
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: cs.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -215,14 +219,16 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
   }
 
   Widget _buildCompactCourseCard(Map<String, dynamic> course) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.4)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -242,7 +248,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('حدث خطأ في التنقل'),
-                  backgroundColor: AppColors.error,
+                  backgroundColor: cs.error,
                 ),
               );
             }
@@ -259,11 +265,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
                 height: 60,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  gradient: LinearGradient(
-                    colors: AppColors.gradientLearning,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: cs.surfaceVariant,
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -283,7 +285,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -295,7 +297,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
                       course['teacher_name'] ?? '',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -311,29 +313,25 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.1),
+                            color: cs.primaryContainer.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             "${NumberFormat('#,###').format(double.tryParse(course['price'].toString()) ?? 0)} د.ع",
                             style: TextStyle(
-                              color: AppColors.success,
+                              color: cs.onPrimaryContainer,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Icon(
-                          Icons.location_on,
-                          size: 12,
-                          color: AppColors.primary,
-                        ),
+                        Icon(Icons.location_on, size: 12, color: cs.primary),
                         const SizedBox(width: 2),
                         Text(
                           "${course['distance'].toStringAsFixed(1)} كم",
                           style: TextStyle(
-                            color: AppColors.primary,
+                            color: cs.primary,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -348,13 +346,13 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: cs.primary.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
-                  color: AppColors.primary,
+                  color: cs.primary,
                 ),
               ),
             ],
@@ -365,19 +363,20 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
   }
 
   Widget _buildCompactCourseImage(Map<String, dynamic> course) {
+    // Prefer course image, then teacher profile image
     final courseImages = course['course_images'] as List<dynamic>?;
+    String? candidate;
     if (courseImages != null && courseImages.isNotEmpty) {
-      final imagePath = courseImages.first.toString();
-      String fullImageUrl;
+      candidate = courseImages.first.toString();
+    }
+    candidate ??= course['teacher_profile_image_path']?.toString();
 
-      if (imagePath.startsWith('http')) {
-        fullImageUrl = imagePath;
-      } else {
-        fullImageUrl = '${AppConfig.serverBaseUrl}$imagePath';
-      }
-
+    if (candidate != null && candidate.isNotEmpty) {
+      final url = candidate.startsWith('http')
+          ? candidate
+          : '${AppConfig.serverBaseUrl}$candidate';
       return Image.network(
-        fullImageUrl,
+        url,
         width: 60,
         height: 60,
         fit: BoxFit.cover,
@@ -385,18 +384,14 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
           return _buildFallbackIcon();
         },
       );
-    } else {
-      return _buildFallbackIcon();
     }
+    return _buildFallbackIcon();
   }
 
   Widget _buildFallbackIcon() {
+    final cs = Theme.of(context).colorScheme;
     return Center(
-      child: Icon(
-        Icons.school,
-        size: 24,
-        color: AppColors.white.withValues(alpha: 0.8),
-      ),
+      child: Icon(Icons.school, size: 24, color: cs.onSurfaceVariant),
     );
   }
 }

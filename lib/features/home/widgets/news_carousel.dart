@@ -13,7 +13,7 @@ class NewsCarousel extends StatefulWidget {
 
 class _NewsCarouselState extends State<NewsCarousel>
     with TickerProviderStateMixin {
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(viewportFraction: 0.78);
   List<Map<String, dynamic>> _newsList = [];
   bool _isLoading = true;
   String? _error;
@@ -104,7 +104,7 @@ class _NewsCarouselState extends State<NewsCarousel>
     showDialog(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
@@ -115,7 +115,7 @@ class _NewsCarouselState extends State<NewsCarousel>
               maxWidth: MediaQuery.of(context).size.width * 0.95,
             ),
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -136,33 +136,32 @@ class _NewsCarouselState extends State<NewsCarousel>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.white.withOpacity(0.2),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           Icons.article_outlined,
-                          color: AppColors.white,
                           size: 24,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Text(
-                          "تفاصيل الخبر",
+                          "آخر الأخبار",
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.white,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -175,7 +174,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                             padding: const EdgeInsets.all(8),
                             child: Icon(
                               Icons.close_rounded,
-                              color: AppColors.white,
+                              color: Theme.of(context).colorScheme.onSurface,
                               size: 24,
                             ),
                           ),
@@ -184,6 +183,8 @@ class _NewsCarouselState extends State<NewsCarousel>
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 24),
 
                 Flexible(
                   child: SingleChildScrollView(
@@ -228,17 +229,19 @@ class _NewsCarouselState extends State<NewsCarousel>
                                         Icon(
                                           Icons.image_not_supported_outlined,
                                           size: 48,
-                                          color: AppColors.white.withOpacity(
-                                            0.8,
-                                          ),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withOpacity(0.8),
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
                                           "لا توجد صورة",
                                           style: TextStyle(
-                                            color: AppColors.white.withOpacity(
-                                              0.8,
-                                            ),
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withOpacity(0.8),
                                             fontSize: 14,
                                           ),
                                         ),
@@ -258,7 +261,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                             height: 1.4,
                           ),
                         ),
@@ -295,7 +298,9 @@ class _NewsCarouselState extends State<NewsCarousel>
                                 child: Icon(
                                   Icons.schedule,
                                   size: 14,
-                                  color: AppColors.white,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -303,7 +308,9 @@ class _NewsCarouselState extends State<NewsCarousel>
                                 _formatDate(news['publishedAt']),
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: AppColors.primary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -317,7 +324,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: AppColors.background,
+                            color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: AppColors.primary.withOpacity(0.1),
@@ -335,7 +342,9 @@ class _NewsCarouselState extends State<NewsCarousel>
                             news['details'] ?? 'تفاصيل الخبر غير متوفرة',
                             style: TextStyle(
                               fontSize: 16,
-                              color: AppColors.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.75),
                               height: 1.7,
                             ),
                           ),
@@ -373,6 +382,40 @@ class _NewsCarouselState extends State<NewsCarousel>
                             ),
                           ),
                         ),
+                        const SizedBox(height: 24),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 4,
+                              shadowColor: AppColors.primary.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.close_rounded, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "إغلاق",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -387,20 +430,17 @@ class _NewsCarouselState extends State<NewsCarousel>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     if (_isLoading) {
       return Container(
-        height: 200,
+        height: 130,
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: AppColors.gradientLearning,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: cs.surface,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.2),
+              color: Colors.black.withOpacity(0.12),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -411,14 +451,14 @@ class _NewsCarouselState extends State<NewsCarousel>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
                 strokeWidth: 3,
               ),
               const SizedBox(height: 16),
               Text(
                 "جاري تحميل الأخبار...",
                 style: TextStyle(
-                  color: AppColors.white,
+                  color: cs.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
@@ -431,18 +471,14 @@ class _NewsCarouselState extends State<NewsCarousel>
 
     if (_error != null || _newsList.isEmpty) {
       return Container(
-        height: 200,
+        height: 130,
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: AppColors.gradientLearning,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: cs.surface,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.2),
+              color: Colors.black.withOpacity(0.12),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -455,13 +491,13 @@ class _NewsCarouselState extends State<NewsCarousel>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.white.withOpacity(0.2),
+                  color: cs.onSurface.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   Icons.newspaper_outlined,
                   size: 48,
-                  color: AppColors.white,
+                  color: cs.onSurface,
                 ),
               ),
               const SizedBox(height: 16),
@@ -470,7 +506,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                 child: Text(
                   _error ?? "لا توجد أخبار متاحة حالياً",
                   style: TextStyle(
-                    color: AppColors.white,
+                    color: cs.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -488,75 +524,17 @@ class _NewsCarouselState extends State<NewsCarousel>
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Container(
-        height: 200,
+        height: 130,
         margin: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 4, bottom: 12),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: AppColors.gradientLearning,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.article_outlined,
-                      color: AppColors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    "آخر الأخبار",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      "${_newsList.length} أخبار",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             Expanded(
               child: Stack(
                 children: [
                   PageView.builder(
                     controller: _pageController,
+                    padEnds: false,
                     onPageChanged: (index) {
                       setState(() {
                         _currentIndex = index;
@@ -565,35 +543,46 @@ class _NewsCarouselState extends State<NewsCarousel>
                     itemCount: _newsList.length,
                     itemBuilder: (context, index) {
                       final news = _newsList[index];
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.2),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
+                      return AnimatedBuilder(
+                        animation: _pageController,
+                        builder: (context, child) {
+                          double scale = 1.0;
+                          if (_pageController.position.haveDimensions) {
+                            final page =
+                                _pageController.page ??
+                                _currentIndex.toDouble();
+                            scale = (1 - ((page - index).abs() * 0.15)).clamp(
+                              0.85,
+                              1.0,
+                            );
+                          }
+                          return Transform.scale(scale: scale, child: child);
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
-                            onTap: () => _showNewsDetails(news),
-                            child: ClipRRect(
+                            boxShadow: [
+                              BoxShadow(
+                                color: cs.primary.withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(20),
-                              child: Stack(
-                                children: [
-                                  Positioned.fill(
-                                    child: Container(
-                                      color: AppColors.background,
+                              onTap: () => _showNewsDetails(news),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
                                       child: Image.network(
                                         _getImageUrl(news['imageUrl']),
-                                        fit: BoxFit.contain,
-                                        width: double.infinity,
-                                        height: double.infinity,
+                                        fit: BoxFit.cover,
                                         errorBuilder: (context, error, stackTrace) {
                                           return Container(
                                             decoration: BoxDecoration(
@@ -605,160 +594,96 @@ class _NewsCarouselState extends State<NewsCarousel>
                                               ),
                                             ),
                                             child: Center(
-                                              child: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons
-                                                        .image_not_supported_outlined,
-                                                    size: 40,
-                                                    color: AppColors.white
-                                                        .withOpacity(0.8),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    "لا توجد صورة",
-                                                    style: TextStyle(
-                                                      color: AppColors.white
-                                                          .withOpacity(0.8),
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ],
+                                              child: Icon(
+                                                Icons
+                                                    .image_not_supported_outlined,
+                                                size: 40,
+                                                color: AppColors.white
+                                                    .withValues(alpha: 0.85),
                                               ),
                                             ),
                                           );
                                         },
                                       ),
                                     ),
-                                  ),
-
-                                  Positioned.fill(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Colors.transparent,
-                                            Colors.transparent,
-                                            Colors.black.withOpacity(0.4),
-                                            Colors.black.withOpacity(0.7),
-                                          ],
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          stops: const [0.0, 0.4, 0.7, 1.0],
+                                    // Dark overlay
+                                    Positioned.fill(
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.35,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            news['title'] ?? 'عنوان الخبر',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.white,
-                                              height: 1.3,
+                                    // Inner outline
+                                    Positioned.fill(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(10.0),
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
                                             ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            news['details'] ?? 'تفاصيل الخبر',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: AppColors.white
-                                                  .withOpacity(0.9),
-                                              height: 1.3,
+                                            border: Border.all(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              width: 1,
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.all(
-                                                  4,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.white
-                                                      .withOpacity(0.2),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: Icon(
-                                                  Icons.schedule,
-                                                  size: 12,
-                                                  color: AppColors.white,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                _formatDate(
-                                                  news['publishedAt'],
-                                                ),
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: AppColors.white
-                                                      .withOpacity(0.9),
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              const Spacer(),
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.white
-                                                      .withOpacity(0.2),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Text(
-                                                      "اقرأ المزيد",
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        color: AppColors.white,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Icon(
-                                                      Icons.arrow_forward_ios,
-                                                      size: 10,
-                                                      color: AppColors.white,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    // Subtle side icons
+                                    Positioned(
+                                      left: 18,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Icon(
+                                        Icons.menu_book_rounded,
+                                        size: 44,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.25,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 18,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Icon(
+                                        Icons.laptop_mac_rounded,
+                                        size: 44,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                      ),
+                                    ),
+                                    // Centered title (2 lines)
+                                    Positioned.fill(
+                                      child: Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12.0,
+                                          ),
+                                          child: Text(
+                                            news['title'] ?? 'عنوان الخبر',
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              height: 1.3,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -769,32 +694,45 @@ class _NewsCarouselState extends State<NewsCarousel>
 
                   if (_newsList.length > 1)
                     Positioned(
-                      bottom: 8,
+                      bottom: 10,
                       left: 0,
                       right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          _newsList.length,
-                          (index) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            width: _currentIndex == index ? 20 : 8,
-                            height: 8,
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              color: _currentIndex == index
-                                  ? AppColors.white
-                                  : AppColors.white.withOpacity(0.5),
-                              boxShadow: _currentIndex == index
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.white.withOpacity(0.5),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ]
-                                  : null,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              _newsList.length,
+                              (index) => AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                                width: _currentIndex == index ? 18 : 6,
+                                height: 6,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(
+                                    alpha: _currentIndex == index ? 1.0 : 0.6,
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
                             ),
                           ),
                         ),

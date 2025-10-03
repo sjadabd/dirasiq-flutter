@@ -19,6 +19,80 @@ class ApiService {
     }
   }
 
+  /// ✅ تفاصيل معلم + المواد + الدورات
+  Future<Map<String, dynamic>> fetchTeacherSubjectsCourses(
+    String teacherId,
+  ) async {
+    try {
+      final response = await _dio.get(
+        "/student/teachers/$teacherId/subjects-courses",
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data["data"];
+        if (data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
+        return {
+          "teacher": response.data["teacher"] ?? {},
+          "subjects": response.data["subjects"] ?? [],
+          "courses": response.data["courses"] ?? [],
+          "count": response.data["count"],
+        };
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل بيانات المعلم");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل بيانات المعلم: $e");
+    }
+  }
+
+  /// ✅ جلب المعلمين المقترحين للطالب مع دعم البحث والترقيم
+  Future<Map<String, dynamic>> fetchSuggestedTeachers({
+    int page = 1,
+    int limit = 10,
+    double? maxDistance,
+    String? search,
+  }) async {
+    try {
+      final qp = {
+        "page": page,
+        "limit": limit,
+        if (maxDistance != null) "maxDistance": maxDistance,
+        if (search != null && search.toString().trim().isNotEmpty)
+          "search": search,
+      };
+      final response = await _dio.get(
+        "/student/teachers/suggested",
+        queryParameters: qp,
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data["data"];
+        List items;
+        Map<String, dynamic>? pagination;
+        if (data is Map<String, dynamic>) {
+          items =
+              (data["teachers"] ?? data["items"] ?? data["data"] ?? []) as List;
+          if (data["pagination"] is Map) {
+            pagination = Map<String, dynamic>.from(data["pagination"] as Map);
+          }
+        } else if (response.data["teachers"] is List) {
+          items = response.data["teachers"] as List;
+        } else if (response.data["data"] is List) {
+          items = response.data["data"] as List;
+        } else {
+          items = const [];
+        }
+        return {
+          "items": List<Map<String, dynamic>>.from(items),
+          if (pagination != null) "pagination": pagination,
+        };
+      }
+      throw Exception(
+        response.data["message"] ?? "فشل تحميل المعلمين المقترحين",
+      );
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل المعلمين المقترحين: $e");
+    }
+  }
   // =============================
   // امتحانات الطالب
   // =============================
@@ -35,10 +109,7 @@ class ApiService {
         "limit": limit,
         if (type != null && type.isNotEmpty) "type": type,
       };
-      final response = await _dio.get(
-        "/student/exams",
-        queryParameters: qp,
-      );
+      final response = await _dio.get("/student/exams", queryParameters: qp);
       if (response.statusCode == 200 && response.data["success"] == true) {
         return Map<String, dynamic>.from(response.data);
       }
@@ -98,9 +169,13 @@ class ApiService {
   }
 
   /// ✅ جلب إرسال الطالب الحالي لهذا الواجب
-  Future<Map<String, dynamic>?> fetchMyAssignmentSubmission(String assignmentId) async {
+  Future<Map<String, dynamic>?> fetchMyAssignmentSubmission(
+    String assignmentId,
+  ) async {
     try {
-      final response = await _dio.get("/student/assignments/$assignmentId/submission");
+      final response = await _dio.get(
+        "/student/assignments/$assignmentId/submission",
+      );
       if (response.statusCode == 200 && response.data["success"] == true) {
         final data = response.data["data"];
         if (data is Map<String, dynamic>) {
@@ -115,7 +190,8 @@ class ApiService {
         final data = res.data is Map<String, dynamic>
             ? res.data as Map<String, dynamic>
             : <String, dynamic>{};
-        final serverMsg = (data["message"] ?? "فشل تحميل إرسال الطالب").toString();
+        final serverMsg = (data["message"] ?? "فشل تحميل إرسال الطالب")
+            .toString();
         throw Exception(serverMsg);
       }
       throw Exception("❌ خطأ أثناء تحميل إرسال الطالب: ${e.message}");
@@ -188,7 +264,7 @@ class ApiService {
   /// جلب قائمة تقييمات الطالب مع فلاتر التاريخ والترقيم
   Future<Map<String, dynamic>> fetchStudentEvaluations({
     String? from, // YYYY-MM-DD
-    String? to,   // YYYY-MM-DD
+    String? to, // YYYY-MM-DD
     int page = 1,
     int limit = 10,
   }) async {
@@ -363,7 +439,8 @@ class ApiService {
   Future<Map<String, dynamic>> fetchMyNotifications({
     int page = 1,
     int limit = 10,
-    String? type, // homework, message, report, notice, installments, attendance, daily_summary, birthday, daily_exam
+    String?
+    type, // homework, message, report, notice, installments, attendance, daily_summary, birthday, daily_exam
   }) async {
     try {
       final qp = {
@@ -488,6 +565,30 @@ class ApiService {
   }
 
   // =============================
+  // نظرة عامة لوحة الطالب (الرئيسية)
+  // =============================
+  Future<Map<String, dynamic>> fetchStudentDashboardOverview() async {
+    try {
+      final response = await _dio.get("/student/dashboard/overview");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data["data"];
+        if (data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
+        // في بعض الحالات قد يرجع السيرفر البيانات مباشرةً
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(
+        (response.data is Map && response.data["message"] != null)
+            ? response.data["message"].toString()
+            : "فشل تحميل نظرة عامة لوحة الطالب",
+      );
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل نظرة عامة لوحة الطالب: $e");
+    }
+  }
+
+  // =============================
   // واجبات الطالب
   // =============================
 
@@ -525,7 +626,8 @@ class ApiService {
         final data = res.data is Map<String, dynamic>
             ? res.data as Map<String, dynamic>
             : <String, dynamic>{};
-        final serverMsg = (data["message"] ?? "فشل تحميل تفاصيل الواجب").toString();
+        final serverMsg = (data["message"] ?? "فشل تحميل تفاصيل الواجب")
+            .toString();
         // أعِد رسالة الخادم مباشرة لتُعرض للمستخدم (مثل: هذا الواجب غير متوفر لك)
         throw Exception(serverMsg);
       }
@@ -765,7 +867,9 @@ class ApiService {
   }
 
   /// ✅ جلب سجل الحضور/الغياب/الإجازات للطالب لكورس معيّن
-  Future<Map<String, dynamic>> fetchMyAttendanceByCourse(String courseId) async {
+  Future<Map<String, dynamic>> fetchMyAttendanceByCourse(
+    String courseId,
+  ) async {
     try {
       final response = await _dio.get(
         "/student/attendance/by-course/$courseId",
@@ -778,12 +882,135 @@ class ApiService {
         }
         return {"items": data};
       } else {
-        throw Exception(
-          response.data["message"] ?? "فشل تحميل سجل الحضور",
-        );
+        throw Exception(response.data["message"] ?? "فشل تحميل سجل الحضور");
       }
     } catch (e) {
       throw Exception("❌ خطأ أثناء تحميل سجل الحضور: $e");
+    }
+  }
+
+  // =============================
+  // فواتير الطالب
+  // =============================
+
+  /// جلب قائمة فواتير الطالب مع فلاتر اختيارية
+  Future<Map<String, dynamic>> fetchStudentInvoices({
+    String? studyYear, // YYYY-YYYY
+    String? courseId,
+    String? status, // pending | partial | paid | overdue
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final qp = {
+        "page": page,
+        "limit": limit,
+        if (studyYear != null && studyYear.isNotEmpty) "studyYear": studyYear,
+        if (courseId != null && courseId.isNotEmpty) "courseId": courseId,
+        if (status != null && status.isNotEmpty) "status": status,
+      };
+      final response = await _dio.get("/student/invoices", queryParameters: qp);
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل الفواتير");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الفواتير: $e");
+    }
+  }
+
+  /// تفاصيل فاتورة واحدة
+  Future<Map<String, dynamic>> fetchStudentInvoiceById(String invoiceId) async {
+    try {
+      final response = await _dio.get("/student/invoices/$invoiceId");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        // يعيد الفاتورة نفسها كما في الجدول
+        return Map<String, dynamic>.from(response.data["data"]);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل تفاصيل الفاتورة");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل الفاتورة: $e");
+    }
+  }
+
+  /// ✅ التفاصيل الموحّدة للفاتورة: الفاتورة + القيود (دفعات/خصومات) + معلومات القسط داخل كل قيد
+  Future<Map<String, dynamic>> fetchStudentInvoiceFull(String invoiceId) async {
+    try {
+      final response = await _dio.get("/student/invoices/$invoiceId/full");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data["data"];
+        if (data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
+        // توحيد شكل الإرجاع حتى لو اختلف
+        return {
+          "invoice": response.data["invoice"] ?? {},
+          "entries": response.data["entries"] ?? [],
+        };
+      }
+      throw Exception(
+        response.data["message"] ?? "فشل تحميل تفاصيل الفاتورة الكاملة",
+      );
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل الفاتورة الكاملة: $e");
+    }
+  }
+
+  /// أقساط الفاتورة
+  Future<List<Map<String, dynamic>>> fetchStudentInvoiceInstallments(
+    String invoiceId,
+  ) async {
+    try {
+      final response = await _dio.get(
+        "/student/invoices/$invoiceId/installments",
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final list = response.data["data"] as List;
+        return List<Map<String, dynamic>>.from(list);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل الأقساط");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل الأقساط: $e");
+    }
+  }
+
+  /// قيود الفاتورة (دفعات/خصومات/..)
+  Future<List<Map<String, dynamic>>> fetchStudentInvoiceEntries(
+    String invoiceId,
+  ) async {
+    try {
+      final response = await _dio.get("/student/invoices/$invoiceId/entries");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final list = response.data["data"] as List;
+        return List<Map<String, dynamic>>.from(list);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل قيود الفاتورة");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل قيود الفاتورة: $e");
+    }
+  }
+
+  /// ✅ تفاصيل القسط الكاملة لفاتورة معينة
+  Future<Map<String, dynamic>> fetchStudentInstallmentFull({
+    required String invoiceId,
+    required String installmentId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        "/student/invoices/$invoiceId/installments/$installmentId/full",
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data["data"];
+        if (data is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(data);
+        }
+        return {};
+      }
+      throw Exception(
+        response.data["message"] ?? "فشل تحميل تفاصيل القسط بالكامل",
+      );
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل القسط: $e");
     }
   }
 }

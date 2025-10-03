@@ -5,6 +5,7 @@ import 'package:dirasiq/features/home/screens/home_screen.dart';
 import 'package:dirasiq/features/courses/screens/suggested_courses_screen.dart';
 import 'package:dirasiq/features/bookings/screens/bookings_list_screen.dart';
 import 'package:dirasiq/features/enrollments/screens/enrollments_screen.dart';
+import 'package:dirasiq/features/invoices/screens/student_invoices_screen.dart';
 
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
@@ -15,11 +16,10 @@ class RootShell extends StatefulWidget {
 
 class _RootShellState extends State<RootShell> {
   int _currentIndex = 0;
-
   late final List<Widget> _pages;
 
   // نسخة لكل تبويب لإجبار إعادة البناء عند تغييره
-  final List<int> _tabVersion = [0, 0, 0, 0];
+  final List<int> _tabVersion = [0, 0, 0, 0, 0];
 
   @override
   void initState() {
@@ -28,6 +28,7 @@ class _RootShellState extends State<RootShell> {
       const HomeScreen(),
       const SuggestedCoursesScreen(),
       const EnrollmentsScreen(),
+      const StudentInvoicesScreen(),
       BookingsListScreen(onNavigateToTab: navigateToTab),
     ];
   }
@@ -120,6 +121,11 @@ class _RootShellState extends State<RootShell> {
                 icon: Icon(Icons.school_outlined),
                 selectedIcon: Icon(Icons.school),
                 label: 'دوراتي',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.receipt_long_outlined),
+                selectedIcon: Icon(Icons.receipt_long),
+                label: 'فواتيري',
               ),
               NavigationDestination(
                 icon: Icon(Icons.event_note_outlined),

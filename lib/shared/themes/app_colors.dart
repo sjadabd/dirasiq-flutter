@@ -1,106 +1,106 @@
 import 'package:flutter/material.dart';
 
-/// Centralized app color definitions and gradients
-/// Colors designed for psychological comfort and user engagement
+/// 🎨 App Colors for Light & Dark Themes
+/// Based on the selected professional LMS design
 class AppColors {
-  static const Color primary = Color(
-    0xFF4A90E2,
-  ); // Calming blue for trust and focus
-  static const Color secondary = Color(
-    0xFF7B68EE,
-  ); // Inspiring purple for creativity
-  static const Color tertiary = Color(
-    0xFF20B2AA,
-  ); // Refreshing teal for balance
-  static const Color accent = Color(0xFFFF8A65); // Warm coral for motivation
+  // ===== 🌞 Light Theme Colors =====
+  static const Color primary = Color(0xFF1E3A8A); // Blue Dark (header/buttons)
+  static const Color secondary = Color(0xFF4ADE80); // Green success
+  static const Color tertiary = Color(0xFF0EA5E9); // Cyan/Teal for balance
+  static const Color accent = Color(0xFFF59E0B); // Amber/Highlight
 
-  static const Color background = Color(
-    0xFFF8FAFC,
-  ); // Soft off-white for eye comfort
-  static const Color surface = Color(0xFFFFFFFF); // Pure white for clarity
-  static const Color surfaceVariant = Color(
-    0xFFF1F5F9,
-  ); // Light gray for subtle contrast
-  static const Color textPrimary = Color(
-    0xFF1E293B,
-  ); // Dark slate for readability
-  static const Color textSecondary = Color(
-    0xFF64748B,
-  ); // Medium gray for secondary text
-  static const Color textTertiary = Color(0xFF94A3B8); // Light gray for hints
-  static const Color outline = Color(0xFFE2E8F0); // Subtle borders
+  static const Color background = Color(0xFFF9FAFB); // Very light background
+  static const Color surface = Color(0xFFFFFFFF); // White cards
+  static const Color surfaceVariant = Color(0xFFF3F4F6); // Light gray
 
-  static const Color success = Color(
-    0xFF22C55E,
-  ); // Vibrant green for achievement
-  static const Color successLight = Color(0xFFDCFCE7); // Light green background
-  static const Color warning = Color(0xFFF59E0B); // Warm amber for attention
-  static const Color warningLight = Color(0xFFFEF3C7); // Light amber background
-  static const Color error = Color(0xFFEF4444); // Clear red for errors
-  static const Color errorLight = Color(0xFFFEE2E2); // Light red background
-  static const Color info = Color(0xFF3B82F6); // Clear blue for information
-  static const Color infoLight = Color(0xFFDBEAFE); // Light blue background
+  static const Color textPrimary = Color(0xFF111827); // Near black
+  static const Color textSecondary = Color(0xFF6B7280); // Gray
+  static const Color textTertiary = Color(0xFF9CA3AF); // Light gray
+  static const Color outline = Color(0xFFE5E7EB); // Subtle border
 
-  static const Color focus = Color(0xFF6366F1); // Indigo for concentration
-  static const Color energy = Color(0xFFEC4899); // Pink for enthusiasm
-  static const Color calm = Color(0xFF06B6D4); // Cyan for relaxation
-  static const Color growth = Color(0xFF10B981); // Emerald for progress
+  static const Color success = Color(0xFF22C55E); // Green
+  static const Color successLight = Color(0xFFD1FAE5);
+  static const Color warning = Color(0xFFFACC15); // Yellow warning
+  static const Color warningLight = Color(0xFFFEF9C3);
+  static const Color error = Color(0xFFEF4444); // Red
+  static const Color errorLight = Color(0xFFFEE2E2);
+  static const Color info = Color(0xFF0284C7); // Blue info
+  static const Color infoLight = Color(0xFFDBEAFE);
+
+  // ===== 🌙 Dark Theme Colors =====
+  static const Color darkBackground = Color(0xFF0F172A); // Dark navy
+  static const Color darkSurface = Color(0xFF1F2937); // Dark gray surface
+  static const Color darkSurfaceVariant = Color(0xFF374151); // Mid gray
+
+  static const Color darkTextPrimary = Color(0xFFF9FAFB); // White-ish
+  static const Color darkTextSecondary = Color(0xFFD1D5DB); // Light gray
+  static const Color darkTextTertiary = Color(0xFF9CA3AF);
+
+  static const Color darkPrimary = Color(0xFF60A5FA); // Light blue
+  static const Color darkSecondary = Color(0xFF34D399); // Emerald green
+  static const Color darkTertiary = Color(0xFF0EA5E9); // Cyan
+  static const Color darkAccent = Color(0xFFFBBF24); // Warm amber
 
   // Common
   static const Color white = Colors.white;
-  static const Color black = Color(0xFF0F172A); // Softer black
+  static const Color black = Color(0xFF0F172A);
 
+  // Emotional/mood aliases
+  static const Color energy = accent; // Accent as energy
+  static const Color focus = secondary; // Secondary as focus
+
+  // ===== 🌈 Gradients =====
   static const List<Color> gradientWelcome = [
-    Color(0xFF667EEA),
-    Color(0xFF764BA2),
-  ]; // Trust to creativity
+    primary,
+    secondary,
+  ]; // Blue → Green
+
   static const List<Color> gradientLearning = [
-    Color(0xFF4FACFE),
-    Color(0xFF00F2FE),
-  ]; // Focus to clarity
+    Color(0xFF38BDF8),
+    Color(0xFF0EA5E9),
+  ]; // Cyan Gradient
+
   static const List<Color> gradientMotivation = [
-    Color(0xFFFF9A9E),
-    Color(0xFFFECFEF),
-  ]; // Energy to comfort
+    Color(0xFFFECACA),
+    Color(0xFFFB7185),
+  ]; // Soft Red → Pink
+
   static const List<Color> gradientSuccess = [
-    Color(0xFF11998E),
-    Color(0xFF38EF7D),
-  ]; // Growth to achievement
+    Color(0xFF4ADE80),
+    Color(0xFF16A34A),
+  ]; // Green
+
   static const List<Color> gradientCalm = [
-    Color(0xFFA8EDEA),
-    Color(0xFFFED6E3),
-  ]; // Serenity to warmth
+    Color(0xFFA5F3FC),
+    Color(0xFF67E8F9),
+  ]; // Soft Cyan
+
   static const List<Color> gradientInspiration = [
-    Color(0xFFFFE259),
-    Color(0xFFFFA751),
-  ]; // Joy to enthusiasm
+    Color(0xFFFDE68A),
+    Color(0xFFFBBF24),
+  ]; // Yellow/Amber
 
-  static const List<Color> gradientMath = [
-    Color(0xFF667EEA),
-    Color(0xFF764BA2),
-  ]; // Logic and reasoning
+  // Subject-specific
+  static const List<Color> gradientMath = [primary, secondary];
   static const List<Color> gradientScience = [
-    Color(0xFF4FACFE),
-    Color(0xFF00F2FE),
-  ]; // Discovery and innovation
+    Color(0xFF38BDF8),
+    Color(0xFF0EA5E9),
+  ];
   static const List<Color> gradientLanguage = [
-    Color(0xFFF093FB),
-    Color(0xFFF5576C),
-  ]; // Expression and creativity
-  static const List<Color> gradientArt = [
-    Color(0xFFFFE259),
-    Color(0xFFFFA751),
-  ]; // Creativity and joy
+    Color(0xFFFB7185),
+    Color(0xFFF472B6),
+  ];
+  static const List<Color> gradientArt = [Color(0xFFFDE68A), Color(0xFFFBBF24)];
 
-  static const Color buttonPrimary = Color(0xFF4A90E2);
-  static const Color buttonPrimaryHover = Color(0xFF357ABD);
-  static const Color buttonPrimaryPressed = Color(0xFF2563EB);
-  static const Color buttonSecondary = Color(0xFFF1F5F9);
-  static const Color buttonSecondaryHover = Color(0xFFE2E8F0);
+  // ===== Buttons =====
+  static const Color buttonPrimary = primary;
+  static const Color buttonPrimaryHover = Color(0xFF1D4ED8);
+  static const Color buttonPrimaryPressed = Color(0xFF1E40AF);
+  static const Color buttonSecondary = surfaceVariant;
+  static const Color buttonSecondaryHover = outline;
 
-  /// Enhanced ColorScheme with psychological considerations
-  static ColorScheme lightScheme = ColorScheme.fromSeed(
-    seedColor: primary,
+  // ===== 🎨 Theme Schemes =====
+  static ColorScheme lightScheme = ColorScheme(
     brightness: Brightness.light,
     primary: primary,
     secondary: secondary,
@@ -116,28 +116,28 @@ class AppColors {
     onError: white,
   );
 
-  /// Dark theme for eye comfort in low light
-  static ColorScheme darkScheme = ColorScheme.fromSeed(
-    seedColor: primary,
+  static ColorScheme darkScheme = ColorScheme(
     brightness: Brightness.dark,
-    primary: Color(0xFF60A5FA),
-    secondary: Color(0xFF9CA3AF),
-    tertiary: Color(0xFF34D399),
-    surface: Color(0xFF1E293B),
-    background: Color(0xFF0F172A),
-    error: Color(0xFFF87171),
-    onPrimary: Color(0xFF0F172A),
-    onSecondary: Color(0xFF0F172A),
-    onTertiary: Color(0xFF0F172A),
-    onSurface: Color(0xFFF8FAFC),
-    onBackground: Color(0xFFF8FAFC),
-    onError: Color(0xFF0F172A),
+    primary: darkPrimary,
+    secondary: darkSecondary,
+    tertiary: darkTertiary,
+    surface: darkSurface,
+    background: darkBackground,
+    error: darkAccent,
+    onPrimary: white,
+    onSecondary: white,
+    onTertiary: white,
+    onSurface: darkTextPrimary,
+    onBackground: darkTextPrimary,
+    onError: white,
   );
 
+  static Color get border => outline;
+
   static Color getMotivationalColor(double progress) {
-    if (progress < 0.3) return energy; // Pink for initial motivation
-    if (progress < 0.7) return focus; // Indigo for sustained effort
-    return success; // Green for achievement
+    if (progress < 0.3) return energy;
+    if (progress < 0.7) return focus;
+    return success;
   }
 
   static LinearGradient getSubjectGradient(String subject) {

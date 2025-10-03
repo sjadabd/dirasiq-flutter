@@ -22,15 +22,14 @@ class EnrollmentActionsScreen extends StatefulWidget {
     this.courseName,
     this.teacherId,
   });
-
   @override
   State<EnrollmentActionsScreen> createState() =>
       _EnrollmentActionsScreenState();
 }
 
-class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
-  final _api = ApiService();
-  bool _busy = false;
+  class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
+    final _api = ApiService();
+    bool _busy = false;
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +104,14 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
               color: Colors.brown,
               onTap: _onOpenEvaluations,
             ),
+            const SizedBox(height: 12),
+            _actionCard(
+              icon: Icons.receipt_long,
+              title: 'فواتير ودفعات الكورس',
+              subtitle: 'اعرض فواتير هذا الكورس وأقساطه ودفعاته',
+              color: Colors.deepOrange,
+              onTap: _onOpenCourseInvoices,
+            ),
           ],
         ),
       ),
@@ -161,6 +168,19 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
 
   void _onOpenEvaluations() {
     Get.to(() => const StudentEvaluationsScreen());
+  }
+
+  void _onOpenCourseInvoices() {
+    if (widget.courseId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن فتح الفواتير: معرف الكورس مفقود')),
+      );
+      return;
+    }
+    Get.toNamed('/invoices', arguments: {
+      'courseId': widget.courseId,
+      if (widget.courseName != null) 'courseName': widget.courseName,
+    });
   }
 
   Widget _actionCard({

@@ -22,6 +22,9 @@ import 'features/enrollments/screens/enrollment_actions_screen.dart';
 import 'features/qr/qr_scan_screen.dart';
 import 'features/enrollments/screens/course_weekly_schedule_screen.dart';
 import 'features/enrollments/screens/course_attendance_screen.dart';
+import 'features/invoices/screens/student_invoices_screen.dart';
+import 'features/invoices/screens/invoice_details_screen.dart';
+import 'features/teachers/screens/suggested_teachers_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +38,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = AppColors.lightScheme;
+    final dark = AppColors.darkScheme;
 
     return GetMaterialApp(
       title: 'Dirasiq',
@@ -66,14 +70,14 @@ class MyApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white,
+          fillColor: scheme.surface,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: scheme.outlineVariant),
+            borderSide: BorderSide(color: scheme.outline),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: scheme.outlineVariant),
+            borderSide: BorderSide(color: scheme.outline),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -98,7 +102,60 @@ class MyApp extends StatelessWidget {
           style: TextButton.styleFrom(foregroundColor: scheme.primary),
         ),
         cardTheme: CardThemeData(
-          color: Colors.white,
+          color: scheme.surface,
+          elevation: 1.5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          margin: const EdgeInsets.all(0),
+        ),
+      ),
+
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: dark,
+        scaffoldBackgroundColor: AppColors.darkBackground,
+        appBarTheme: AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: dark.surface,
+          foregroundColor: dark.onSurface,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: dark.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: dark.outline),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: dark.outline),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: dark.primary, width: 1.6),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: dark.primary,
+            foregroundColor: dark.onPrimary,
+            minimumSize: const Size.fromHeight(48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(foregroundColor: dark.primary),
+        ),
+        cardTheme: CardThemeData(
+          color: dark.surface,
           elevation: 1.5,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -175,6 +232,14 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
+        GetPage(name: "/invoices", page: () => const StudentInvoicesScreen()),
+        GetPage(
+          name: "/invoice-details",
+          page: () {
+            final invoiceId = Get.arguments as String;
+            return InvoiceDetailsScreen(invoiceId: invoiceId);
+          },
+        ),
         GetPage(
           name: "/suggested-courses",
           page: () => const SuggestedCoursesScreen(),
@@ -185,6 +250,10 @@ class MyApp extends StatelessWidget {
             final courseId = Get.arguments as String; // استلام الـ argument
             return CourseDetailsScreen(courseId: courseId);
           },
+        ),
+        GetPage(
+          name: "/suggested-teachers",
+          page: () => const SuggestedTeachersScreen(),
         ),
         GetPage(name: "/bookings", page: () => const BookingsListScreen()),
         GetPage(

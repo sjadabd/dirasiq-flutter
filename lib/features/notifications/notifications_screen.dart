@@ -15,6 +15,7 @@ import 'package:dirasiq/features/assignments/screens/assignment_details_screen.d
 import 'package:dirasiq/features/exams/screens/student_exams_screen.dart';
 import 'package:dirasiq/features/exams/screens/student_exam_grades_screen.dart';
 import 'package:dirasiq/features/evaluations/screens/student_evaluations_screen.dart';
+import 'package:dirasiq/features/invoices/screens/invoice_details_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -371,6 +372,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         if (n[k] != null) payload[k] = n[k];
       }
     }
+
     return payload;
   }
 
@@ -413,6 +415,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           builder: (_) => StudentEvaluationsScreen(
             initialEvaluationId: evaluationId,
           ),
+        ),
+      );
+      return;
+    }
+
+    // Invoice routing (new invoice / payment reminder / installment updates)
+    final invoiceId = (payload['invoiceId'] ?? payload['invoice_id'] ?? n['invoiceId'] ?? n['invoice_id'])?.toString();
+    final isInvoiceBySubtype = subType == 'invoice_created' || subType == 'invoice_updated' || subType == 'installment_due' || subType == 'installment_paid';
+    final isInvoiceByType = (typeLower?.contains('invoice') ?? false) || (typeLower == 'payment_reminder');
+    if (invoiceId != null && invoiceId.isNotEmpty && (isInvoiceBySubtype || isInvoiceByType || true)) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => InvoiceDetailsScreen(invoiceId: invoiceId),
         ),
       );
       return;
