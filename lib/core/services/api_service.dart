@@ -181,6 +181,51 @@ class ApiService {
 
   Dio get dio => _dio;
 
+  // =============================
+  // تقييمات الطالب
+  // =============================
+
+  /// جلب قائمة تقييمات الطالب مع فلاتر التاريخ والترقيم
+  Future<Map<String, dynamic>> fetchStudentEvaluations({
+    String? from, // YYYY-MM-DD
+    String? to,   // YYYY-MM-DD
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final qp = {
+        "page": page,
+        "limit": limit,
+        if (from != null && from.isNotEmpty) "from": from,
+        if (to != null && to.isNotEmpty) "to": to,
+      };
+      final response = await _dio.get(
+        "/student/evaluations",
+        queryParameters: qp,
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        // يرجع: { success, data: [...], pagination: {...} }
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل التقييمات");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل التقييمات: $e");
+    }
+  }
+
+  /// جلب تفاصيل تقييم واحد
+  Future<Map<String, dynamic>> fetchStudentEvaluationById(String id) async {
+    try {
+      final response = await _dio.get("/student/evaluations/$id");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        return Map<String, dynamic>.from(response.data["data"]);
+      }
+      throw Exception(response.data["message"] ?? "فشل تحميل تفاصيل التقييم");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل تفاصيل التقييم: $e");
+    }
+  }
+
   /// ✅ جلب الدورات المسجّل بها الطالب
   Future<Map<String, dynamic>> fetchStudentEnrollments({
     int page = 1,

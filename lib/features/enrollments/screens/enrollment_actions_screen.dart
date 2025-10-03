@@ -9,6 +9,7 @@ import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_scre
 import 'package:dirasiq/features/assignments/screens/student_assignments_screen.dart';
 import 'package:dirasiq/features/exams/screens/student_exams_screen.dart';
 import 'package:dirasiq/features/exams/screens/student_exam_grades_screen.dart';
+import 'package:dirasiq/features/evaluations/screens/student_evaluations_screen.dart';
 
 class EnrollmentActionsScreen extends StatefulWidget {
   final String courseId;
@@ -96,6 +97,14 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
               color: Colors.green,
               onTap: _onOpenExamGrades,
             ),
+            const SizedBox(height: 12),
+            _actionCard(
+              icon: Icons.fact_check,
+              title: 'تقييماتي',
+              subtitle: 'اعرض تقييماتك مع إمكانية التصفية بالتاريخ',
+              color: Colors.brown,
+              onTap: _onOpenEvaluations,
+            ),
           ],
         ),
       ),
@@ -148,6 +157,10 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
 
   void _onOpenExamGrades() {
     Get.to(() => const StudentExamGradesScreen());
+  }
+
+  void _onOpenEvaluations() {
+    Get.to(() => const StudentEvaluationsScreen());
   }
 
   Widget _actionCard({

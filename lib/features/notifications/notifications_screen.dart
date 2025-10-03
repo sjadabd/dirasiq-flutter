@@ -14,6 +14,7 @@ import 'package:dirasiq/features/assignments/screens/student_assignments_screen.
 import 'package:dirasiq/features/assignments/screens/assignment_details_screen.dart';
 import 'package:dirasiq/features/exams/screens/student_exams_screen.dart';
 import 'package:dirasiq/features/exams/screens/student_exam_grades_screen.dart';
+import 'package:dirasiq/features/evaluations/screens/student_evaluations_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -385,8 +386,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final payload = _parsePayload(n);
 
-    // Homework / Assignments routing
+    // Student evaluation routing
     final typeLower = type?.toLowerCase();
+    final subType = (payload['subType'] ?? payload['sub_type'])?.toString().toLowerCase();
+    final ratings = payload['ratings'] is Map ? Map<String, dynamic>.from(payload['ratings']) : <String, dynamic>{};
+    final hasRatingsKeys = ratings.keys.any((k) => const {
+          'scientific_level',
+          'behavioral_level',
+          'attendance_level',
+          'homework_preparation',
+          'participation_level',
+          'instruction_following',
+        }.contains(k));
+    final isEvaluationNotification =
+        (typeLower?.contains('evaluation') ?? false) ||
+        subType == 'student_evaluation' ||
+        payload.containsKey('scientific_level') ||
+        payload.containsKey('behavioral_level') ||
+        payload.containsKey('attendance_level') ||
+        hasRatingsKeys;
+    if (isEvaluationNotification) {
+      final evaluationId = (payload['evaluationId'] ?? payload['evaluation_id'] ?? n['evaluationId'] ?? n['evaluation_id'])?.toString();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudentEvaluationsScreen(
+            initialEvaluationId: evaluationId,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Homework / Assignments routing
     if (typeLower != null && (typeLower.contains('assign') || typeLower.contains('homework'))) {
       final assignmentId = (payload['assignmentId'] ?? payload['assignment_id'] ?? n['assignmentId'] ?? n['assignment_id'])?.toString();
       if (assignmentId != null && assignmentId.isNotEmpty) {
