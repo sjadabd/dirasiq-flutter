@@ -82,13 +82,13 @@ class _StudentCalendarState extends State<StudentCalendar> {
               const SizedBox(height: 12),
               ...events.map(
                 (e) => ListTile(
-                  leading: Icon(
-                    Icons.menu_book_rounded,
-                    color: cs.primary,
-                  ),
+                  leading: Icon(Icons.menu_book_rounded, color: cs.primary),
                   title: Text(
                     e['course']?['name'] ?? "دورة",
-                    style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: cs.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   subtitle: Text(
                     "المعلم: ${e['teacher']?['name']} \n${e['startTime']} - ${e['endTime']}",
@@ -96,6 +96,7 @@ class _StudentCalendarState extends State<StudentCalendar> {
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         );
@@ -109,13 +110,18 @@ class _StudentCalendarState extends State<StudentCalendar> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final cs = Theme.of(context).colorScheme;
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      elevation: 1.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      elevation: 0.8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(6.0), // 👈 تقليل الهوامش
+        padding: const EdgeInsets.all(0),
         child: TableCalendar(
           firstDay: DateTime.utc(2020, 1, 1),
           lastDay: DateTime.utc(2030, 12, 31),
@@ -123,7 +129,7 @@ class _StudentCalendarState extends State<StudentCalendar> {
           calendarFormat: CalendarFormat.month,
           startingDayOfWeek: StartingDayOfWeek.saturday,
           locale: 'ar',
-          rowHeight: 28,
+          rowHeight: 26, // 👈 تقليل ارتفاع الخلية
           daysOfWeekHeight: 18,
           selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
           onDaySelected: (selectedDay, focusedDay) {
@@ -134,46 +140,196 @@ class _StudentCalendarState extends State<StudentCalendar> {
             _showDayDetails(selectedDay);
           },
           eventLoader: _getEventsForDay,
-          calendarStyle: CalendarStyle(
-            defaultTextStyle: TextStyle(fontSize: 10, color: cs.onSurface), // حجم ثابت
-            weekendTextStyle: TextStyle(fontSize: 10, color: cs.error),
-            todayDecoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.35),
-              shape: BoxShape.circle,
-            ),
-            selectedDecoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.75), // لون الدائرة عند التحديد
-              shape: BoxShape.circle,
-            ),
-            selectedTextStyle: TextStyle(
-              fontSize: 10, // 👈 نفس الحجم، ما يكبر
-              fontWeight: FontWeight.bold,
-              color: cs.onPrimary, // الرقم داخل الدائرة باللون المناسب
-            ),
-            markersMaxCount: 1,
-            markerDecoration: BoxDecoration(
-              color: cs.secondary,
-              shape: BoxShape.circle,
-            ),
+
+          // 🎨 الخلايا + البوردر
+          calendarBuilders: CalendarBuilders(
+            defaultBuilder: (context, day, focusedDay) {
+              return Container(
+                padding: const EdgeInsets.all(1),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.4),
+                    width: 0.6,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              );
+            },
+            outsideBuilder: (context, day, focusedDay) {
+              return Container(
+                padding: const EdgeInsets.all(1),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.3),
+                    width: 0.6,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+              );
+            },
+
+            // ✅ اليوم الحالي
+            todayBuilder: (context, day, focusedDay) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return Container(
+                padding: const EdgeInsets.all(1),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.5),
+                    width: 0.8,
+                  ),
+                  color: isDark
+                      ? Colors
+                            .white24 // خلفية فاتحة في الليلي
+                      : Theme.of(context).primaryColor.withValues(
+                          alpha: 0.15,
+                        ), // فاتح في النهاري
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? Colors
+                              .white // نص أبيض في الليلي
+                        : Theme.of(
+                            context,
+                          ).primaryColor, // نص Primary في النهاري
+                  ),
+                ),
+              );
+            },
+
+            // ✅ اليوم المحدد
+            selectedBuilder: (context, day, focusedDay) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return Container(
+                padding: const EdgeInsets.all(1),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.6),
+                    width: 0.8,
+                  ),
+                  color: isDark
+                      ? Theme.of(context)
+                            .colorScheme
+                            .secondary // لون بارز في الليلي
+                      : Theme.of(context).primaryColor, // Primary في النهاري
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.black : Colors.white, // يبان واضح
+                  ),
+                ),
+              );
+            },
+
+            // ✅ النقاط (markers)
+            markerBuilder: (context, day, events) {
+              if (events.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              final isSelected = isSameDay(_selectedDay, day);
+              final isToday = isSameDay(DateTime.now(), day);
+
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              Color baseColor = isDark ? Colors.white70 : Colors.black54;
+
+              if (isSelected) {
+                baseColor = Theme.of(context).colorScheme.secondary;
+              }
+              if (isToday) {
+                baseColor = Theme.of(context).primaryColor;
+              }
+
+              return Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      events.length.clamp(0, 3),
+                      (index) => Container(
+                        width: 4,
+                        height: 4,
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        decoration: BoxDecoration(
+                          color: baseColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
+
+          // 🎨 عناوين الأيام
           daysOfWeekStyle: DaysOfWeekStyle(
-            weekdayStyle: TextStyle(fontSize: 9, fontWeight: FontWeight.w500, color: cs.onSurfaceVariant),
+            weekdayStyle: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             weekendStyle: TextStyle(
               fontSize: 9,
-              fontWeight: FontWeight.w500,
-              color: cs.error,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.error,
             ),
           ),
+
+          // 🎨 الهيدر
           headerStyle: HeaderStyle(
             titleCentered: true,
             formatButtonVisible: false,
             titleTextStyle: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
-              color: cs.onSurface,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
-            leftChevronIcon: Icon(Icons.chevron_left, size: 18, color: cs.onSurface),
-            rightChevronIcon: Icon(Icons.chevron_right, size: 18, color: cs.onSurface),
+            leftChevronIcon: Icon(
+              Icons.chevron_left,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            rightChevronIcon: Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            headerPadding: const EdgeInsets.symmetric(vertical: 2),
           ),
         ),
       ),

@@ -211,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "الاقتراحات",
                         textAlign: TextAlign.right,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -282,7 +282,65 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ),
 
+                  const SizedBox(height: 3),
+
+                  // ===== كروت التقدم والحضور =====
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0, bottom: 8.0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "التقدم والحضور",
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 100,
+                            child: _StatCard(
+                              title: 'التقدّم الدراسي',
+                              percent: ((_progressPercent ?? 0) / 100).clamp(
+                                0.0,
+                                1.0,
+                              ),
+                              background: const Color(0xFF2F4B6D),
+                              foreground: Colors.white,
+                              barColor: const Color(0xFFA5DBE8),
+                              trackColor: const Color(0x33FFFFFF),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 100,
+                            child: _StatCard(
+                              title: 'نسبة الحضور',
+                              percent: ((_attendancePercent ?? 0) / 100).clamp(
+                                0.0,
+                                1.0,
+                              ),
+                              background: const Color(0xFFCFEEDB),
+                              foreground: const Color(0xFF1F2A37),
+                              barColor: const Color(0xFF6B8F7E),
+                              trackColor: const Color(0x33000000),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   // ===== أقرب محاضرة + أقرب امتحان =====
+                  const SizedBox(height: 3),
                   Padding(
                     padding: const EdgeInsets.only(right: 16.0, bottom: 8.0),
                     child: Align(
@@ -291,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "تذكيرات",
                         textAlign: TextAlign.right,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -309,10 +367,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               elevation: 2,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white.withOpacity(
+                                          0.25,
+                                        ) // في الوضع الليلي
+                                      : Colors.black.withOpacity(
+                                          0.15,
+                                        ), // في الوضع النهاري
+                                  width: 1.2,
+                                ),
                               ),
                               child: _nextSession != null
                                   ? Padding(
-                                      padding: const EdgeInsets.all(5.0),
+                                      padding: const EdgeInsets.all(8.0),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -321,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         children: [
                                           Text(
                                             'أقرب محاضرة : ${_nextSession?['courseName']}',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -372,10 +442,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               elevation: 2,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white.withOpacity(0.25)
+                                      : Colors.black.withOpacity(0.15),
+                                  width: 1.2,
+                                ),
                               ),
                               child: _nextExam != null
                                   ? Padding(
-                                      padding: const EdgeInsets.all(12.0),
+                                      padding: const EdgeInsets.all(8.0),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -384,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         children: [
                                           Text(
                                             'أقرب امتحان : ${_nextExam?['courseName']}',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -431,65 +509,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
 
-                  const SizedBox(height: 8),
-
-                  // ===== كروت التقدم والحضور =====
+                  const SizedBox(height: 3),
                   Padding(
-                    padding: const EdgeInsets.only(right: 16.0, bottom: 8.0),
+                    padding: const EdgeInsets.only(right: 16.0, bottom: 3.0),
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        "التقدم والحضور",
+                        "المحاضرات",
                         textAlign: TextAlign.right,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 100,
-                            child: _StatCard(
-                              title: 'التقدّم الدراسي',
-                              percent: ((_progressPercent ?? 0) / 100).clamp(
-                                0.0,
-                                1.0,
-                              ),
-                              background: const Color(0xFF2F4B6D),
-                              foreground: Colors.white,
-                              barColor: const Color(0xFFA5DBE8),
-                              trackColor: const Color(0x33FFFFFF),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: SizedBox(
-                            height: 100,
-                            child: _StatCard(
-                              title: 'نسبة الحضور',
-                              percent: ((_attendancePercent ?? 0) / 100).clamp(
-                                0.0,
-                                1.0,
-                              ),
-                              background: const Color(0xFFCFEEDB),
-                              foreground: const Color(0xFF1F2A37),
-                              barColor: const Color(0xFF6B8F7E),
-                              trackColor: const Color(0x33000000),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
                   StudentCalendar(),
                 ],
               ),

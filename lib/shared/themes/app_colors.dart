@@ -106,13 +106,11 @@ class AppColors {
     secondary: secondary,
     tertiary: tertiary,
     surface: surface,
-    background: background,
     error: error,
     onPrimary: white,
     onSecondary: white,
     onTertiary: white,
     onSurface: textPrimary,
-    onBackground: textPrimary,
     onError: white,
   );
 
@@ -122,13 +120,11 @@ class AppColors {
     secondary: darkSecondary,
     tertiary: darkTertiary,
     surface: darkSurface,
-    background: darkBackground,
     error: darkAccent,
     onPrimary: white,
     onSecondary: white,
     onTertiary: white,
     onSurface: darkTextPrimary,
-    onBackground: darkTextPrimary,
     onError: white,
   );
 

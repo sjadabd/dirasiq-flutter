@@ -101,332 +101,231 @@ class _NewsCarouselState extends State<NewsCarousel>
   }
 
   void _showNewsDetails(Map<String, dynamic> news) {
-    showDialog(
+    showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.7),
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85,
-              maxWidth: MediaQuery.of(context).size.width * 0.95,
-            ),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 30,
-                  offset: const Offset(0, 15),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: AppColors.gradientLearning,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+      barrierLabel: '',
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, anim1, anim2) {
+        return const SizedBox.shrink();
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        final cs = Theme.of(context).colorScheme;
+        return Transform.scale(
+          scale: Curves.easeOutBack.transform(anim1.value),
+          child: Opacity(
+            opacity: anim1.value,
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: cs.surface, // خلفية تتبع الثيم
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 25,
+                      offset: const Offset(0, 12),
                     ),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.article_outlined,
-                          size: 24,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          "آخر الأخبار",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ),
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => Navigator.of(context).pop(),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            child: Icon(
-                              Icons.close_rounded,
-                              color: Theme.of(context).colorScheme.onSurface,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
-
-                const SizedBox(height: 24),
-
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 220,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(
-                                  alpha: 0.15,
-                                ),
-                                blurRadius: 15,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: Image.network(
-                              _getImageUrl(news['imageUrl']),
-                              fit: BoxFit.contain,
-                              width: double.infinity,
-                              height: double.infinity,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: AppColors.gradientLearning,
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.image_not_supported_outlined,
-                                          size: 48,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.8),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          "لا توجد صورة",
-                                          style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.8),
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ===== Header Section =====
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cs.primary, // يتبع الثيم
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(24),
                         ),
-
-                        const SizedBox(height: 24),
-
-                        Text(
-                          news['title'] ?? 'عنوان الخبر',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                            height: 1.4,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.article_rounded,
+                            color: cs.onPrimary,
+                            size: 24,
                           ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppColors.primary.withValues(alpha: 0.1),
-                                AppColors.primary.withValues(alpha: 0.05),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  Icons.schedule,
-                                  size: 14,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _formatDate(news['publishedAt']),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(
-                                  alpha: 0.05,
-                                ),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            news['details'] ?? 'تفاصيل الخبر غير متوفرة',
+                          const SizedBox(width: 10),
+                          Text(
+                            "تفاصيل الخبر",
                             style: TextStyle(
-                              fontSize: 16,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.75),
-                              height: 1.7,
+                              color: cs.onPrimary,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                          const Spacer(),
+                          InkWell(
+                            onTap: () => Navigator.of(context).pop(),
+                            borderRadius: BorderRadius.circular(30),
+                            child: Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: cs.onPrimary,
+                                size: 22,
                               ),
-                              elevation: 4,
-                              shadowColor: AppColors.primary.withValues(
-                                alpha: 0.3,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.close_rounded, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "إغلاق",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              elevation: 4,
-                              shadowColor: AppColors.primary.withValues(
-                                alpha: 0.3,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.close_rounded, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "إغلاق",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+
+                    // ===== Content Section =====
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Image
+                            Container(
+                              height: 200,
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 20),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.08),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.network(
+                                  _getImageUrl(news['imageUrl']),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: AppColors.gradientLearning,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.image_not_supported_rounded,
+                                          color: (cs.onSurface).withValues(
+                                            alpha: 0.7,
+                                          ),
+                                          size: 44,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+
+                            // Title
+                            Text(
+                              news['title'] ?? 'عنوان الخبر',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w700,
+                                color: cs.onSurface,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Date Tag
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cs.primaryContainer,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.access_time_rounded,
+                                    size: 15,
+                                    color: cs.onPrimaryContainer,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    _formatDate(news['publishedAt']),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: cs.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 18),
+
+                            // Details
+                            Text(
+                              news['details'] ?? 'تفاصيل الخبر غير متوفرة',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: cs.onSurface.withValues(alpha: 0.8),
+                                height: 1.6,
+                              ),
+                            ),
+
+                            const SizedBox(height: 26),
+
+                            // Close Button
+                            Center(
+                              child: ElevatedButton.icon(
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: cs.primary,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 28,
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  elevation: 3,
+                                ),
+                                icon: Icon(
+                                  Icons.check_rounded,
+                                  color: cs.onPrimary,
+                                ),
+                                label: Text(
+                                  "إغلاق",
+                                  style: TextStyle(
+                                    color: cs.onPrimary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -568,6 +467,18 @@ class _NewsCarouselState extends State<NewsCarousel>
                           margin: const EdgeInsets.symmetric(horizontal: 6),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white.withOpacity(
+                                      0.25,
+                                    ) // في الوضع الليلي
+                                  : Colors.black.withOpacity(
+                                      0.15,
+                                    ), // في الوضع النهاري
+                              width: 1.5,
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: cs.primary.withValues(alpha: 0.15),
