@@ -1,3 +1,4 @@
+import 'package:dirasiq/features/home/widgets/student_calendar.dart';
 import 'package:flutter/material.dart';
 import 'package:dirasiq/features/home/widgets/news_carousel.dart';
 import 'package:dirasiq/shared/widgets/global_app_bar.dart';
@@ -39,7 +40,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -59,7 +60,6 @@ class _StatCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          // Track
           Container(
             height: 8,
             decoration: BoxDecoration(
@@ -88,7 +88,7 @@ class _StatCard extends StatelessWidget {
             child: Text(
               "${(pct * 100).round()}%",
               style: TextStyle(
-                color: foreground.withOpacity(0.9),
+                color: foreground.withValues(alpha: 0.9),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -101,19 +101,34 @@ class _StatCard extends StatelessWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
-  int _refreshToken = 0; // لتمريره للويدجتس لإعادة التحميل
-  // مفتاح لإجبار إعادة بناء عناصر الصفحة بشكل كامل عند السحب للتحديث
+  int _refreshToken = 0;
   Key _refreshKey = UniqueKey();
-  double? _progressPercent; // 0..100 من الخادم
-  double? _attendancePercent; // 0..100 من الخادم
+  double? _progressPercent;
+  double? _attendancePercent;
+  Map<String, dynamic>? _nextSession;
+  Map<String, dynamic>? _nextExam;
   bool _loadingOverview = false;
   String? _overviewError;
+
+  String _timeUntil(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = dateTime.difference(now);
+
+    if (diff.inDays > 0) {
+      return "متبقي ${diff.inDays} يوم";
+    } else if (diff.inHours > 0) {
+      return "متبقي ${diff.inHours} ساعة";
+    } else if (diff.inMinutes > 0) {
+      return "متبقي ${diff.inMinutes} دقيقة";
+    } else {
+      return "بدأ أو انتهى للتو";
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Unread notifications are handled by GlobalAppBar
     _loadOverview();
   }
 
@@ -133,8 +148,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _refreshAll() async {
     if (!mounted) return;
     setState(() {
-      _refreshToken++; // لإعادة تحميل الأبناء مثل NewsCarousel
-      _refreshKey = UniqueKey(); // إجبار إعادة بناء كامل للواجهة
+      _refreshToken++;
+      _refreshKey = UniqueKey();
     });
     await _loadOverview();
   }
@@ -145,15 +160,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _overviewError = null;
     });
     try {
-      final data = await ApiService().fetchStudentDashboardOverview();
-      final prog = (data['progressPercent'] ?? data['progress'] ?? 0)
-          .toDouble();
-      final att = (data['attendancePercent'] ?? data['attendance'] ?? 0)
-          .toDouble();
+      final resp = await ApiService().fetchStudentDashboardOverview();
+      // resp قد يكون هو نفسه data، أو قد يحتوي على المفتاح 'data'
+      final Map<String, dynamic> data = (resp['data'] is Map<String, dynamic>)
+          ? Map<String, dynamic>.from(resp['data'] as Map)
+          : Map<String, dynamic>.from(resp);
+
+      final prog = (data['progressPercent'] ?? 0).toDouble();
+      final att = (data['attendancePercent'] ?? 0).toDouble();
+
       if (!mounted) return;
       setState(() {
         _progressPercent = prog;
         _attendancePercent = att;
+        _nextSession = data['nextSession'];
+        _nextExam = data['nextMonthlyExam'];
         _loadingOverview = false;
       });
     } catch (e) {
@@ -169,28 +190,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: cs.background,
+      backgroundColor: cs.surface,
       appBar: const GlobalAppBar(title: "الرئيسية - درس عراق"),
       body: RefreshIndicator(
         onRefresh: _refreshAll,
         child: KeyedSubtree(
           key: _refreshKey,
           child: Container(
-            color: cs.background,
+            color: cs.surface,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 children: [
                   NewsCarousel(refreshToken: _refreshToken),
-
-                  // Compact suggestion tiles row
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0, bottom: 8.0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "الاقتراحات",
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // صف الكورسات والمعلمين والأصدقاء
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       children: [
                         Expanded(
                           child: _SuggestionTile(
-                            color: const Color(0xFFBFE6FF), // أزرق فاتح
+                            color: const Color(0xFFBFE6FF),
                             foregroundColor: const Color(0xFF1F2A37),
                             icon: Icons.menu_book_rounded,
                             title: 'الكورسات المقترحة',
@@ -200,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(width: 10),
                         Expanded(
                           child: _SuggestionTile(
-                            color: const Color(0xFFCFEEDB), // أخضر نعناعي
+                            color: const Color(0xFFCFEEDB),
                             foregroundColor: const Color(0xFF1F2A37),
                             icon: Icons.person_search_rounded,
                             title: 'المعلمين المقترحين',
@@ -211,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(width: 10),
                         Expanded(
                           child: _SuggestionTile(
-                            color: const Color(0xFFFFD7B3), // برتقالي خوخي
+                            color: const Color(0xFFFFD7B3),
                             foregroundColor: const Color(0xFF1F2A37),
                             icon: Icons.group_add_rounded,
                             title: 'الأصدقاء المقترحين',
@@ -226,16 +260,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 5),
                   if (_loadingOverview)
                     const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: EdgeInsets.symmetric(horizontal: 10.0),
                       child: LinearProgressIndicator(),
                     ),
                   if (_overviewError != null)
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
+                        horizontal: 10.0,
                         vertical: 4,
                       ),
                       child: Text(
@@ -247,14 +281,180 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         textAlign: TextAlign.right,
                       ),
                     ),
-                  // Two stat cards similar to the reference image
+
+                  // ===== أقرب محاضرة + أقرب امتحان =====
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.only(right: 16.0, bottom: 8.0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "تذكيرات",
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                    child: SizedBox(
+                      height: 80, // 👈 ارتفاع ثابت للكروت
+                      child: Row(
+                        children: [
+                          // ===== كارت المحاضرة =====
+                          Expanded(
+                            child: Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: _nextSession != null
+                                  ? Padding(
+                                      padding: const EdgeInsets.all(5.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'أقرب محاضرة : ${_nextSession?['courseName']}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            "المعلم: ${_nextSession!['teacher']['name']}",
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            _timeUntil(
+                                              DateTime.parse(
+                                                _nextSession!['nextOccurrence'],
+                                              ),
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.blueAccent,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : const Center(
+                                      child: Text(
+                                        "لا توجد محاضرات قادمة",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // ===== كارت الامتحان =====
+                          Expanded(
+                            child: Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: _nextExam != null
+                                  ? Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'أقرب امتحان : ${_nextExam?['courseName']}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            "المعلم: ${_nextExam!['teacher']['name']}",
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            _timeUntil(
+                                              DateTime.parse(
+                                                _nextExam!['examDate'],
+                                              ),
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.redAccent,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : const Center(
+                                      child: Text(
+                                        "لا توجد امتحانات قادمة",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ===== كروت التقدم والحضور =====
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0, bottom: 8.0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "التقدم والحضور",
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
                     child: Row(
                       children: [
                         Expanded(
                           child: SizedBox(
-                            height: 120, // 👈 ارتفاع ثابت
+                            height: 100,
                             child: _StatCard(
                               title: 'التقدّم الدراسي',
                               percent: ((_progressPercent ?? 0) / 100).clamp(
@@ -271,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(width: 12),
                         Expanded(
                           child: SizedBox(
-                            height: 120, // 👈 نفس الارتفاع
+                            height: 100,
                             child: _StatCard(
                               title: 'نسبة الحضور',
                               percent: ((_attendancePercent ?? 0) / 100).clamp(
@@ -288,30 +488,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Card(
-                      elevation: 1.5,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: cs.primary.withOpacity(.1),
-                          child: Icon(Icons.school, color: cs.primary),
-                        ),
-                        title: const Text('دوراتي المسجّلة'),
-                        subtitle: const Text(
-                          'اعرض الدروس والمحاضرات والحضور لكل دورة',
-                        ),
-                        trailing: const Icon(Icons.chevron_left),
-                        onTap: () {
-                          Navigator.pushNamed(context, '/enrollments');
-                        },
-                      ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 8),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  StudentCalendar(),
                 ],
               ),
             ),

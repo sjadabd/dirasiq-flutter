@@ -22,7 +22,7 @@ class GlobalAppBar extends StatefulWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(72);
+  Size get preferredSize => const Size.fromHeight(50);
 
   @override
   State<GlobalAppBar> createState() => _GlobalAppBarState();
@@ -102,9 +102,9 @@ class _GlobalAppBarState extends State<GlobalAppBar>
     return AppBar(
       backgroundColor: cs.surface,
       elevation: 0,
-      toolbarHeight: 72,
+      toolbarHeight: 50,
       automaticallyImplyLeading: false,
-      titleSpacing: 12,
+      titleSpacing: 8,
       title: SafeArea(
         child: Row(
           children: [
@@ -161,7 +161,7 @@ class _GlobalAppBarState extends State<GlobalAppBar>
               },
               child: _buildAvatar(cs),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
 
             // Search field
             Expanded(
@@ -178,14 +178,21 @@ class _GlobalAppBarState extends State<GlobalAppBar>
                   style: TextStyle(color: cs.onSurface, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'ابحث...',
-                    hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
+                    hintStyle: TextStyle(
+                      color: cs.onSurfaceVariant,
+                      fontSize: 14,
+                    ),
                     filled: true,
-                    fillColor: cs.surfaceVariant,
+                    fillColor: cs.surfaceContainerHighest,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 0,
                     ),
-                    prefixIcon: Icon(Icons.search, size: 20, color: cs.onSurfaceVariant),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      size: 20,
+                      color: cs.onSurfaceVariant,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: cs.outline),
@@ -203,7 +210,7 @@ class _GlobalAppBarState extends State<GlobalAppBar>
               ),
             ),
 
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
 
             // Theme toggle
             IconButton(
@@ -224,10 +231,7 @@ class _GlobalAppBarState extends State<GlobalAppBar>
               children: [
                 IconButton(
                   tooltip: 'الإشعارات',
-                  icon: Icon(
-                    Icons.notifications_outlined,
-                    color: cs.onSurface,
-                  ),
+                  icon: Icon(Icons.notifications_outlined, color: cs.onSurface),
                   onPressed: () async {
                     try {
                       if (!context.mounted) return;
@@ -298,13 +302,10 @@ class _GlobalAppBarState extends State<GlobalAppBar>
     final initials = _userInitials();
     return CircleAvatar(
       radius: 18,
-      backgroundColor: cs.primary.withOpacity(0.15),
+      backgroundColor: cs.primary.withValues(alpha: 0.15),
       child: Text(
         initials,
-        style: TextStyle(
-          color: cs.primary,
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -321,7 +322,9 @@ class _GlobalAppBarState extends State<GlobalAppBar>
       final raw = _user?[k]?.toString();
       if (raw != null && raw.isNotEmpty) {
         try {
-          final b64 = raw.contains(',') ? raw.split(',').last : raw; // handle data URLs
+          final b64 = raw.contains(',')
+              ? raw.split(',').last
+              : raw; // handle data URLs
           return MemoryImage(base64Decode(b64));
         } catch (_) {}
       }
@@ -343,7 +346,9 @@ class _GlobalAppBarState extends State<GlobalAppBar>
       final url = _user?[k]?.toString();
       if (url != null && url.isNotEmpty) {
         if (url.startsWith('http')) return NetworkImage(url);
-        if (url.startsWith('/')) return NetworkImage('${AppConfig.serverBaseUrl}$url');
+        if (url.startsWith('/')) {
+          return NetworkImage('${AppConfig.serverBaseUrl}$url');
+        }
       }
     }
     return null;
@@ -352,7 +357,10 @@ class _GlobalAppBarState extends State<GlobalAppBar>
   String _userInitials() {
     final name = (_user?['name']?.toString() ?? '').trim();
     if (name.isEmpty) return '?';
-    final parts = name.split(RegExp(r"\s+")).where((e) => e.isNotEmpty).toList();
+    final parts = name
+        .split(RegExp(r"\s+"))
+        .where((e) => e.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '?';
     final first = parts[0].substring(0, 1);
     String second = '';

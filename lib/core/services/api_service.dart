@@ -19,6 +19,46 @@ class ApiService {
     }
   }
 
+  /// ✅ جدول الأسبوع للطالب (عام للرئيسية)
+  Future<Map<String, dynamic>> fetchStudentWeeklySchedule() async {
+    try {
+      final response = await _dio.get("/student/dashboard/weekly-schedule");
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data["data"];
+        if (data is Map<String, dynamic>) {
+          // تأكد من وجود المفاتيح بالشكل المتوقع
+          final schedule = List<Map<String, dynamic>>.from(
+            (data['schedule'] ?? const <Map<String, dynamic>>[])
+                as List,
+          );
+          final sbdRaw = data['scheduleByDay'];
+          final Map<String, List<Map<String, dynamic>>> scheduleByDay = {};
+          if (sbdRaw is Map) {
+            sbdRaw.forEach((k, v) {
+              if (v is List) {
+                scheduleByDay[k.toString()] =
+                    List<Map<String, dynamic>>.from(v);
+              }
+            });
+          }
+          return {
+            'schedule': schedule,
+            'scheduleByDay': scheduleByDay,
+          };
+        }
+        // إذا رجعت البيانات مباشرة
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(
+        (response.data is Map && response.data["message"] != null)
+            ? response.data["message"].toString()
+            : "فشل تحميل جدول الأسبوع للطالب",
+      );
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تحميل جدول الأسبوع للطالب: $e");
+    }
+  }
+
   /// ✅ تفاصيل معلم + المواد + الدورات
   Future<Map<String, dynamic>> fetchTeacherSubjectsCourses(
     String teacherId,

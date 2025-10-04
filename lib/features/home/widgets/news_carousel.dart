@@ -119,7 +119,7 @@ class _NewsCarouselState extends State<NewsCarousel>
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
+                  color: AppColors.primary.withValues(alpha: 0.3),
                   blurRadius: 30,
                   offset: const Offset(0, 15),
                 ),
@@ -145,7 +145,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                         decoration: BoxDecoration(
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.2),
+                          ).colorScheme.onSurface.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
@@ -199,7 +199,9 @@ class _NewsCarouselState extends State<NewsCarousel>
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withOpacity(0.15),
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.15,
+                                ),
                                 blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
@@ -232,7 +234,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                                           color: Theme.of(context)
                                               .colorScheme
                                               .onSurface
-                                              .withOpacity(0.8),
+                                              .withValues(alpha: 0.8),
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
@@ -241,7 +243,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .onSurface
-                                                .withOpacity(0.8),
+                                                .withValues(alpha: 0.8),
                                             fontSize: 14,
                                           ),
                                         ),
@@ -276,13 +278,13 @@ class _NewsCarouselState extends State<NewsCarousel>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                AppColors.primary.withOpacity(0.1),
-                                AppColors.primary.withOpacity(0.05),
+                                AppColors.primary.withValues(alpha: 0.1),
+                                AppColors.primary.withValues(alpha: 0.05),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(25),
                             border: Border.all(
-                              color: AppColors.primary.withOpacity(0.2),
+                              color: AppColors.primary.withValues(alpha: 0.2),
                               width: 1,
                             ),
                           ),
@@ -327,12 +329,14 @@ class _NewsCarouselState extends State<NewsCarousel>
                             color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: AppColors.primary.withOpacity(0.1),
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               width: 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withOpacity(0.05),
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.05,
+                                ),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -344,7 +348,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                               fontSize: 16,
                               color: Theme.of(
                                 context,
-                              ).colorScheme.onSurface.withOpacity(0.75),
+                              ).colorScheme.onSurface.withValues(alpha: 0.75),
                               height: 1.7,
                             ),
                           ),
@@ -364,7 +368,9 @@ class _NewsCarouselState extends State<NewsCarousel>
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               elevation: 4,
-                              shadowColor: AppColors.primary.withOpacity(0.3),
+                              shadowColor: AppColors.primary.withValues(
+                                alpha: 0.3,
+                              ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -440,7 +446,7 @@ class _NewsCarouselState extends State<NewsCarousel>
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -478,7 +484,7 @@ class _NewsCarouselState extends State<NewsCarousel>
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -491,7 +497,7 @@ class _NewsCarouselState extends State<NewsCarousel>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: cs.onSurface.withOpacity(0.08),
+                  color: cs.onSurface.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
@@ -524,7 +530,7 @@ class _NewsCarouselState extends State<NewsCarousel>
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Container(
-        height: 130,
+        height: 100,
         margin: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -564,7 +570,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: cs.primary.withOpacity(0.15),
+                                color: cs.primary.withValues(alpha: 0.15),
                                 blurRadius: 12,
                                 offset: const Offset(0, 6),
                               ),
@@ -578,6 +584,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(20),
                                 child: Stack(
+                                  fit: StackFit.expand,
                                   children: [
                                     Positioned.fill(
                                       child: Image.network(
@@ -708,7 +715,7 @@ class _NewsCarouselState extends State<NewsCarousel>
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),

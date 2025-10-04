@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:dirasiq/features/home/screens/home_screen.dart';
 import 'package:dirasiq/features/courses/screens/suggested_courses_screen.dart';
 import 'package:dirasiq/features/bookings/screens/bookings_list_screen.dart';
@@ -87,7 +86,7 @@ class _RootShellState extends State<RootShell> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = AppColors.lightScheme;
+    final cs = Theme.of(context).colorScheme;
 
     return WillPopScope(
       onWillPop: _handleWillPop, // ربط المعالجة بزِر الرجوع
@@ -104,8 +103,8 @@ class _RootShellState extends State<RootShell> {
                 _tabVersion[i]++;
               });
             },
-            backgroundColor: scheme.surface,
-            indicatorColor: scheme.primary.withOpacity(0.12),
+            backgroundColor: cs.surface,
+            indicatorColor: cs.primary.withOpacity(0.12),
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.home_outlined),

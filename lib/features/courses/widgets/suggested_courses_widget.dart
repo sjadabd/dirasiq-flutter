@@ -64,7 +64,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -158,7 +158,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
       decoration: BoxDecoration(
         color: cs.errorContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.error.withOpacity(0.3)),
+        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -225,10 +225,10 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
       decoration: BoxDecoration(
         color: cs.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant.withOpacity(0.4)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -265,7 +265,13 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
                 height: 60,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  color: cs.surfaceVariant,
+                  color: cs.surfaceContainerHighest,
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withValues(alpha: 0.8)
+                        : Colors.black.withValues(alpha: 0.6),
+                    width: 1.5,
+                  ),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -313,7 +319,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: cs.primaryContainer.withOpacity(0.3),
+                            color: cs.primaryContainer.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -346,7 +352,7 @@ class _SuggestedCoursesCompactState extends State<SuggestedCoursesCompact> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(0.12),
+                  color: cs.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
