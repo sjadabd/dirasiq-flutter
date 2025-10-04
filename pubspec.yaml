@@ -28,6 +28,7 @@ dependencies:
   fl_chart: ^0.68.0
   table_calendar: ^3.0.10
   google_fonts: ^6.2.1
+  collection: ^1.18.0
 
 dev_dependencies:
   flutter_test:

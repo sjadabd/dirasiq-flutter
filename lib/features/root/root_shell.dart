@@ -104,7 +104,7 @@ class _RootShellState extends State<RootShell> {
               });
             },
             backgroundColor: cs.surface,
-            indicatorColor: cs.primary.withOpacity(0.12),
+            indicatorColor: cs.primary.withValues(alpha: 0.12),
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.home_outlined),

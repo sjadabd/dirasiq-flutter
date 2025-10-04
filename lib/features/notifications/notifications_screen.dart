@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dirasiq/features/bookings/screens/booking_details_screen.dart';
+import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:intl/intl.dart';
@@ -36,17 +37,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   StreamSubscription<Map<String, dynamic>>? _payloadSub;
   String? _typeFilter;
 
-  static const List<Map<String, String?>> _filters = [
-    {"text": "الكل", "value": null},
-    {"text": "واجب بيتي", "value": "homework"},
-    {"text": "رسالة", "value": "message"},
-    {"text": "تقرير", "value": "report"},
-    {"text": "تبليغ", "value": "notice"},
-    {"text": "أقساط", "value": "installments"},
-    {"text": "حضور", "value": "attendance"},
-    {"text": "ملخص درس اليومي", "value": "daily_summary"},
-    {"text": "أعياد ميلاد", "value": "birthday"},
-    {"text": "امتحان يومي", "value": "daily_exam"},
+  static const List<Map<String, dynamic>> _filters = [
+    {"text": "الكل", "value": null, "icon": Icons.notifications_rounded},
+    {"text": "واجب", "value": "homework", "icon": Icons.assignment_rounded},
+    {"text": "رسالة", "value": "message", "icon": Icons.message_rounded},
+    {"text": "تقرير", "value": "report", "icon": Icons.description_rounded},
+    {"text": "تبليغ", "value": "notice", "icon": Icons.campaign_rounded},
+    {"text": "أقساط", "value": "installments", "icon": Icons.payments_rounded},
+    {
+      "text": "حضور",
+      "value": "attendance",
+      "icon": Icons.event_available_rounded,
+    },
+    {"text": "ملخص", "value": "daily_summary", "icon": Icons.summarize_rounded},
+    {"text": "أعياد", "value": "birthday", "icon": Icons.cake_rounded},
+    {"text": "امتحان", "value": "daily_exam", "icon": Icons.quiz_rounded},
   ];
 
   @override
@@ -54,6 +59,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     _fetch();
     _scroll.addListener(_onScroll);
+    _setupNotificationListeners();
+  }
+
+  void _setupNotificationListeners() {
     _notifSub = NotificationEvents.instance.onNewNotification.listen((_) async {
       try {
         final res = await _api.fetchMyNotifications(
@@ -179,22 +188,51 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _showNotificationDialog(Map<String, dynamic> n) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final title = n['title']?.toString() ?? 'إشعار';
     final message = n['message']?.toString() ?? '';
-    final createdAt = n['createdAt']?.toString();
-    final time = _formatDate(createdAt);
+    final createdAt =
+        (n['createdAt']?.toString() ??
+        n['created_at']?.toString() ??
+        n['timestamp']?.toString() ??
+        n['time']?.toString() ??
+        _parsePayload(n)['createdAt']?.toString() ??
+        _parsePayload(n)['created_at']?.toString());
+    final time = createdAt != null ? _formatDate(createdAt) : '';
     final payload = _parsePayload(n);
     final senderName = payload['sender'] is Map
         ? (payload['sender']['name']?.toString() ?? '')
         : '';
-    final attachments = payload['attachments'] is Map
-        ? Map<String, dynamic>.from(payload['attachments'])
+    // Parse attachments from data or payload
+    final attachments = (payload['attachments'] ?? n['attachments']) is Map
+        ? Map<String, dynamic>.from(payload['attachments'] ?? n['attachments'])
         : <String, dynamic>{};
-    final String? pdfUrl = (() {
-      final raw = attachments['pdfUrl']?.toString();
-      if (raw == null || raw.isEmpty) return null;
-      return _resolveUrl(raw);
-    })();
+
+    // Extract PDF URLs
+    final List<String> pdfUrls = [];
+    final pdfUrl = attachments['pdfUrl']?.toString();
+    if (pdfUrl != null && pdfUrl.isNotEmpty) {
+      pdfUrls.add(_resolveUrl(pdfUrl));
+    }
+
+    // Extract files array for additional PDFs and images
+    final files = attachments['files'] is List
+        ? List<dynamic>.from(attachments['files'])
+        : [];
+    for (final file in files) {
+      if (file is Map) {
+        final fileUrl = file['url']?.toString();
+        final fileName = file['name']?.toString() ?? '';
+        if (fileUrl != null &&
+            fileUrl.isNotEmpty &&
+            fileName.toLowerCase().endsWith('.pdf')) {
+          pdfUrls.add(_resolveUrl(fileUrl));
+        }
+      }
+    }
+
+    // Extract image URLs
     final imageUrls = attachments['imageUrls'] is List
         ? List<String>.from(
             (attachments['imageUrls'] as List).map(
@@ -202,12 +240,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           )
         : <String>[];
+
+    // Add images from files if present
+    for (final file in files) {
+      if (file is Map) {
+        final url = file['url']?.toString();
+        final name = (file['name'] ?? '').toString().toLowerCase();
+        final type = (file['type'] ?? file['mime'] ?? file['mimetype'] ?? '')
+            .toString()
+            .toLowerCase();
+        final isImage =
+            type.startsWith('image/') ||
+            type == 'image' ||
+            name.endsWith('.png') ||
+            name.endsWith('.jpg') ||
+            name.endsWith('.jpeg') ||
+            name.endsWith('.webp') ||
+            name.endsWith('.gif');
+        if (isImage && url != null && url.isNotEmpty) {
+          imageUrls.add(_resolveUrl(url));
+        }
+      }
+    }
+
     final String? link = (() {
       final raw = (payload['link'] ?? payload['url'])?.toString();
       if (raw == null || raw.isEmpty) return null;
       if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
       return _resolveUrl(raw);
     })();
+
     final studyYear =
         (payload['studyYear'] ??
                 payload['study_year'] ??
@@ -218,117 +280,422 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-          content: SingleChildScrollView(
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (message.isNotEmpty) Text(message),
-                const SizedBox(height: 8),
-                Text(
-                  time,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline,
+                // Compact Header
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, AppColors.primary],
+                    ),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_active_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (senderName.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text('المرسل: $senderName'),
-                ],
-                if (imageUrls.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'الصور',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    height: 90,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: imageUrls.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (_, i) {
-                        final url = imageUrls[i];
-                        return GestureDetector(
-                          onTap: () => _openImagePreview(url),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              url,
-                              height: 90,
-                              width: 90,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 90,
-                                width: 90,
-                                color: Colors.grey.shade300,
-                                child: const Icon(Icons.broken_image),
-                              ),
+
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (message.isNotEmpty) ...[
+                          Text(
+                            message,
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
-                        );
-                      },
+                          const SizedBox(height: 10),
+                        ],
+
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time_rounded,
+                              size: 13,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              time,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        if (senderName.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person_rounded,
+                                size: 13,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'المرسل: $senderName',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+
+                        // Display Images Inline
+                        if (imageUrls.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.image_rounded,
+                                size: 15,
+                                color: AppColors.secondary,
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'الصور المرفقة',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                ),
+                            itemCount: imageUrls.length,
+                            itemBuilder: (_, i) {
+                              final url = imageUrls[i];
+                              return GestureDetector(
+                                onTap: () => _openImagePreview(url),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.primary.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      url,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (_, child, progress) {
+                                        if (progress == null) return child;
+                                        return Container(
+                                          color: theme
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              value:
+                                                  progress.expectedTotalBytes !=
+                                                      null
+                                                  ? progress.cumulativeBytesLoaded /
+                                                        progress
+                                                            .expectedTotalBytes!
+                                                  : null,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (_, _, _) => Container(
+                                        color: theme
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        child: Icon(
+                                          Icons.broken_image,
+                                          color: theme.colorScheme.outline,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+
+                        // Display PDF Buttons
+                        if (pdfUrls.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.picture_as_pdf_rounded,
+                                size: 15,
+                                color: AppColors.error,
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'ملفات PDF',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...pdfUrls.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final pdfUrl = entry.value;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: _buildCompactPdfButton(
+                                pdfUrl: pdfUrl,
+                                label: pdfUrls.length > 1
+                                    ? 'ملف PDF ${index + 1}'
+                                    : 'فتح ملف PDF',
+                                theme: theme,
+                              ),
+                            );
+                          }),
+                        ],
+
+                        if (link != null && link.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          _buildCompactLinkButton(link: link, theme: theme),
+                        ],
+
+                        if (studyYear != null && studyYear.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.school_rounded,
+                                  size: 14,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'السنة: $studyYear',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                ],
-                if (pdfUrl != null && pdfUrl.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'ملف PDF',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+
+                // Compact Actions
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'إغلاق',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _openNotificationTarget(n);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'التفاصيل',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _launchUrl(pdfUrl),
-                      icon: const Icon(Icons.picture_as_pdf, size: 20),
-                      label: const Text('فتح ملف PDF'),
-                    ),
-                  ),
-                ],
-                if (link != null && link.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'رابط',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _launchUrl(link),
-                      icon: const Icon(Icons.link, size: 20),
-                      label: const Text('فتح الرابط'),
-                    ),
-                  ),
-                ],
-                if (studyYear != null && studyYear.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text('السنة الدراسية: $studyYear'),
-                ],
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('إغلاق'),
-            ),
-            IconButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _openNotificationTarget(n);
-              },
-              icon: const Icon(Icons.open_in_new, size: 22),
-              tooltip: 'عرض التفاصيل', // يظهر نص مساعد عند الوقوف على الأيقونة
-            ),
-          ],
         );
       },
+    );
+  }
+
+  Widget _buildCompactPdfButton({
+    required String pdfUrl,
+    required String label,
+    required ThemeData theme,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _launchUrl(pdfUrl),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppColors.error.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.picture_as_pdf_rounded,
+                size: 16,
+                color: AppColors.error,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
+                  ),
+                ),
+              ),
+              Icon(Icons.open_in_new_rounded, size: 14, color: AppColors.error),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactLinkButton({
+    required String link,
+    required ThemeData theme,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _launchUrl(link),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppColors.info.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.link_rounded, size: 16, color: AppColors.info),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'فتح الرابط',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.info,
+                  ),
+                ),
+              ),
+              Icon(Icons.open_in_new_rounded, size: 14, color: AppColors.info),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -340,6 +707,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         n['additionalData'] ??
         n['meta'] ??
         n['extra'];
+
     Map<String, dynamic>? tryParse(String s) {
       try {
         final trimmed = s.trim();
@@ -385,21 +753,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 n['template'] ??
                 n['action'])
             ?.toString();
-
     final payload = _parsePayload(n);
 
     // Student evaluation routing
     final typeLower = type?.toLowerCase();
-    final subType = (payload['subType'] ?? payload['sub_type'])?.toString().toLowerCase();
-    final ratings = payload['ratings'] is Map ? Map<String, dynamic>.from(payload['ratings']) : <String, dynamic>{};
-    final hasRatingsKeys = ratings.keys.any((k) => const {
-          'scientific_level',
-          'behavioral_level',
-          'attendance_level',
-          'homework_preparation',
-          'participation_level',
-          'instruction_following',
-        }.contains(k));
+    final subType = (payload['subType'] ?? payload['sub_type'])
+        ?.toString()
+        .toLowerCase();
+    final ratings = payload['ratings'] is Map
+        ? Map<String, dynamic>.from(payload['ratings'])
+        : <String, dynamic>{};
+    final hasRatingsKeys = ratings.keys.any(
+      (k) => const {
+        'scientific_level',
+        'behavioral_level',
+        'attendance_level',
+        'homework_preparation',
+        'participation_level',
+        'instruction_following',
+      }.contains(k),
+    );
     final isEvaluationNotification =
         (typeLower?.contains('evaluation') ?? false) ||
         subType == 'student_evaluation' ||
@@ -407,24 +780,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         payload.containsKey('behavioral_level') ||
         payload.containsKey('attendance_level') ||
         hasRatingsKeys;
+
     if (isEvaluationNotification) {
-      final evaluationId = (payload['evaluationId'] ?? payload['evaluation_id'] ?? n['evaluationId'] ?? n['evaluation_id'])?.toString();
+      final evaluationId =
+          (payload['evaluationId'] ??
+                  payload['evaluation_id'] ??
+                  n['evaluationId'] ??
+                  n['evaluation_id'])
+              ?.toString();
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => StudentEvaluationsScreen(
-            initialEvaluationId: evaluationId,
-          ),
+          builder: (_) =>
+              StudentEvaluationsScreen(initialEvaluationId: evaluationId),
         ),
       );
       return;
     }
 
-    // Invoice routing (new invoice / payment reminder / installment updates)
-    final invoiceId = (payload['invoiceId'] ?? payload['invoice_id'] ?? n['invoiceId'] ?? n['invoice_id'])?.toString();
-    final isInvoiceBySubtype = subType == 'invoice_created' || subType == 'invoice_updated' || subType == 'installment_due' || subType == 'installment_paid';
-    final isInvoiceByType = (typeLower?.contains('invoice') ?? false) || (typeLower == 'payment_reminder');
-    if (invoiceId != null && invoiceId.isNotEmpty && (isInvoiceBySubtype || isInvoiceByType || true)) {
+    // Invoice routing
+    final invoiceId =
+        (payload['invoiceId'] ??
+                payload['invoice_id'] ??
+                n['invoiceId'] ??
+                n['invoice_id'])
+            ?.toString();
+    final isInvoiceBySubtype =
+        subType == 'invoice_created' ||
+        subType == 'invoice_updated' ||
+        subType == 'installment_due' ||
+        subType == 'installment_paid';
+    final isInvoiceByType =
+        (typeLower?.contains('invoice') ?? false) ||
+        (typeLower == 'payment_reminder');
+
+    if (invoiceId != null &&
+        invoiceId.isNotEmpty &&
+        (isInvoiceBySubtype || isInvoiceByType || true)) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -435,8 +827,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     // Homework / Assignments routing
-    if (typeLower != null && (typeLower.contains('assign') || typeLower.contains('homework'))) {
-      final assignmentId = (payload['assignmentId'] ?? payload['assignment_id'] ?? n['assignmentId'] ?? n['assignment_id'])?.toString();
+    if (typeLower != null &&
+        (typeLower.contains('assign') || typeLower.contains('homework'))) {
+      final assignmentId =
+          (payload['assignmentId'] ??
+                  payload['assignment_id'] ??
+                  n['assignmentId'] ??
+                  n['assignment_id'])
+              ?.toString();
       if (assignmentId != null && assignmentId.isNotEmpty) {
         Navigator.push(
           context,
@@ -447,54 +845,67 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       } else {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => const StudentAssignmentsScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const StudentAssignmentsScreen()),
         );
       }
       return;
     }
 
-    // Exams routing (daily/monthly) — prioritize over course routing
-    final payloadExamType = (payload['exam_type'] ?? payload['examType'] ?? payload['kind'] ?? n['exam_type'] ?? n['examType'])
-        ?.toString()
-        .toLowerCase();
-    final isExamNotification = (typeLower?.contains('exam') ?? false) ||
+    // Exams routing
+    final payloadExamType =
+        (payload['exam_type'] ??
+                payload['examType'] ??
+                payload['kind'] ??
+                n['exam_type'] ??
+                n['examType'])
+            ?.toString()
+            .toLowerCase();
+    final isExamNotification =
+        (typeLower?.contains('exam') ?? false) ||
         (payloadExamType == 'daily' || payloadExamType == 'monthly') ||
-        ((payload['type'] ?? payload['category'])?.toString().toLowerCase() == 'exam');
-    if (isExamNotification) {
-      final isMonthly = payloadExamType == 'monthly' || typeLower == 'monthly_exam';
+        ((payload['type'] ?? payload['category'])?.toString().toLowerCase() ==
+            'exam');
 
+    if (isExamNotification) {
+      final isMonthly =
+          payloadExamType == 'monthly' || typeLower == 'monthly_exam';
       if (isMonthly) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const StudentExamsScreen(fixedType: 'monthly', title: 'امتحانات شهرية'),
+            builder: (_) => const StudentExamsScreen(
+              fixedType: 'monthly',
+              title: 'امتحانات شهرية',
+            ),
           ),
         );
         return;
       }
-      // default to daily when unknown
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const StudentExamsScreen(fixedType: 'daily', title: 'امتحانات يومية'),
+          builder: (_) => const StudentExamsScreen(
+            fixedType: 'daily',
+            title: 'امتحانات يومية',
+          ),
         ),
       );
       return;
     }
 
-    // Exam grade routing — prioritize over course routing
-    if (typeLower != null && (typeLower == 'exam_grade' || typeLower.contains('grade') || (payload['grade'] != null))) {
+    // Exam grade routing
+    if (typeLower != null &&
+        (typeLower == 'exam_grade' ||
+            typeLower.contains('grade') ||
+            (payload['grade'] != null))) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => const StudentExamGradesScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const StudentExamGradesScreen()),
       );
       return;
     }
 
+    // Course update routing
     if (type == 'course_update') {
       final courseId =
           (payload['courseId'] ??
@@ -529,6 +940,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
+    // Booking status routing
     if (type == 'booking_status') {
       final bookingId =
           (payload['bookingId'] ??
@@ -547,18 +959,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
+    // Course details routing
     final courseIdFromPayload =
         (payload['courseId'] ??
                 payload['course_id'] ??
                 n['courseId'] ??
                 n['course_id'])
             ?.toString();
-
-    if (!isExamNotification && (
-        type == 'new_course_available' ||
-        type == 'course' ||
-        type == 'open_course' ||
-        courseIdFromPayload != null)) {
+    if (!isExamNotification &&
+        (type == 'new_course_available' ||
+            type == 'course' ||
+            type == 'open_course' ||
+            courseIdFromPayload != null)) {
       final courseId = courseIdFromPayload;
       if (courseId != null && courseId.isNotEmpty) {
         Navigator.push(
@@ -571,9 +983,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
-    final debugPayload = payload.isNotEmpty ? payload.toString() : n.toString();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('لا توجد وجهة مخصصة لهذا الإشعار\n$debugPayload')),
+      SnackBar(
+        content: const Text('لا توجد وجهة مخصصة لهذا الإشعار'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 
@@ -596,15 +1011,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!ok) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('تعذر فتح الرابط'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('تعذر فتح الرابط'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
     }
   }
 
@@ -612,18 +1039,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
         insetPadding: const EdgeInsets.all(12),
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4,
-          child: Image.network(
-            url,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Container(
-              color: Colors.grey.shade300,
-              child: const Center(child: Icon(Icons.broken_image, size: 48)),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4,
+              child: Center(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => Container(
+                    color: Colors.grey.shade300,
+                    child: const Center(
+                      child: Icon(Icons.broken_image, size: 48),
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton(
+                onPressed: () => Navigator.pop(ctx),
+                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                style: IconButton.styleFrom(backgroundColor: Colors.black54),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -631,20 +1076,471 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       appBar: const GlobalAppBar(title: 'الإشعارات', centerTitle: true),
       body: Column(
         children: [
-          _filtersChips(scheme),
-          const Divider(height: 1),
+          _buildFiltersSection(theme),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => _fetch(refresh: true),
-              child: _buildBody(scheme),
+              color: AppColors.primary,
+              child: _buildBody(theme, isDark),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFiltersSection(ThemeData theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 52,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              itemCount: _filters.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (_, i) => _buildFilterChip(_filters[i], theme),
+            ),
+          ),
+          Divider(height: 1, color: theme.colorScheme.outlineVariant),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(Map<String, dynamic> filter, ThemeData theme) {
+    final val = filter['value'];
+    final selected = _typeFilter == val;
+    final icon = filter['icon'] as IconData?;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() => _typeFilter = val);
+          _fetch(refresh: true);
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: selected
+                ? const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primary],
+                  )
+                : null,
+            color: selected ? null : theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? Colors.transparent
+                  : theme.colorScheme.outlineVariant,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 15,
+                  color: selected
+                      ? Colors.white
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                filter['text'] ?? '',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                  color: selected
+                      ? Colors.white
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(ThemeData theme, bool isDark) {
+    if (_loading && _items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 50,
+              height: 50,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'جاري التحميل...',
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_error != null) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.errorLight,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: const BoxDecoration(
+                    color: AppColors.error,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.error_outline_rounded,
+                    size: 36,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'حدث خطأ',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => _fetch(refresh: true),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text(
+                    'إعادة المحاولة',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    if (_items.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.3,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, AppColors.secondary],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.notifications_off_rounded,
+                    size: 48,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'لا توجد إشعارات',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'لم نجد أي إشعارات لهذا الفلتر',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView.separated(
+      controller: _scroll,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(12),
+      itemCount: _items.length + (_hasMore ? 1 : 0),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (_, index) {
+        if (index == _items.length) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+        return _buildCompactNotificationCard(_items[index], theme, isDark);
+      },
+    );
+  }
+
+  Widget _buildCompactNotificationCard(
+    Map<String, dynamic> n,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    final id = (n['id'] ?? n['_id'])?.toString() ?? '';
+    final title = n['title']?.toString() ?? 'إشعار';
+    final message = n['message']?.toString() ?? '';
+    final payload = _parsePayload(n);
+    final senderName = payload['sender'] is Map
+        ? (payload['sender']['name']?.toString() ?? '')
+        : '';
+    final status = n['status']?.toString() ?? 'sent';
+    final isReadFlag = n['isRead'] == true;
+    final readAtVal = n['readAt'];
+    final createdAt =
+        (n['createdAt']?.toString() ??
+        n['created_at']?.toString() ??
+        n['timestamp']?.toString() ??
+        n['time']?.toString() ??
+        _parsePayload(n)['createdAt']?.toString() ??
+        _parsePayload(n)['created_at']?.toString());
+    final time = createdAt != null && createdAt.isNotEmpty
+        ? _formatDate(createdAt)
+        : '';
+    final isUnread = !(isReadFlag || readAtVal != null || status == 'read');
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          final idx = _items.indexWhere((e) => (e['id'] ?? e['_id']) == id);
+          if (idx != -1) {
+            final current = _items[idx];
+            final alreadyRead =
+                current['isRead'] == true ||
+                current['readAt'] != null ||
+                current['status'] == 'read';
+            if (!alreadyRead) {
+              setState(() {
+                _items[idx]['status'] = 'read';
+                _items[idx]['isRead'] = true;
+                _items[idx]['readAt'] = DateTime.now().toIso8601String();
+              });
+              _markAsRead(id);
+            }
+          }
+          _showNotificationDialog(n);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isUnread
+                  ? AppColors.primary.withValues(alpha: 0.3)
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+              width: isUnread ? 1.5 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isUnread
+                    ? AppColors.primary.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.03),
+                blurRadius: isUnread ? 8 : 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: isUnread
+                      ? const LinearGradient(
+                          colors: [AppColors.primary, AppColors.primary],
+                        )
+                      : null,
+                  color: isUnread
+                      ? null
+                      : theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isUnread
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_none_rounded,
+                  color: isUnread
+                      ? Colors.white
+                      : theme.colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isUnread
+                            ? FontWeight.bold
+                            : FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (message.isNotEmpty || senderName.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      if (message.isNotEmpty)
+                        Text(
+                          message,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (senderName.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.person_rounded,
+                              size: 10,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                senderName,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 10,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          time,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -680,173 +1576,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return t == _typeFilter;
   }
 
-  Widget _filtersChips(ColorScheme scheme) {
-    return SizedBox(
-      height: 40,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: [
-            for (final f in _filters) ...[
-              _buildChip(f, scheme),
-              const SizedBox(width: 8),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChip(Map<String, String?> f, ColorScheme scheme) {
-    final val = f['value'];
-    final selected = _typeFilter == val;
-    return ChoiceChip(
-      label: Text(f['text'] ?? ''),
-      selected: selected,
-      onSelected: (_) {
-        setState(() {
-          _typeFilter = val;
-        });
-        _fetch(refresh: true);
-      },
-      selectedColor: scheme.primary.withOpacity(.12),
-      side: BorderSide(
-        color: selected ? scheme.primary : scheme.outlineVariant,
-      ),
-    );
-  }
-
-  Widget _buildBody(ColorScheme scheme) {
-    if (_loading && _items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Icon(Icons.error_outline, size: 40, color: Colors.red),
-          const SizedBox(height: 8),
-          Text(_error!, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          Center(
-            child: ElevatedButton(
-              onPressed: () => _fetch(refresh: true),
-              child: const Text('إعادة المحاولة'),
-            ),
-          ),
-        ],
-      );
-    }
-    if (_items.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: const [
-          Center(child: Text('لا توجد إشعارات لهذا الفلتر حالياً')),
-        ],
-      );
-    }
-
-    return ListView.separated(
-      controller: _scroll,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      itemCount: _items.length + (_hasMore ? 1 : 0),
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        if (index == _items.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-        final n = _items[index];
-        final id = (n['id'] ?? n['_id'])?.toString() ?? '';
-        final title = n['title']?.toString() ?? 'إشعار';
-        final message = n['message']?.toString() ?? '';
-        final payload = _parsePayload(n);
-        final senderName = payload['sender'] is Map
-            ? (payload['sender']['name']?.toString() ?? '')
-            : '';
-        final status = n['status']?.toString() ?? 'sent';
-        final isReadFlag = n['isRead'] == true;
-        final readAtVal = n['readAt'];
-        final createdAt = n['createdAt']?.toString();
-        final time = _formatDate(createdAt);
-
-        final isUnread = !(isReadFlag || readAtVal != null || status == 'read');
-
-        return Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: isUnread
-                  ? scheme.primary.withOpacity(.15)
-                  : scheme.surfaceContainerHighest,
-              child: Icon(
-                isUnread
-                    ? Icons.notifications_active
-                    : Icons.notifications_none,
-                color: isUnread ? scheme.primary : scheme.outline,
-              ),
-            ),
-            title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: (message.isNotEmpty || senderName.isNotEmpty)
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (message.isNotEmpty)
-                        Text(
-                          message,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (senderName.isNotEmpty)
-                        Text(
-                          'المرسل: $senderName',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: scheme.outline),
-                        ),
-                    ],
-                  )
-                : null,
-            trailing: Text(time, style: TextStyle(color: scheme.outline)),
-            onTap: () {
-              final idx = _items.indexWhere((e) => (e['id'] ?? e['_id']) == id);
-              if (idx != -1) {
-                final current = _items[idx];
-
-                final alreadyRead =
-                    current['isRead'] == true ||
-                    current['readAt'] != null ||
-                    current['status'] == 'read';
-
-                if (!alreadyRead) {
-                  setState(() {
-                    _items[idx]['status'] = 'read';
-                    _items[idx]['isRead'] = true;
-                    _items[idx]['readAt'] = DateTime.now().toIso8601String();
-                  });
-
-                  _markAsRead(id);
-                }
-              }
-
-              _showNotificationDialog(n);
-            },
-          ),
-        );
-      },
-    );
-  }
-
   String _formatDate(String? iso) {
     if (iso == null) return '';
     try {
       final d = DateTime.parse(iso).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(d);
+
+      if (diff.inMinutes < 1) return 'الآن';
+      if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} د';
+      if (diff.inHours < 24) return 'منذ ${diff.inHours} س';
+      if (diff.inDays < 7) return 'منذ ${diff.inDays} يوم';
+
       return DateFormat('dd/MM HH:mm').format(d);
     } catch (_) {
       return '';

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-import 'package:dirasiq/core/services/permission_service.dart';
-import 'package:dirasiq/core/services/api_service.dart';
 import 'package:get/get.dart';
+import 'package:dirasiq/core/services/api_service.dart';
+import 'package:dirasiq/core/services/permission_service.dart';
+import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 import 'package:dirasiq/features/enrollments/screens/course_attendance_screen.dart';
 import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
 import 'package:dirasiq/features/assignments/screens/student_assignments_screen.dart';
@@ -22,95 +21,168 @@ class EnrollmentActionsScreen extends StatefulWidget {
     this.courseName,
     this.teacherId,
   });
+
   @override
   State<EnrollmentActionsScreen> createState() =>
       _EnrollmentActionsScreenState();
 }
 
-  class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
-    final _api = ApiService();
-    bool _busy = false;
+class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
+  final _api = ApiService();
+  bool _busy = false;
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.courseName ?? 'إدارة الدورة';
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final actions = [
+      _ActionItem(
+        icon: Icons.qr_code_scanner,
+        color: Colors.indigo,
+        title: 'مسح حضور (QR)',
+        subtitle: 'استخدم الكاميرا لمسح رمز حضور المعلم',
+        onTap: _onScanAttendance,
+      ),
+      _ActionItem(
+        icon: Icons.calendar_month,
+        color: Colors.teal,
+        title: 'جدول الأسبوع',
+        subtitle: 'اعرض جدول الحصص لهذا الكورس',
+        onTap: _onOpenWeeklySchedule,
+      ),
+      _ActionItem(
+        icon: Icons.assignment,
+        color: Colors.blue,
+        title: 'عرض الواجبات',
+        subtitle: 'اعرض واجباتك المنزلية',
+        onTap: _onOpenAssignments,
+      ),
+      _ActionItem(
+        icon: Icons.fact_check,
+        color: Colors.orange,
+        title: 'سجل الحضور والغياب',
+        subtitle: 'اعرض حضورك وغيابك وإجازاتك',
+        onTap: _onOpenAttendance,
+      ),
+      _ActionItem(
+        icon: Icons.today,
+        color: Colors.purple,
+        title: 'امتحانات يومية',
+        subtitle: 'قائمة الامتحانات اليومية',
+        onTap: _onOpenDailyExams,
+      ),
+      _ActionItem(
+        icon: Icons.calendar_month_outlined,
+        color: Colors.deepPurple,
+        title: 'امتحانات شهرية',
+        subtitle: 'قائمة الامتحانات الشهرية',
+        onTap: _onOpenMonthlyExams,
+      ),
+      _ActionItem(
+        icon: Icons.grade,
+        color: Colors.green,
+        title: 'الدرجات',
+        subtitle: 'عرض درجاتك وتقارير الأداء',
+        onTap: _onOpenExamGrades,
+      ),
+      _ActionItem(
+        icon: Icons.star_rate,
+        color: Colors.brown,
+        title: 'تقييماتي',
+        subtitle: 'عرض تقييماتك مع إمكانية التصفية',
+        onTap: _onOpenEvaluations,
+      ),
+      _ActionItem(
+        icon: Icons.receipt_long,
+        color: Colors.deepOrange,
+        title: 'الفواتير والدفعات',
+        subtitle: 'عرض فواتير وأقساط هذا الكورس',
+        onTap: _onOpenCourseInvoices,
+      ),
+    ];
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: GlobalAppBar(title: title, centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
+      backgroundColor: cs.surface,
+      appBar: GlobalAppBar(
+        title: widget.courseName ?? 'إدارة الدورة',
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: GridView.builder(
+            itemCount: actions.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.15,
+            ),
+            itemBuilder: (context, i) {
+              final item = actions[i];
+              return _buildActionCard(item, cs, isDark);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionCard(_ActionItem item, ColorScheme cs, bool isDark) {
+    return InkWell(
+      onTap: _busy ? null : item.onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: cs.surfaceContainerHighest,
+          border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: cs.shadow.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _actionCard(
-              icon: Icons.qr_code_scanner,
-              title: 'مسح حضور (QR)',
-              subtitle: 'استخدم كاميرا الجهاز لمسح رمز حضور المعلم',
-              color: Colors.indigo,
-              onTap: _onScanAttendance,
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: item.color.withOpacity(0.2),
+              child: Icon(item.icon, color: item.color, size: 22),
             ),
-            const SizedBox(height: 12),
-            _actionCard(
-              icon: Icons.calendar_month,
-              title: 'جدول الأسبوع',
-              subtitle: 'اعرض جدول الحصص لهذا الكورس',
-              color: Colors.teal,
-              onTap: _onOpenWeeklySchedule,
+            const SizedBox(height: 8),
+            Flexible(
+              child: Text(
+                item.title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14.5,
+                  color: cs.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const SizedBox(height: 12),
-            _actionCard(
-              icon: Icons.assignment,
-              title: 'عرض الواجبات',
-              subtitle: 'اعرض واجباتك المنزلية',
-              color: Colors.blue,
-              onTap: _onOpenAssignments,
-            ),
-            const SizedBox(height: 12),
-            _actionCard(
-              icon: Icons.fact_check,
-              title: 'سجل الحضور والغياب',
-              subtitle: 'اعرض حضورك وغيابك وإجازاتك لهذا الكورس',
-              color: Colors.orange,
-              onTap: _onOpenAttendance,
-            ),
-            const SizedBox(height: 12),
-            _actionCard(
-              icon: Icons.today,
-              title: 'امتحان يومي',
-              subtitle: 'قائمة الامتحانات اليومية',
-              color: Colors.purple,
-              onTap: _onOpenDailyExams,
-            ),
-            const SizedBox(height: 12),
-            _actionCard(
-              icon: Icons.calendar_month,
-              title: 'امتحان شهري',
-              subtitle: 'قائمة الامتحانات الشهرية',
-              color: Colors.deepPurple,
-              onTap: _onOpenMonthlyExams,
-            ),
-            const SizedBox(height: 12),
-            _actionCard(
-              icon: Icons.grade,
-              title: 'الدرجات',
-              subtitle: 'تقرير بالدرجات حسب النوع والاطّلاع على درجتي',
-              color: Colors.green,
-              onTap: _onOpenExamGrades,
-            ),
-            const SizedBox(height: 12),
-            _actionCard(
-              icon: Icons.fact_check,
-              title: 'تقييماتي',
-              subtitle: 'اعرض تقييماتك مع إمكانية التصفية بالتاريخ',
-              color: Colors.brown,
-              onTap: _onOpenEvaluations,
-            ),
-            const SizedBox(height: 12),
-            _actionCard(
-              icon: Icons.receipt_long,
-              title: 'فواتير ودفعات الكورس',
-              subtitle: 'اعرض فواتير هذا الكورس وأقساطه ودفعاته',
-              color: Colors.deepOrange,
-              onTap: _onOpenCourseInvoices,
+            const SizedBox(height: 4),
+            Flexible(
+              child: Text(
+                item.subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: cs.onSurfaceVariant,
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -118,30 +190,31 @@ class EnrollmentActionsScreen extends StatefulWidget {
     );
   }
 
+  // ✅ المسارات والعمليات
   void _onOpenWeeklySchedule() {
     if (widget.courseId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يمكن فتح الجدول: معرف الكورس مفقود')),
-      );
+      _showSnack('لا يمكن فتح الجدول: معرف الكورس مفقود');
       return;
     }
-    Get.to(() => CourseWeeklyScheduleScreen(
-          courseId: widget.courseId,
-          courseName: widget.courseName,
-        ));
+    Get.to(
+      () => CourseWeeklyScheduleScreen(
+        courseId: widget.courseId,
+        courseName: widget.courseName,
+      ),
+    );
   }
 
   void _onOpenAttendance() {
     if (widget.courseId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يمكن فتح السجل: معرف الكورس مفقود')),
-      );
+      _showSnack('لا يمكن فتح السجل: معرف الكورس مفقود');
       return;
     }
-    Get.to(() => CourseAttendanceScreen(
-          courseId: widget.courseId,
-          courseName: widget.courseName,
-        ));
+    Get.to(
+      () => CourseAttendanceScreen(
+        courseId: widget.courseId,
+        courseName: widget.courseName,
+      ),
+    );
   }
 
   void _onOpenAssignments() {
@@ -149,17 +222,19 @@ class EnrollmentActionsScreen extends StatefulWidget {
   }
 
   void _onOpenDailyExams() {
-    Get.to(() => const StudentExamsScreen(
-          fixedType: 'daily',
-          title: 'امتحانات يومية',
-        ));
+    Get.to(
+      () =>
+          const StudentExamsScreen(fixedType: 'daily', title: 'امتحانات يومية'),
+    );
   }
 
   void _onOpenMonthlyExams() {
-    Get.to(() => const StudentExamsScreen(
-          fixedType: 'monthly',
-          title: 'امتحانات شهرية',
-        ));
+    Get.to(
+      () => const StudentExamsScreen(
+        fixedType: 'monthly',
+        title: 'امتحانات شهرية',
+      ),
+    );
   }
 
   void _onOpenExamGrades() {
@@ -172,40 +247,19 @@ class EnrollmentActionsScreen extends StatefulWidget {
 
   void _onOpenCourseInvoices() {
     if (widget.courseId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يمكن فتح الفواتير: معرف الكورس مفقود')),
-      );
+      _showSnack('لا يمكن فتح الفواتير: معرف الكورس مفقود');
       return;
     }
-    Get.toNamed('/invoices', arguments: {
-      'courseId': widget.courseId,
-      if (widget.courseName != null) 'courseName': widget.courseName,
-    });
-  }
-
-  Widget _actionCard({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 1.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(.12),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing: const Icon(Icons.chevron_left),
-        onTap: _busy ? null : onTap,
-      ),
+    Get.toNamed(
+      '/invoices',
+      arguments: {
+        'courseId': widget.courseId,
+        if (widget.courseName != null) 'courseName': widget.courseName,
+      },
     );
   }
 
+  // ✅ مسح الحضور
   Future<void> _onScanAttendance() async {
     final granted = await PermissionService.requestCameraPermission();
     if (!granted) {
@@ -246,9 +300,7 @@ class EnrollmentActionsScreen extends StatefulWidget {
       );
     } catch (e) {
       if (!mounted) return;
-      // ✅ هنا نعرض رسالة السيرفر فقط
-      String message = e.toString().replaceAll("Exception: ", "");
-      await _showTextOnlySheet(message);
+      await _showTextOnlySheet(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -261,29 +313,26 @@ class EnrollmentActionsScreen extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => SingleChildScrollView(
-        // ✅ منع overflow
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                text,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, height: 1.4),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('حسناً'),
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('حسناً'),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -292,4 +341,20 @@ class EnrollmentActionsScreen extends StatefulWidget {
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
+}
+
+class _ActionItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  _ActionItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
 }

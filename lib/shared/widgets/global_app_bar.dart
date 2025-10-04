@@ -8,6 +8,7 @@ import 'package:dirasiq/core/services/auth_service.dart';
 import 'package:dirasiq/features/auth/screens/login_screen.dart';
 import 'package:dirasiq/core/services/notification_events.dart';
 import 'dart:async';
+import 'package:dirasiq/features/search/screens/student_unified_search_screen.dart';
 
 class GlobalAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String title;
@@ -116,40 +117,93 @@ class _GlobalAppBarState extends State<GlobalAppBar>
               ),
               elevation: 8,
               offset: const Offset(0, 50),
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'profile',
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.person_outline,
-                      color: AppColors.primary,
+              itemBuilder: (context) {
+                final cs = Theme.of(context).colorScheme;
+
+                return [
+                  PopupMenuItem(
+                    value: 'profile',
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
                     ),
-                    title: Text(
-                      'الملف الشخصي',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: cs.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.person_outline,
+                            color: cs.primary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'الملف الشخصي',
+                          style: TextStyle(
+                            color: cs.onSurface,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: cs.onSurface.withValues(alpha: 0.4),
+                        ),
+                      ],
                     ),
-                    contentPadding: EdgeInsets.zero,
                   ),
-                ),
-                const PopupMenuDivider(height: 1),
-                PopupMenuItem(
-                  value: 'logout',
-                  child: ListTile(
-                    leading: Icon(Icons.logout, color: AppColors.error),
-                    title: Text(
-                      'تسجيل الخروج',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w500,
-                      ),
+
+                  // ===== Divider =====
+                  PopupMenuDivider(height: 1),
+
+                  PopupMenuItem(
+                    value: 'logout',
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
                     ),
-                    contentPadding: EdgeInsets.zero,
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: cs.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.logout_rounded,
+                            color: cs.error,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'تسجيل الخروج',
+                          style: TextStyle(
+                            color: cs.onSurface,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: cs.onSurface.withValues(alpha: 0.4),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ];
+              },
+
               onSelected: (value) async {
                 if (!context.mounted) return;
                 if (value == 'profile') {
@@ -170,8 +224,18 @@ class _GlobalAppBarState extends State<GlobalAppBar>
                 child: TextField(
                   controller: _searchController,
                   focusNode: _searchFocusNode,
+                  readOnly: true,
                   textInputAction: TextInputAction.search,
                   onSubmitted: (q) => widget.onSearch?.call(q),
+                  onTap: () async {
+                    if (!context.mounted) return;
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StudentUnifiedSearchScreen(),
+                      ),
+                    );
+                  },
                   onTapOutside: (_) {
                     _searchFocusNode.unfocus();
                   },

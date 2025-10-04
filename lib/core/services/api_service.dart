@@ -19,6 +19,38 @@ class ApiService {
     }
   }
 
+  /// ✅ البحث الموحّد للطالب (معلمين، كورسات، مواد)
+  Future<Map<String, dynamic>> searchStudentUnified({
+    required String q,
+    int page = 1,
+    int limit = 10,
+    double? maxDistance,
+  }) async {
+    try {
+      final qp = {
+        "q": q,
+        "page": page,
+        "limit": limit,
+        if (maxDistance != null) "maxDistance": maxDistance,
+      };
+      final response = await _dio.get(
+        "/student/search/unified",
+        queryParameters: qp,
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        // يعيد { success, message, data: { query, teachers, courses, subjects }, count }
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(
+        (response.data is Map && response.data["message"] != null)
+            ? response.data["message"].toString()
+            : "فشل البحث",
+      );
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تنفيذ البحث: $e");
+    }
+  }
+
   /// ✅ جدول الأسبوع للطالب (عام للرئيسية)
   Future<Map<String, dynamic>> fetchStudentWeeklySchedule() async {
     try {
@@ -28,23 +60,20 @@ class ApiService {
         if (data is Map<String, dynamic>) {
           // تأكد من وجود المفاتيح بالشكل المتوقع
           final schedule = List<Map<String, dynamic>>.from(
-            (data['schedule'] ?? const <Map<String, dynamic>>[])
-                as List,
+            (data['schedule'] ?? const <Map<String, dynamic>>[]) as List,
           );
           final sbdRaw = data['scheduleByDay'];
           final Map<String, List<Map<String, dynamic>>> scheduleByDay = {};
           if (sbdRaw is Map) {
             sbdRaw.forEach((k, v) {
               if (v is List) {
-                scheduleByDay[k.toString()] =
-                    List<Map<String, dynamic>>.from(v);
+                scheduleByDay[k.toString()] = List<Map<String, dynamic>>.from(
+                  v,
+                );
               }
             });
           }
-          return {
-            'schedule': schedule,
-            'scheduleByDay': scheduleByDay,
-          };
+          return {'schedule': schedule, 'scheduleByDay': scheduleByDay};
         }
         // إذا رجعت البيانات مباشرة
         return Map<String, dynamic>.from(response.data);
@@ -493,6 +522,7 @@ class ApiService {
         "/notifications/user/my-notifications",
         queryParameters: qp,
       );
+      print("payload: $response");
 
       if (response.statusCode == 200 && response.data["success"] == true) {
         return Map<String, dynamic>.from(response.data["data"]);
