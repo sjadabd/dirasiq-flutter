@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'core/config/initial_bindings.dart';
 import 'core/services/notification_service.dart';
+import 'shared/themes/app_colors.dart';
 
-// ✅ استدعاء الشاشات
+// ✅ الشاشات
 import 'features/splash/splash_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/profile/complete_profile_screen.dart';
 import 'features/profile/student_profile_screen.dart';
 import 'features/notifications/notifications_screen.dart';
-import 'core/config/initial_bindings.dart';
 import 'features/onboarding/onboarding_screen.dart';
-import 'shared/themes/app_colors.dart';
 import 'features/courses/screens/suggested_courses_screen.dart';
 import 'features/courses/screens/course_details_screen.dart';
 import 'features/root/root_shell.dart';
@@ -26,6 +25,9 @@ import 'features/enrollments/screens/course_attendance_screen.dart';
 import 'features/invoices/screens/student_invoices_screen.dart';
 import 'features/invoices/screens/invoice_details_screen.dart';
 import 'features/teachers/screens/suggested_teachers_screen.dart';
+
+// ✅ المتحكم العام للإشعارات والمستخدم
+import 'shared/controllers/global_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,10 +43,12 @@ class MyApp extends StatelessWidget {
     final scheme = AppColors.lightScheme;
     final dark = AppColors.darkScheme;
 
+    // ✅ تحميل المتحكم العام
+    Get.put(GlobalController(), permanent: true);
+
     return GetMaterialApp(
       title: 'Dirasiq',
       debugShowCheckedModeBanner: false,
-      // ✅ اتجاه عربي افتراضي + RTL
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: const [
@@ -52,17 +56,25 @@ class MyApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+
+      // ✅ الاتجاه الافتراضي RTL
       builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child ?? const SizedBox(),
+        return AnimatedTheme(
+          data: Theme.of(context),
+          duration: const Duration(milliseconds: 300),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child ?? const SizedBox(),
+          ),
         );
       },
 
+      themeMode: ThemeMode.system,
+
+      // ✅ الثيم الفاتح
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: scheme,
-        fontFamily: GoogleFonts.cairo().fontFamily,
         scaffoldBackgroundColor: AppColors.background,
         appBarTheme: AppBarTheme(
           centerTitle: true,
@@ -74,10 +86,6 @@ class MyApp extends StatelessWidget {
           filled: true,
           fillColor: scheme.surface,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: scheme.outline),
-          ),
-          enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: scheme.outline),
           ),
@@ -109,14 +117,13 @@ class MyApp extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          margin: const EdgeInsets.all(0),
         ),
       ),
 
+      // ✅ الثيم الداكن
       darkTheme: ThemeData(
         useMaterial3: true,
         colorScheme: dark,
-        fontFamily: GoogleFonts.cairo().fontFamily,
         scaffoldBackgroundColor: AppColors.darkBackground,
         appBarTheme: AppBarTheme(
           centerTitle: true,
@@ -128,10 +135,6 @@ class MyApp extends StatelessWidget {
           filled: true,
           fillColor: dark.surface,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: dark.outline),
-          ),
-          enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: dark.outline),
           ),
@@ -163,14 +166,13 @@ class MyApp extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          margin: const EdgeInsets.all(0),
         ),
       ),
 
       initialBinding: InitialBindings(),
       smartManagement: SmartManagement.full,
 
-      // ✅ شاشة البداية + تعريف الصفحات باستخدام GetX
+      // ✅ تعريف الصفحات
       initialRoute: "/splash",
       getPages: [
         GetPage(name: "/splash", page: () => const SplashScreen()),
@@ -189,49 +191,36 @@ class MyApp extends StatelessWidget {
           name: "/notifications",
           page: () => const NotificationsScreen(),
         ),
-        GetPage(
-          name: "/enrollments",
-          page: () => const EnrollmentsScreen(),
-        ),
+        GetPage(name: "/enrollments", page: () => const EnrollmentsScreen()),
         GetPage(
           name: "/enrollment-actions",
           page: () {
-            final args = Get.arguments as Map<String, dynamic>?;
-            final courseId = args?['courseId']?.toString() ?? '';
-            final courseName = args?['courseName']?.toString();
-            final teacherId = args?['teacherId']?.toString();
+            final args = Get.arguments as Map<String, dynamic>? ?? {};
             return EnrollmentActionsScreen(
-              courseId: courseId,
-              courseName: courseName,
-              teacherId: teacherId,
+              courseId: args['courseId'] ?? '',
+              courseName: args['courseName'],
+              teacherId: args['teacherId'],
             );
           },
         ),
-        GetPage(
-          name: "/qr-scan",
-          page: () => const QrScanScreen(),
-        ),
+        GetPage(name: "/qr-scan", page: () => const QrScanScreen()),
         GetPage(
           name: "/course-weekly-schedule",
           page: () {
-            final args = Get.arguments as Map<String, dynamic>?;
-            final courseId = args?['courseId']?.toString() ?? '';
-            final courseName = args?['courseName']?.toString();
+            final args = Get.arguments as Map<String, dynamic>? ?? {};
             return CourseWeeklyScheduleScreen(
-              courseId: courseId,
-              courseName: courseName,
+              courseId: args['courseId'] ?? '',
+              courseName: args['courseName'],
             );
           },
         ),
         GetPage(
           name: "/course-attendance",
           page: () {
-            final args = Get.arguments as Map<String, dynamic>?;
-            final courseId = args?['courseId']?.toString() ?? '';
-            final courseName = args?['courseName']?.toString();
+            final args = Get.arguments as Map<String, dynamic>? ?? {};
             return CourseAttendanceScreen(
-              courseId: courseId,
-              courseName: courseName,
+              courseId: args['courseId'] ?? '',
+              courseName: args['courseName'],
             );
           },
         ),
@@ -239,8 +228,8 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: "/invoice-details",
           page: () {
-            final invoiceId = Get.arguments as String;
-            return InvoiceDetailsScreen(invoiceId: invoiceId);
+            final id = Get.arguments as String;
+            return InvoiceDetailsScreen(invoiceId: id);
           },
         ),
         GetPage(
@@ -250,8 +239,8 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: "/course-details",
           page: () {
-            final courseId = Get.arguments as String; // استلام الـ argument
-            return CourseDetailsScreen(courseId: courseId);
+            final id = Get.arguments as String;
+            return CourseDetailsScreen(courseId: id);
           },
         ),
         GetPage(
@@ -262,8 +251,8 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: "/booking-details",
           page: () {
-            final bookingId = Get.arguments as String; // استلام الـ argument
-            return BookingDetailsScreen(bookingId: bookingId);
+            final id = Get.arguments as String;
+            return BookingDetailsScreen(bookingId: id);
           },
         ),
       ],

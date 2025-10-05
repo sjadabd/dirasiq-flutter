@@ -162,6 +162,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final paidStatus = _aggregatePaidStatus();
     final totalDue = _rTotalDue ?? _sumField('amount_due');
     final totalDisc = _rTotalDisc ?? _sumField('discount_total');
@@ -169,7 +170,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
     final totalRemain = _rTotalRemain ?? _sumField('remaining_amount');
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       appBar: const GlobalAppBar(title: 'فواتيري ودفعاتي'),
       body: RefreshIndicator(
         color: AppColors.primary,
@@ -210,24 +211,21 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _load,
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
-        icon: const Icon(Icons.refresh_rounded, size: 18),
-        label: const Text(
-          'تحديث',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-        ),
-        elevation: 3,
-      ),
     );
   }
 
   Widget _filters() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -262,7 +260,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: textPrimary,
                   ),
                 ),
               ],
@@ -273,7 +271,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: surfaceColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: DropdownButtonFormField<String>(
@@ -281,7 +279,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                       decoration: InputDecoration(
                         labelText: 'الحالة',
                         labelStyle: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: textSecondary,
                           fontSize: 12,
                         ),
                         border: OutlineInputBorder(
@@ -289,67 +287,49 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: AppColors.surface,
+                        fillColor: surfaceColor,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 10,
                         ),
                       ),
                       isExpanded: true,
-                      dropdownColor: AppColors.surface,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 13,
-                      ),
+                      dropdownColor: surfaceColor,
+                      style: TextStyle(color: textPrimary, fontSize: 13),
                       items: [
                         DropdownMenuItem(
                           value: 'all',
                           child: Text(
                             'الكل',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                            ),
+                            style: TextStyle(color: textPrimary, fontSize: 13),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'pending',
                           child: Text(
                             'قيد السداد',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                            ),
+                            style: TextStyle(color: textPrimary, fontSize: 13),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'partial',
                           child: Text(
                             'سداد جزئي',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                            ),
+                            style: TextStyle(color: textPrimary, fontSize: 13),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'paid',
                           child: Text(
                             'مدفوعة',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                            ),
+                            style: TextStyle(color: textPrimary, fontSize: 13),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'overdue',
                           child: Text(
                             'متأخرة',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                            ),
+                            style: TextStyle(color: textPrimary, fontSize: 13),
                           ),
                         ),
                       ],
@@ -367,36 +347,27 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                     value: _studyYear ?? _currentStudyYear(),
                     decoration: InputDecoration(
                       labelText: 'السنة الدراسية',
-                      labelStyle: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                      labelStyle: TextStyle(color: textSecondary, fontSize: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: AppColors.surface,
+                      fillColor: surfaceColor,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
                       ),
                     ),
                     isExpanded: true,
-                    dropdownColor: AppColors.surface,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                    ),
+                    dropdownColor: surfaceColor,
+                    style: TextStyle(color: textPrimary, fontSize: 13),
                     items: [
                       DropdownMenuItem(
                         value: _currentStudyYear(),
                         child: Text(
                           _currentStudyYear(),
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: textPrimary, fontSize: 13),
                         ),
                       ),
                     ],
@@ -442,6 +413,8 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
     required double totalPaid,
     required double totalRemain,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
     Widget card(
       IconData icon,
       String title,
@@ -452,7 +425,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
       return Container(
         width: 140,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surfaceColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
           boxShadow: [
@@ -480,7 +453,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),
@@ -489,7 +464,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
               Text(
                 _currency.format(value),
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.textPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
@@ -538,6 +515,8 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
   }
 
   Widget _chartsSection(Map<String, double> paidStatus) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
     final total = paidStatus.values.fold<double>(0, (p, e) => p + e);
     if (total == 0) return const SizedBox.shrink();
 
@@ -552,7 +531,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
           value: paidCount,
           color: AppColors.success,
           title: '$paidPercent%',
-          radius: 55,
+          radius: 40,
           titleStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -564,7 +543,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
           value: unpaidCount,
           color: AppColors.error,
           title: '$unpaidPercent%',
-          radius: 55,
+          radius: 40,
           titleStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -575,7 +554,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -610,7 +589,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -657,6 +638,10 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
   }
 
   Widget _legendItemWithCount(String label, Color color, int count) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -672,7 +657,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
         Text(
           '$label ($count)',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: textColor,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -682,6 +667,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
   }
 
   Widget _list() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -720,12 +706,16 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                 icon: Icon(
                   Icons.refresh_rounded,
                   size: 16,
-                  color: AppColors.primary,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.textPrimary,
                 ),
                 label: Text(
                   'تحديث',
                   style: TextStyle(
-                    color: AppColors.primary,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
@@ -768,10 +758,12 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
       }
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: statusColor().withValues(alpha: 0.2),
@@ -836,7 +828,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                                       courseName,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: AppColors.textPrimary,
+                                        color: isDark
+                                            ? AppColors.darkTextPrimary
+                                            : AppColors.textPrimary,
                                         fontWeight: FontWeight.w600,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -859,7 +853,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                                       teacherName,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: AppColors.textPrimary,
+                                        color: isDark
+                                            ? AppColors.darkTextPrimary
+                                            : AppColors.textPrimary,
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -896,7 +892,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: surfaceColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -904,7 +900,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                       _detailRow(
                         'المبلغ المستحق',
                         _currency.format(due),
-                        AppColors.textPrimary,
+                        isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.textPrimary,
                         true,
                       ),
                       const SizedBox(height: 6),
@@ -954,7 +952,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                             invoiceDate,
                             style: TextStyle(
                               fontSize: 9,
-                              color: AppColors.textPrimary,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -981,7 +981,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                             dueDate,
                             style: TextStyle(
                               fontSize: 9,
-                              color: AppColors.textPrimary,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1016,7 +1018,9 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                             notes,
                             style: TextStyle(
                               fontSize: 10,
-                              color: AppColors.textSecondary,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textSecondary,
                               height: 1.3,
                             ),
                             maxLines: 2,
@@ -1035,14 +1039,18 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                       'اضغط للمزيد من التفاصيل',
                       style: TextStyle(
                         fontSize: 9,
-                        color: AppColors.primary,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Icon(
                       Icons.arrow_forward_ios_rounded,
-                      color: AppColors.primary,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.primary,
                       size: 10,
                     ),
                   ],
@@ -1056,6 +1064,10 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
   }
 
   Widget _detailRow(String label, String value, Color valueColor, bool bold) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1063,7 +1075,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
           label,
           style: TextStyle(
             fontSize: 11,
-            color: AppColors.textSecondary,
+            color: labelColor,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -1093,6 +1105,13 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
   }
 
   Widget _empty() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final subtitleColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -1116,13 +1135,13 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: titleColor,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               'لا توجد فواتير للعرض حالياً',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12, color: subtitleColor),
               textAlign: TextAlign.center,
             ),
           ],

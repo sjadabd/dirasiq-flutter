@@ -8,10 +8,15 @@ import 'package:intl/intl.dart';
 class InstallmentDetailsScreen extends StatefulWidget {
   final String invoiceId;
   final String installmentId;
-  const InstallmentDetailsScreen({super.key, required this.invoiceId, required this.installmentId});
+  const InstallmentDetailsScreen({
+    super.key,
+    required this.invoiceId,
+    required this.installmentId,
+  });
 
   @override
-  State<InstallmentDetailsScreen> createState() => _InstallmentDetailsScreenState();
+  State<InstallmentDetailsScreen> createState() =>
+      _InstallmentDetailsScreenState();
 }
 
 class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
@@ -22,7 +27,8 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   Map<String, dynamic>? _installment;
   List<Map<String, dynamic>> _partials = [];
   List<Map<String, dynamic>> _discounts = [];
-  Map<String, dynamic>? _totals; // { total_planned, total_paid, total_discount, total_remaining }
+  Map<String, dynamic>?
+  _totals; // { total_planned, total_paid, total_discount, total_remaining }
 
   final _currency = NumberFormat.currency(symbol: 'IQD ', decimalDigits: 0);
   final _dateFmt = DateFormat('yyyy-MM-dd');
@@ -63,9 +69,15 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
         _installment = data['installment'] is Map<String, dynamic>
             ? Map<String, dynamic>.from(data['installment'])
             : null;
-        _partials = List<Map<String, dynamic>>.from((data['partials'] ?? []) as List);
-        _discounts = List<Map<String, dynamic>>.from((data['discounts'] ?? []) as List);
-        _totals = data['totals'] is Map<String, dynamic> ? Map<String, dynamic>.from(data['totals']) : null;
+        _partials = List<Map<String, dynamic>>.from(
+          (data['partials'] ?? []) as List,
+        );
+        _discounts = List<Map<String, dynamic>>.from(
+          (data['discounts'] ?? []) as List,
+        );
+        _totals = data['totals'] is Map<String, dynamic>
+            ? Map<String, dynamic>.from(data['totals'])
+            : null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -79,14 +91,21 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       appBar: const GlobalAppBar(title: 'تفاصيل القسط'),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(
+              child: CircularProgressIndicator(
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
+            )
           : RefreshIndicator(
               onRefresh: _load,
-              color: AppColors.primary,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Padding(
@@ -113,6 +132,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 
   Widget _header() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final inv = _invoice ?? const {};
     final ins = _installment ?? const {};
     final courseName = (inv['course_name'] ?? '').toString();
@@ -140,10 +160,13 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
 
     return Card(
       elevation: 1,
-      color: AppColors.surface,
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -167,29 +190,54 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
-                          color: AppColors.primary,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
                         ),
                       ),
                       if (courseName.isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Text('الكورس: $courseName', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        Text(
+                          'الكورس: $courseName',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                       if (teacherName.isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Text('المعلم: $teacherName', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        Text(
+                          'المعلم: $teacherName',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor().withValues(alpha: .12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     _statusLabel(status),
-                    style: TextStyle(color: statusColor(), fontSize: 11, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: statusColor(),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -197,26 +245,75 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: _kv('المخطط', _currency.format(planned), Icons.stacked_bar_chart, AppColors.primary)),
+                Expanded(
+                  child: _kv(
+                    'المخطط',
+                    _currency.format(planned),
+                    Icons.stacked_bar_chart,
+                    AppColors.primary,
+                  ),
+                ),
                 _divider(),
-                Expanded(child: _kv('المدفوع', _currency.format(paid), Icons.payments, AppColors.success)),
+                Expanded(
+                  child: _kv(
+                    'المدفوع',
+                    _currency.format(paid),
+                    Icons.payments,
+                    AppColors.success,
+                  ),
+                ),
                 _divider(),
-                Expanded(child: _kv('المتبقي', _currency.format(remain), Icons.account_balance_wallet, AppColors.error)),
+                Expanded(
+                  child: _kv(
+                    'المتبقي',
+                    _currency.format(remain),
+                    Icons.account_balance_wallet,
+                    AppColors.error,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
                 if (dueDate.isNotEmpty) ...[
-                  Icon(Icons.event, size: 12, color: AppColors.textSecondary),
+                  Icon(
+                    Icons.event,
+                    size: 12,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 4),
-                  Text('الاستحقاق: $dueDate', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                  Text(
+                    'الاستحقاق: $dueDate',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
                 ],
                 if (paidDate.isNotEmpty) ...[
                   const SizedBox(width: 12),
-                  Icon(Icons.calendar_today, size: 12, color: AppColors.textSecondary),
+                  Icon(
+                    Icons.calendar_today,
+                    size: 12,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 4),
-                  Text('الدفع: $paidDate', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                  Text(
+                    'الدفع: $paidDate',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -227,6 +324,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 
   Widget _totalsPie() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final t = _totals;
     if (t == null) return const SizedBox.shrink();
     final totalPlanned = _toDouble(t['total_planned']);
@@ -242,33 +340,48 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
           value: totalPaid,
           color: AppColors.success,
           title: '${((totalPaid / sum) * 100).toStringAsFixed(0)}%',
-          radius: 55,
-          titleStyle: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+          radius: 40,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       if (totalDisc > 0)
         PieChartSectionData(
           value: totalDisc,
           color: AppColors.warning,
           title: '${((totalDisc / sum) * 100).toStringAsFixed(0)}%',
-          radius: 55,
-          titleStyle: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+          radius: 40,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       if (totalRemain > 0)
         PieChartSectionData(
           value: totalRemain,
           color: AppColors.error,
           title: '${((totalRemain / sum) * 100).toStringAsFixed(0)}%',
-          radius: 55,
-          titleStyle: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+          radius: 40,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
     ];
 
     return Card(
       elevation: 1,
-      color: AppColors.surface,
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -277,7 +390,13 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
           children: [
             Text(
               'توزيع القسط (مدفوع/خصم/متبقي)',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.primary),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -296,9 +415,9 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
               spacing: 10,
               runSpacing: 4,
               children: const [
-                _Legend(color: Colors.green, text: 'مدفوع'),
-                _Legend(color: Colors.orange, text: 'خصم'),
-                _Legend(color: Colors.redAccent, text: 'متبقي'),
+                _Legend(color: AppColors.success, text: 'مدفوع'),
+                _Legend(color: AppColors.warning, text: 'خصم'),
+                _Legend(color: AppColors.error, text: 'متبقي'),
               ],
             ),
           ],
@@ -308,19 +427,32 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 
   Widget _partialsCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 1,
-      color: AppColors.surface,
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('دفعات جزئية', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.primary)),
+            Text(
+              'دفعات جزئية',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
             ..._partials.map((p) => _partialTile(p)).toList(),
           ],
@@ -330,19 +462,32 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 
   Widget _discountsCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 1,
-      color: AppColors.surface,
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('الخصومات', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.primary)),
+            Text(
+              'الخصومات',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
             ..._discounts.map((d) => _discountTile(d)).toList(),
           ],
@@ -352,6 +497,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 
   Widget _partialTile(Map<String, dynamic> p) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final amount = _toDouble(p['amount']);
     final paidAt = _formatDate(p['paid_at']);
     final method = (p['payment_method'] ?? '').toString();
@@ -361,9 +507,12 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
+        color: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 0.5,
+        ),
       ),
       child: Row(
         children: [
@@ -379,27 +528,70 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
               children: [
                 Text(
                   _currency.format(amount),
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.primary),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Row(
                   children: [
                     if (paidAt.isNotEmpty) ...[
-                      Icon(Icons.calendar_today, size: 10, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 10,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 4),
-                      Text(paidAt, style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                      Text(
+                        paidAt,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                     if (method.isNotEmpty) ...[
                       const SizedBox(width: 8),
-                      Icon(Icons.payment, size: 10, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.payment,
+                        size: 10,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 4),
-                      Text(_paymentMethodLabel(method), style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                      Text(
+                        _paymentMethodLabel(method),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ],
                 ),
                 if (notes.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(notes, style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+                  Text(
+                    notes,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -410,6 +602,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 
   Widget _discountTile(Map<String, dynamic> d) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final amount = _toDouble(d['amount']);
     final createdAt = _formatDate(d['created_at']);
     final notes = (d['notes'] ?? '').toString();
@@ -418,9 +611,12 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
+        color: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 0.5,
+        ),
       ),
       child: Row(
         children: [
@@ -436,20 +632,49 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
               children: [
                 Text(
                   _currency.format(amount),
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.primary),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 if (createdAt.isNotEmpty)
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 10, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 10,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 4),
-                      Text(createdAt, style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                      Text(
+                        createdAt,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 if (notes.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(notes, style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+                  Text(
+                    notes,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -473,6 +698,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   }
 
   Widget _kv(String k, String v, IconData ic, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -486,13 +712,22 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
         Text(
           k,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+          style: TextStyle(
+            fontSize: 10,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           v,
           textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.primary),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+          ),
         ),
       ],
     );

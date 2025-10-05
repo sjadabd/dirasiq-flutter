@@ -84,7 +84,8 @@ class _EnrollmentsScreenState extends State<EnrollmentsScreen> {
 
   String _fullImageUrl(String? path) {
     if (path == null || path.isEmpty) {
-      return '${AppConfig.serverBaseUrl}/uploads/defaults/default-course.jpg';
+      // No image available: return empty string to avoid 404 requests
+      return '';
     }
     if (path.startsWith('http')) return path;
     if (path.startsWith('/')) return '${AppConfig.serverBaseUrl}$path';
@@ -274,18 +275,29 @@ class _EnrollmentsScreenState extends State<EnrollmentsScreen> {
                   borderRadius: const BorderRadius.horizontal(
                     left: Radius.circular(16),
                   ),
-                  child: Image.network(
-                    imageUrl,
-                    width: 110,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 110,
-                      height: 100,
-                      color: cs.surfaceVariant,
-                      child: Icon(Icons.school, color: cs.onSurfaceVariant),
-                    ),
-                  ),
+                  child: imageUrl.isEmpty
+                      ? Container(
+                          width: 110,
+                          height: 100,
+                          color: cs.surfaceVariant,
+                          child:
+                              Icon(Icons.school, color: cs.onSurfaceVariant),
+                        )
+                      : Image.network(
+                          imageUrl,
+                          width: 110,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 110,
+                            height: 100,
+                            color: cs.surfaceVariant,
+                            child: Icon(
+                              Icons.school,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
                 ),
                 Expanded(
                   child: Padding(

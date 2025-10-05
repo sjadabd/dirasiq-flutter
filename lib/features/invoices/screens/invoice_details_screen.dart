@@ -77,17 +77,24 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final inv = _invoice;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       appBar: const GlobalAppBar(title: 'تفاصيل الفاتورة'),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(
+              child: CircularProgressIndicator(
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
+            )
           : (inv == null)
           ? const Center(child: Text('تعذر تحميل الفاتورة'))
           : RefreshIndicator(
               onRefresh: _load,
-              color: AppColors.primary,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Padding(
@@ -116,6 +123,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
   }
 
   Widget _header(Map<String, dynamic> inv) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final status = (inv['invoice_status'] ?? inv['status'] ?? '').toString();
     final due = _toDouble(inv['amount_due']);
     final invoiceDate = _formatDate(inv['invoice_date'] ?? inv['created_at']);
@@ -141,10 +149,13 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
 
     return Card(
       elevation: 1,
-      color: AppColors.surface,
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -172,14 +183,18 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
-                          color: AppColors.primary,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         'التاريخ: $invoiceDate',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
                           fontSize: 11,
                         ),
                       ),
@@ -238,19 +253,29 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.note, size: 14, color: AppColors.primary),
+                    Icon(
+                      Icons.note,
+                      size: 14,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         notes,
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ),
@@ -265,6 +290,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
   }
 
   Widget _infoRow(IconData icon, String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -273,14 +299,21 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
           const SizedBox(width: 6),
           Text(
             '$label: ',
-            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.textSecondary,
+            ),
           ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
                 fontSize: 11,
-                color: AppColors.primary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -293,6 +326,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
   Widget _divider() => const SizedBox(width: 8);
 
   Widget _kv(String k, String v, IconData ic, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -306,7 +340,12 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
         Text(
           k,
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
+            fontSize: 10,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -315,7 +354,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
           style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 12,
-            color: AppColors.primary,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
           ),
         ),
       ],
@@ -323,6 +362,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
   }
 
   Widget _totalsPieChart() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final t = _totals;
     if (t == null) return const SizedBox.shrink();
     final totalPaid = _toDouble(t['total_paid']);
@@ -334,13 +374,25 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
     // Build slices list in order: Paid, Discount, Remaining
     final List<Map<String, dynamic>> items = [];
     if (totalPaid > 0) {
-      items.add({'label': 'مدفوع', 'value': totalPaid, 'color': AppColors.success});
+      items.add({
+        'label': 'مدفوع',
+        'value': totalPaid,
+        'color': AppColors.success,
+      });
     }
     if (totalDisc > 0) {
-      items.add({'label': 'خصم', 'value': totalDisc, 'color': AppColors.warning});
+      items.add({
+        'label': 'خصم',
+        'value': totalDisc,
+        'color': AppColors.warning,
+      });
     }
     if (totalRemain > 0) {
-      items.add({'label': 'متبقي', 'value': totalRemain, 'color': AppColors.error});
+      items.add({
+        'label': 'متبقي',
+        'value': totalRemain,
+        'color': AppColors.error,
+      });
     }
 
     final sections = <PieChartSectionData>[];
@@ -356,7 +408,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
           value: value,
           color: color,
           title: title,
-          radius: isTouched ? 62 : 55,
+          radius: isTouched ? 40 : 40,
           titleStyle: const TextStyle(
             color: Colors.white,
             fontSize: 11,
@@ -368,10 +420,13 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
 
     return Card(
       elevation: 1,
-      color: AppColors.surface,
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -383,7 +438,9 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
-                color: AppColors.primary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 10),
@@ -397,9 +454,12 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
                   pieTouchData: PieTouchData(
                     touchCallback: (event, response) {
                       if (!mounted) return;
-                      final idx = response?.touchedSection?.touchedSectionIndex ?? -1;
+                      final idx =
+                          response?.touchedSection?.touchedSectionIndex ?? -1;
                       setState(() {
-                        _touchedIndex = event.isInterestedForInteractions ? idx : -1;
+                        _touchedIndex = event.isInterestedForInteractions
+                            ? idx
+                            : -1;
                       });
                     },
                   ),
@@ -409,39 +469,64 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
             ),
             if (_touchedIndex >= 0 && _touchedIndex < items.length) ...[
               const SizedBox(height: 8),
-              Builder(builder: (_) {
-                final sel = items[_touchedIndex];
-                final val = (sel['value'] as double);
-                final pct = sum == 0 ? 0 : (val / sum) * 100;
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border, width: 0.5),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(width: 10, height: 10, decoration: BoxDecoration(color: sel['color'] as Color, shape: BoxShape.circle)),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${sel['label']}: ${_currency.format(val)} (${pct.toStringAsFixed(0)}%)',
-                        style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w700),
+              Builder(
+                builder: (_) {
+                  final sel = items[_touchedIndex];
+                  final val = (sel['value'] as double);
+                  final pct = sum == 0 ? 0 : (val / sum) * 100;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppColors.darkSurfaceVariant
+                          : AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.border,
+                        width: 0.5,
                       ),
-                    ],
-                  ),
-                );
-              }),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: sel['color'] as Color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${sel['label']}: ${_currency.format(val)} (${pct.toStringAsFixed(0)}%)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
             const SizedBox(height: 8),
             Wrap(
               spacing: 10,
               runSpacing: 4,
               children: const [
-                _Legend(color: Colors.green, text: 'مدفوع'),
-                _Legend(color: Colors.orange, text: 'خصم'),
-                _Legend(color: Colors.redAccent, text: 'متبقي'),
+                _Legend(color: AppColors.success, text: 'مدفوع'),
+                _Legend(color: AppColors.warning, text: 'خصم'),
+                _Legend(color: AppColors.error, text: 'متبقي'),
               ],
             ),
           ],
@@ -452,12 +537,16 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
 
   Widget _paymentsCard() {
     if (_payments.isEmpty) return const SizedBox.shrink();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 1,
-      color: AppColors.surface,
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -469,7 +558,9 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
-                color: AppColors.primary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -481,6 +572,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
   }
 
   Widget _paymentTile(Map<String, dynamic> p) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final payNo = (p['payment_number'] ?? '').toString();
     final planned = _toDouble(p['planned_amount']);
     final paid = _toDouble(p['paid_amount']);
@@ -509,9 +601,12 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
+        color: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.border,
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,13 +632,21 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
               if (dueDate.isNotEmpty)
                 Row(
                   children: [
-                    Icon(Icons.event, size: 12, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.event,
+                      size: 12,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       dueDate,
                       style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -555,14 +658,18 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
                     Icon(
                       Icons.calendar_today,
                       size: 12,
-                      color: AppColors.textSecondary,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       paidDate,
                       style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -614,7 +721,12 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
             const SizedBox(height: 8),
             Text(
               notes,
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
+              ),
             ),
           ],
           const SizedBox(height: 8),

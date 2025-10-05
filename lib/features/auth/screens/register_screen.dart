@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
 import 'package:dirasiq/features/auth/screens/email_verification_screen.dart';
+import 'package:dirasiq/shared/themes/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -25,11 +26,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _gender; // male | female
   String? _gradeId; // selected grade
   DateTime? _birthDate;
-
   List<Map<String, dynamic>> _grades = [];
-  bool _loading = false;
 
-  bool _sendLocation = false; // ✅ CheckBox value
+  bool _loading = false;
+  bool _sendLocation = false;
   double? _latitude;
   double? _longitude;
 
@@ -45,10 +45,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _fetchGrades() async {
     try {
       final grades = await _apiService.fetchGrades();
-
-      setState(() {
-        _grades = grades;
-      });
+      setState(() => _grades = grades);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -63,12 +60,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       initialDate: DateTime(2007, 1, 1),
       firstDate: DateTime(1990),
       lastDate: DateTime.now(),
+      locale: const Locale('ar'),
     );
-    if (picked != null) {
-      setState(() {
-        _birthDate = picked;
-      });
-    }
+    if (picked != null) setState(() => _birthDate = picked);
   }
 
   Future<void> _getLocation() async {
@@ -99,7 +93,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      Position pos = await Geolocator.getCurrentPosition(
+      final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
@@ -139,7 +133,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _loading = true);
 
-    // إذا المستخدم اختار إرسال الموقع
     if (_sendLocation && (_latitude == null || _longitude == null)) {
       await _getLocation();
     }
@@ -153,7 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       "schoolName": schoolName,
       "gender": _gender,
       "gradeId": _gradeId,
-      "birthDate": _birthDate!.toIso8601String().split("T").first, // YYYY-MM-DD
+      "birthDate": _birthDate!.toIso8601String().split("T").first,
       if (_sendLocation) ...{
         "latitude": _latitude ?? 33.37771840,
         "longitude": _longitude ?? 44.51151040,
@@ -162,19 +155,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final errorMessage = await _authService.registerStudent(payload);
-      if (errorMessage == null) {
-        if (!mounted) return;
+      if (errorMessage == null && mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => EmailVerificationScreen(email: email),
           ),
         );
-      } else {
-        if (!mounted) return;
+      } else if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(errorMessage)));
+        ).showSnackBar(SnackBar(content: Text(errorMessage ?? "حدث خطأ")));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -183,101 +174,167 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("تسجيل حساب جديد")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            AuthTextField(controller: _nameController, label: "الاسم الكامل"),
-            const SizedBox(height: 12),
-            AuthTextField(
-              controller: _emailController,
-              label: "البريد الإلكتروني",
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 12),
-            AuthTextField(
-              controller: _passwordController,
-              label: "كلمة المرور",
-              obscureText: true,
-            ),
-            const SizedBox(height: 12),
-            AuthTextField(
-              controller: _studentPhoneController,
-              label: "هاتف الطالب",
-            ),
-            const SizedBox(height: 12),
-            AuthTextField(
-              controller: _parentPhoneController,
-              label: "هاتف ولي الأمر",
-            ),
-            const SizedBox(height: 12),
-            AuthTextField(
-              controller: _schoolNameController,
-              label: "اسم المدرسة",
-            ),
-            const SizedBox(height: 12),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+      appBar: AppBar(
+        title: const Text("تسجيل حساب جديد"),
+        backgroundColor: scheme.surface,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 12,
+            bottom: 32,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 10),
 
-            // Gender select
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: "الجنس"),
-              initialValue: _gender,
-              items: const [
-                DropdownMenuItem(value: "male", child: Text("ذكر")),
-                DropdownMenuItem(value: "female", child: Text("أنثى")),
-              ],
-              onChanged: (v) => setState(() => _gender = v),
-            ),
-            const SizedBox(height: 12),
-
-            // Grades select
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: "الصف"),
-              initialValue: _gradeId,
-              items: _grades
-                  .map(
-                    (g) => DropdownMenuItem<String>(
-                      value: g["id"] as String,
-                      child: Text(g["name"] as String),
+              // 🌟 عنوان ترحيبي
+              Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.person_add_alt_1_rounded,
+                      size: 70,
+                      color: scheme.primary,
                     ),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => _gradeId = v),
-            ),
-            const SizedBox(height: 12),
-
-            // Birthdate picker
-            InkWell(
-              onTap: _pickBirthDate,
-              child: InputDecorator(
-                decoration: const InputDecoration(labelText: "تاريخ الميلاد"),
-                child: Text(
-                  _birthDate == null
-                      ? "اختر التاريخ"
-                      : "${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}",
+                    const SizedBox(height: 8),
+                    Text(
+                      "أنشئ حسابك الآن",
+                      style: TextStyle(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 12),
+              // 🧾 الحقول
+              AuthTextField(controller: _nameController, label: "الاسم الكامل"),
+              const SizedBox(height: 12),
+              AuthTextField(
+                controller: _emailController,
+                label: "البريد الإلكتروني",
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              AuthTextField(
+                controller: _passwordController,
+                label: "كلمة المرور",
+                obscureText: true,
+              ),
+              const SizedBox(height: 12),
+              AuthTextField(
+                controller: _studentPhoneController,
+                label: "هاتف الطالب",
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              AuthTextField(
+                controller: _parentPhoneController,
+                label: "هاتف ولي الأمر",
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              AuthTextField(
+                controller: _schoolNameController,
+                label: "اسم المدرسة",
+              ),
+              const SizedBox(height: 12),
 
-            // ✅ CheckBox لإرسال الموقع
-            CheckboxListTile(
-              title: const Text("إرسال موقعي الحالي"),
-              value: _sendLocation,
-              onChanged: (val) {
-                setState(() {
-                  _sendLocation = val ?? false;
-                });
-              },
-            ),
+              // الجنس
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: "الجنس"),
+                value: _gender,
+                items: const [
+                  DropdownMenuItem(value: "male", child: Text("ذكر")),
+                  DropdownMenuItem(value: "female", child: Text("أنثى")),
+                ],
+                onChanged: (v) => setState(() => _gender = v),
+              ),
+              const SizedBox(height: 12),
 
-            const SizedBox(height: 20),
-            _loading
-                ? const CircularProgressIndicator()
-                : AuthButton(text: "تسجيل", onPressed: _submit),
-          ],
+              // الصف الدراسي
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: "الصف الدراسي"),
+                value: _gradeId,
+                items: _grades
+                    .map(
+                      (g) => DropdownMenuItem<String>(
+                        value: g["id"] as String,
+                        child: Text(g["name"] as String),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => setState(() => _gradeId = v),
+              ),
+              const SizedBox(height: 12),
+
+              // تاريخ الميلاد
+              InkWell(
+                onTap: _pickBirthDate,
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: "تاريخ الميلاد"),
+                  child: Text(
+                    _birthDate == null
+                        ? "اختر التاريخ"
+                        : "${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}",
+                    style: TextStyle(
+                      color: _birthDate == null
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 📍 خيار الموقع
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                activeColor: scheme.primary,
+                title: Text(
+                  "إرسال موقعي الحالي",
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  "يساعدنا على تخصيص التجربة التعليمية في منطقتك.",
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                value: _sendLocation,
+                onChanged: (val) =>
+                    setState(() => _sendLocation = val ?? false),
+              ),
+              const SizedBox(height: 20),
+
+              // زر التسجيل
+              _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : AuthButton(text: "تسجيل", onPressed: _submit),
+            ],
+          ),
         ),
       ),
     );

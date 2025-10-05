@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dirasiq/core/services/auth_service.dart';
+import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 
@@ -58,7 +59,8 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _showWelcomeDialog() async {
-    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return showDialog(
       context: context,
       barrierDismissible: false,
@@ -69,153 +71,107 @@ class _SplashScreenState extends State<SplashScreen> {
             vertical: 24,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  scheme.primaryContainer.withOpacity(0.1),
-                  scheme.secondaryContainer.withOpacity(0.1),
-                ],
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [scheme.primary, scheme.secondary],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+          backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 30, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 🔹 أيقونة رئيسية
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.surfaceVariant,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.school_rounded,
+                    color: AppColors.primary,
+                    size: 46,
+                  ),
+                ),
+                const SizedBox(height: 22),
+
+                // 🔹 العنوان الرئيسي
+                Text(
+                  'مرحباً بك في ديراسِق 🎓',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // 🔹 النص الوصفي
+                Text(
+                  'منصة تعليمية حديثة تساعدك على التعلم والتطور والتميز بخطوات واضحة وسهلة.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // 🔹 صف الأيقونات
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildFeatureIcon(
+                      Icons.auto_stories_rounded,
+                      'تعلّم',
+                      AppColors.primary,
+                    ),
+                    _buildFeatureIcon(
+                      Icons.trending_up_rounded,
+                      'تطور',
+                      AppColors.primary,
+                    ),
+                    _buildFeatureIcon(
+                      Icons.workspace_premium_rounded,
+                      'تميز',
+                      AppColors.primary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+
+                // 🔹 زر البدء
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: scheme.primary.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                      elevation: 0,
                     ),
-                    child: Icon(
-                      Icons.auto_awesome,
-                      color: scheme.onPrimary,
-                      size: 48,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Text(
-                    'مرحباً بك في ديراسِق! ✨',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: scheme.primary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'نحن سعداء جداً لانضمامك إلى عائلة ديراسِق! 🎓',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: scheme.onSurface,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'استعد لتجربة تعليمية مميزة ومليئة بالإنجازات. سنكون معك في كل خطوة من رحلتك التعليمية!',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: scheme.onSurface.withOpacity(0.8),
-                                height: 1.5,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildFeatureIcon(Icons.school, 'تعلم', scheme),
-                      _buildFeatureIcon(Icons.trending_up, 'تطور', scheme),
-                      _buildFeatureIcon(Icons.emoji_events, 'تميز', scheme),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  Container(
-                    width: double.infinity,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [scheme.primary, scheme.secondary],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: scheme.primary.withOpacity(0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'لنبدأ الرحلة معاً',
-                            style: TextStyle(
-                              color: scheme.onPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.arrow_forward,
-                            color: scheme.onPrimary,
-                            size: 20,
-                          ),
-                        ],
+                    child: const Text(
+                      'ابدأ الآن',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -223,25 +179,29 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  Widget _buildFeatureIcon(IconData icon, String label, ColorScheme scheme) {
+  Widget _buildFeatureIcon(IconData icon, String label, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
         Container(
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: scheme.primaryContainer,
+            color: color.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: scheme.onPrimaryContainer, size: 24),
+          child: Icon(icon, color: color, size: 24),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           label,
           style: TextStyle(
-            color: scheme.onSurface.withOpacity(0.7),
             fontSize: 12,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
         ),
       ],
@@ -250,6 +210,67 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // شعار التطبيق
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.school_rounded,
+                size: 60,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // اسم التطبيق
+            Text(
+              'ديراسِق',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // الشعار
+            Text(
+              'منصتك التعليمية المتكاملة',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 40),
+
+            // مؤشر التحميل
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

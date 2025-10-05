@@ -7,7 +7,6 @@ import '../../../core/services/google_auth_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../profile/complete_profile_screen.dart';
 import 'forgot_password_screen.dart';
-import '../../../shared/themes/app_colors.dart';
 
 class LoginScreen extends StatelessWidget {
   LoginScreen({super.key});
@@ -38,263 +37,195 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final isSmallScreen = screenHeight < 700;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scheme.surface,
       body: SafeArea(
-        child: SizedBox(
-          height: screenHeight,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Compact header
+              // 🔹 Header
+              const SizedBox(height: 40),
               Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: isSmallScreen ? 16 : 24,
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: isSmallScreen ? 50 : 60,
-                      height: isSmallScreen ? 50 : 60,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: AppColors.gradientWelcome,
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Icon(
-                        Icons.login_rounded,
-                        color: AppColors.white,
-                        size: isSmallScreen ? 24 : 30,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "مرحباً بك",
-                            style: TextStyle(
-                              fontSize: isSmallScreen ? 20 : 24,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            "سجل دخولك للمتابعة",
-                            style: TextStyle(
-                              fontSize: isSmallScreen ? 13 : 14,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  color: scheme.primary,
+                  size: 40,
                 ),
               ),
+              const SizedBox(height: 20),
+              Text(
+                "مرحباً بك من جديد 👋",
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "سجل دخولك للمتابعة إلى حسابك",
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 40),
 
-              // Main content - takes remaining space
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Input fields section
-                      Column(
-                        children: [
-                          // Compact email field
-                          SizedBox(
-                            height: isSmallScreen ? 50 : 56,
-                            child: AuthTextField(
-                              controller: _emailController,
-                              label: "البريد الإلكتروني",
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                            ),
-                          ),
-                          SizedBox(height: isSmallScreen ? 12 : 16),
+              // 🔹 Input Fields
+              Column(
+                children: [
+                  AuthTextField(
+                    controller: _emailController,
+                    label: "البريد الإلكتروني",
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 16),
+                  AuthTextField(
+                    controller: _passwordController,
+                    label: "كلمة المرور",
+                    obscureText: true,
+                    textInputAction: TextInputAction.done,
+                  ),
+                ],
+              ),
 
-                          // Compact password field
-                          SizedBox(
-                            height: isSmallScreen ? 50 : 56,
-                            child: AuthTextField(
-                              controller: _passwordController,
-                              label: "كلمة المرور",
-                              obscureText: true,
-                              textInputAction: TextInputAction.done,
-                            ),
-                          ),
-                        ],
-                      ),
+              const SizedBox(height: 24),
 
-                      // Buttons section
-                      Column(
-                        children: [
-                          // Login button
-                          Container(
-                            height: isSmallScreen ? 48 : 56,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: AppColors.gradientMotivation,
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () async {
-                                await _controller.login(
-                                  context,
-                                  _emailController.text.trim(),
-                                  _passwordController.text.trim(),
-                                );
-                              },
-                              child: Text(
-                                "تسجيل الدخول",
-                                style: TextStyle(
-                                  fontSize: isSmallScreen ? 16 : 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: isSmallScreen ? 8 : 12),
-
-                          // Divider with Google button
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Divider(
-                                  color: AppColors.outline,
-                                  thickness: 1,
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: Text(
-                                  "أو",
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(
-                                  color: AppColors.outline,
-                                  thickness: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          SizedBox(height: isSmallScreen ? 8 : 12),
-
-                          // Google login button
-                          Container(
-                            height: isSmallScreen ? 48 : 56,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.outline),
-                            ),
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.surface,
-                                foregroundColor: AppColors.textPrimary,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: Image.asset(
-                                "assets/google_logo.png",
-                                height: 20,
-                                width: 20,
-                              ),
-                              label: Text(
-                                "Google",
-                                style: TextStyle(
-                                  fontSize: isSmallScreen ? 14 : 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              onPressed: () => _handleGoogleLogin(context),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // Bottom links section
-                      Column(
-                        children: [
-                          // Forgot password and register in one row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              TextButton(
-                                onPressed: () {
-                                  Get.to(() => const ForgotPasswordScreen());
-                                },
-                                child: Text(
-                                  "نسيت كلمة المرور؟",
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: isSmallScreen ? 12 : 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Get.to(() => RegisterScreen());
-                                },
-                                child: Text(
-                                  "إنشاء حساب",
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: isSmallScreen ? 12 : 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
+              // 🔹 Login Button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await _controller.login(
+                      context,
+                      _emailController.text.trim(),
+                      _passwordController.text.trim(),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    "تسجيل الدخول",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
+
+              const SizedBox(height: 20),
+
+              // 🔹 Divider
+              Row(
+                children: [
+                  Expanded(
+                    child: Divider(
+                      color: scheme.outline.withOpacity(0.4),
+                      thickness: 1,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      "أو",
+                      style: TextStyle(
+                        color: scheme.onSurface.withOpacity(0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Divider(
+                      color: scheme.outline.withOpacity(0.4),
+                      thickness: 1,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // 🔹 Google Button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () => _handleGoogleLogin(context),
+                  icon: Image.asset(
+                    "assets/google_logo.png",
+                    height: 20,
+                    width: 20,
+                  ),
+                  label: const Text(
+                    "تسجيل الدخول باستخدام Google",
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: scheme.outline.withOpacity(0.4)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    foregroundColor: scheme.onSurface,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // 🔹 Forgot Password / Register
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Get.to(() => const ForgotPasswordScreen()),
+                    child: Text(
+                      "نسيت كلمة المرور؟",
+                      style: TextStyle(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Get.to(() => RegisterScreen()),
+                    child: Text(
+                      "إنشاء حساب جديد",
+                      style: TextStyle(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 40),
+
+              // 🔹 Small Footer
+              Text(
+                "© ديراسِق - جميع الحقوق محفوظة",
+                style: TextStyle(
+                  color: scheme.onSurface.withOpacity(0.4),
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

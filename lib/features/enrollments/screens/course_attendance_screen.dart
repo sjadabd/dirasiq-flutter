@@ -8,7 +8,11 @@ class CourseAttendanceScreen extends StatefulWidget {
   final String courseId;
   final String? courseName;
 
-  const CourseAttendanceScreen({super.key, required this.courseId, this.courseName});
+  const CourseAttendanceScreen({
+    super.key,
+    required this.courseId,
+    this.courseName,
+  });
 
   @override
   State<CourseAttendanceScreen> createState() => _CourseAttendanceScreenState();
@@ -34,11 +38,17 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
     });
     try {
       final res = await _api.fetchMyAttendanceByCourse(widget.courseId);
-      // expected: { items: [...] } or a map with lists
-      final dynamic rawItems = res['items'] ?? res['records'] ?? res['attendance'] ?? res['data'] ?? res;
+      final dynamic rawItems =
+          res['items'] ??
+          res['records'] ??
+          res['attendance'] ??
+          res['data'] ??
+          res;
       final list = (rawItems is List) ? rawItems : [];
       setState(() {
-        _items = List<Map<String, dynamic>>.from(list.map((e) => Map<String, dynamic>.from(e as Map)));
+        _items = List<Map<String, dynamic>>.from(
+          list.map((e) => Map<String, dynamic>.from(e as Map)),
+        );
         _loading = false;
       });
     } catch (e) {
@@ -51,35 +61,47 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final title = widget.courseName ?? 'سجل الحضور';
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       appBar: GlobalAppBar(title: title, centerTitle: true),
-      body: RefreshIndicator(
-        onRefresh: _fetch,
-        child: _buildBody(),
-      ),
+      body: RefreshIndicator(onRefresh: _fetch, child: _buildBody(isDark)),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(bool isDark) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         children: [
-          const SizedBox(height: 80),
-          const Icon(Icons.error_outline, color: Colors.red, size: 40),
-          const SizedBox(height: 8),
-          Text(_error!, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
+          const SizedBox(height: 60),
+          Icon(Icons.error_outline, color: AppColors.error, size: 32),
+          const SizedBox(height: 6),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12),
+          ),
+          const SizedBox(height: 10),
           Center(
             child: ElevatedButton(
               onPressed: _fetch,
-              child: const Text('إعادة المحاولة'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                minimumSize: const Size(0, 32),
+              ),
+              child: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(fontSize: 12),
+              ),
             ),
           ),
         ],
@@ -91,25 +113,39 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.all(12),
       children: [
-        _summaryRow(counts),
-        const SizedBox(height: 12),
-        _filterChips(counts),
-        const SizedBox(height: 12),
+        _summaryRow(counts, isDark),
+        const SizedBox(height: 10),
+        _filterChips(counts, isDark),
+        const SizedBox(height: 10),
         if (filtered.isEmpty)
           Card(
+            elevation: 0,
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+              ),
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: Center(
                 child: Text(
-                  _filter == 'all' ? 'لا توجد سجلات حالياً' : 'لا توجد سجلات لهذه الحالة',
+                  _filter == 'all'
+                      ? 'لا توجد سجلات حالياً'
+                      : 'لا توجد سجلات لهذه الحالة',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
                 ),
               ),
             ),
           )
         else
-          ...filtered.map(_attendanceTile),
+          ...filtered.map((item) => _attendanceTile(item, isDark)),
       ],
     );
   }
@@ -117,10 +153,16 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
   Map<String, int> _computeCounts(List<Map<String, dynamic>> list) {
     int present = 0, absent = 0, leave = 0;
     for (final r in list) {
-      final s = (r['status'] ?? r['attendanceStatus'] ?? r['type'] ?? '').toString().toLowerCase();
-      if (s.contains('present') || s == 'حضور' || s == 'presented') present++;
-      else if (s.contains('absent') || s == 'غياب') absent++;
-      else if (s.contains('leave') || s == 'اجازة' || s == 'إجازة') leave++;
+      final s = (r['status'] ?? r['attendanceStatus'] ?? r['type'] ?? '')
+          .toString()
+          .toLowerCase();
+      if (s.contains('present') || s == 'حضور' || s == 'presented') {
+        present++;
+      } else if (s.contains('absent') || s == 'غياب') {
+        absent++;
+      } else if (s.contains('leave') || s == 'اجازة' || s == 'إجازة') {
+        leave++;
+      }
     }
     return {
       'total': list.length,
@@ -132,23 +174,39 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
 
   List<Map<String, dynamic>> _filteredItems() {
     if (_filter == 'all') return _sorted(_items);
-    return _sorted(_items.where((r) {
-      final s = (r['status'] ?? r['attendanceStatus'] ?? r['type'] ?? '').toString().toLowerCase();
-      if (_filter == 'present') return s.contains('present') || s == 'حضور' || s == 'presented';
-      if (_filter == 'absent') return s.contains('absent') || s == 'غياب';
-      if (_filter == 'leave') return s.contains('leave') || s == 'اجازة' || s == 'إجازة';
-      return true;
-    }).toList());
+    return _sorted(
+      _items.where((r) {
+        final s = (r['status'] ?? r['attendanceStatus'] ?? r['type'] ?? '')
+            .toString()
+            .toLowerCase();
+        if (_filter == 'present') {
+          return s.contains('present') || s == 'حضور' || s == 'presented';
+        }
+        if (_filter == 'absent') return s.contains('absent') || s == 'غياب';
+        if (_filter == 'leave') {
+          return s.contains('leave') || s == 'اجازة' || s == 'إجازة';
+        }
+        return true;
+      }).toList(),
+    );
   }
 
   List<Map<String, dynamic>> _sorted(List<Map<String, dynamic>> list) {
     final copy = [...list];
     copy.sort((a, b) {
       final ad = _parseDate(
-        a['checkin_at'] ?? a['occurred_on'] ?? a['date'] ?? a['sessionDate'] ?? a['createdAt'],
+        a['checkin_at'] ??
+            a['occurred_on'] ??
+            a['date'] ??
+            a['sessionDate'] ??
+            a['createdAt'],
       );
       final bd = _parseDate(
-        b['checkin_at'] ?? b['occurred_on'] ?? b['date'] ?? b['sessionDate'] ?? b['createdAt'],
+        b['checkin_at'] ??
+            b['occurred_on'] ??
+            b['date'] ??
+            b['sessionDate'] ??
+            b['createdAt'],
       );
       return bd.compareTo(ad); // latest first
     });
@@ -159,7 +217,6 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
     try {
       if (v == null) return DateTime.fromMicrosecondsSinceEpoch(0);
       final s = v.toString();
-      // Support date-only like 2025-09-30
       if (s.length <= 10 && s.contains('-')) {
         return DateTime.parse(s);
       }
@@ -169,32 +226,74 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
     }
   }
 
-  Widget _summaryRow(Map<String, int> c) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _summaryRow(Map<String, int> c, bool isDark) {
     return Row(
       children: [
-        _summaryCard(icon: Icons.check_circle, label: 'حضور', value: c['present'] ?? 0, color: Colors.green, scheme: scheme),
-        const SizedBox(width: 8),
-        _summaryCard(icon: Icons.cancel, label: 'غياب', value: c['absent'] ?? 0, color: Colors.red, scheme: scheme),
-        const SizedBox(width: 8),
-        _summaryCard(icon: Icons.event_busy, label: 'إجازة', value: c['leave'] ?? 0, color: Colors.orange, scheme: scheme),
+        _summaryCard(
+          icon: Icons.check_circle,
+          label: 'حضور',
+          value: c['present'] ?? 0,
+          color: AppColors.success,
+          isDark: isDark,
+        ),
+        const SizedBox(width: 6),
+        _summaryCard(
+          icon: Icons.cancel,
+          label: 'غياب',
+          value: c['absent'] ?? 0,
+          color: AppColors.error,
+          isDark: isDark,
+        ),
+        const SizedBox(width: 6),
+        _summaryCard(
+          icon: Icons.event_busy,
+          label: 'إجازة',
+          value: c['leave'] ?? 0,
+          color: AppColors.warning,
+          isDark: isDark,
+        ),
       ],
     );
   }
 
-  Expanded _summaryCard({required IconData icon, required String label, required int value, required Color color, required ColorScheme scheme}) {
+  Widget _summaryCard({
+    required IconData icon,
+    required String label,
+    required int value,
+    required Color color,
+    required bool isDark,
+  }) {
     return Expanded(
       child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        elevation: 0,
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.03), color.withOpacity(0.01)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: color.withOpacity(.12),
-                child: Icon(icon, color: color, size: 20),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 14),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -204,14 +303,21 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: scheme.outline),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       value.toString(),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
                     ),
                   ],
                 ),
@@ -223,93 +329,243 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
     );
   }
 
-  Widget _filterChips(Map<String, int> c) {
-    final scheme = Theme.of(context).colorScheme;
-    Chip _chip(String key, String label, {IconData? icon}) {
+  Widget _filterChips(Map<String, int> c, bool isDark) {
+    Widget _chip(String key, String label, {IconData? icon}) {
       final selected = _filter == key;
-      return Chip(
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 16),
-              const SizedBox(width: 6),
+      return GestureDetector(
+        onTap: () => setState(() => _filter = key),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.tertiary.withOpacity(0.1)
+                : (isDark ? AppColors.darkSurface : Colors.white),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected
+                  ? AppColors.tertiary
+                  : (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 13,
+                  color: selected
+                      ? AppColors.tertiary
+                      : (isDark ? Colors.white70 : Colors.black54),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  color: selected
+                      ? AppColors.tertiary
+                      : (isDark ? Colors.white70 : Colors.black54),
+                ),
+              ),
             ],
-            Text(label),
-          ],
+          ),
         ),
-        backgroundColor: selected ? scheme.primary.withOpacity(.12) : scheme.surface,
-        side: BorderSide(color: selected ? scheme.primary : scheme.outlineVariant),
       );
     }
 
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 6,
+      runSpacing: 6,
       children: [
-        GestureDetector(onTap: () => setState(() => _filter = 'all'), child: _chip('all', 'الكل', icon: Icons.list_alt)),
-        GestureDetector(onTap: () => setState(() => _filter = 'present'), child: _chip('present', 'الحضور', icon: Icons.check_circle)),
-        GestureDetector(onTap: () => setState(() => _filter = 'absent'), child: _chip('absent', 'الغياب', icon: Icons.cancel)),
-        GestureDetector(onTap: () => setState(() => _filter = 'leave'), child: _chip('leave', 'الإجازات', icon: Icons.event_busy)),
+        _chip('all', 'الكل', icon: Icons.list_alt),
+        _chip('present', 'الحضور', icon: Icons.check_circle),
+        _chip('absent', 'الغياب', icon: Icons.cancel),
+        _chip('leave', 'الإجازات', icon: Icons.event_busy),
       ],
     );
   }
 
-  Widget _attendanceTile(Map<String, dynamic> r) {
-    final scheme = Theme.of(context).colorScheme;
-    final statusRaw = (r['status'] ?? r['attendanceStatus'] ?? r['type'] ?? '').toString().toLowerCase();
+  Widget _attendanceTile(Map<String, dynamic> r, bool isDark) {
+    final statusRaw = (r['status'] ?? r['attendanceStatus'] ?? r['type'] ?? '')
+        .toString()
+        .toLowerCase();
     String title;
     IconData icon;
     Color color;
-    if (statusRaw.contains('present') || statusRaw == 'حضور' || statusRaw == 'presented') {
+
+    if (statusRaw.contains('present') ||
+        statusRaw == 'حضور' ||
+        statusRaw == 'presented') {
       title = 'حضور';
       icon = Icons.check_circle;
-      color = Colors.green;
+      color = AppColors.success;
     } else if (statusRaw.contains('absent') || statusRaw == 'غياب') {
       title = 'غياب';
       icon = Icons.cancel;
-      color = Colors.red;
-    } else if (statusRaw.contains('leave') || statusRaw == 'اجازة' || statusRaw == 'إجازة') {
+      color = AppColors.error;
+    } else if (statusRaw.contains('leave') ||
+        statusRaw == 'اجازة' ||
+        statusRaw == 'إجازة') {
       title = 'إجازة';
       icon = Icons.event_busy;
-      color = Colors.orange;
+      color = AppColors.warning;
     } else {
       title = statusRaw.isEmpty ? 'غير محدد' : statusRaw;
       icon = Icons.help_outline;
-      color = scheme.primary;
+      color = AppColors.primary;
     }
 
-    final occurredRaw = r['occurred_on'] ?? r['date'] ?? r['sessionDate'] ?? r['createdAt'];
+    final occurredRaw =
+        r['occurred_on'] ?? r['date'] ?? r['sessionDate'] ?? r['createdAt'];
     final checkinRaw = r['checkin_at'];
     final checkin12hRaw = r['checkin_at_12h'];
     final occurred = _safeFormatDateDay(occurredRaw?.toString());
-    final checkin = (checkin12hRaw != null && checkin12hRaw.toString().isNotEmpty)
+    final checkin =
+        (checkin12hRaw != null && checkin12hRaw.toString().isNotEmpty)
         ? checkin12hRaw.toString()
         : _safeFormatDateTime(checkinRaw?.toString());
-    final sessionTitle = (r['sessionTitle'] ?? r['title'] ?? r['session']?['title'] ?? '').toString();
+    final sessionTitle =
+        (r['sessionTitle'] ?? r['title'] ?? r['session']?['title'] ?? '')
+            .toString();
     final notes = (r['notes'] ?? r['reason'] ?? '').toString();
 
     return Card(
-      child: ListTile(
-        leading: CircleAvatar(backgroundColor: color.withOpacity(.12), child: Icon(icon, color: color)),
-        title: Text(sessionTitle.isNotEmpty ? sessionTitle : title),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (sessionTitle.isNotEmpty) Text(title),
-            if (occurred.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text('تاريخ الجلسة: $occurred', style: TextStyle(color: scheme.outline)),
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      color: isDark ? AppColors.darkSurface : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.03), color.withOpacity(0.01)],
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+          ),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 6,
+          ),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          title: Text(
+            sessionTitle.isNotEmpty ? sessionTitle : title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (sessionTitle.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    title,
+                    style: TextStyle(fontSize: 9, color: color),
+                  ),
+                ),
+              ],
+              if (occurred.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 10,
+                      color: isDark ? Colors.white60 : Colors.black45,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      occurred,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? Colors.white60 : Colors.black45,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (checkin.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 10,
+                      color: isDark ? Colors.white60 : Colors.black45,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      checkin,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? Colors.white60 : Colors.black45,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (notes.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(
+                      0.03,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.note,
+                        size: 11,
+                        color: isDark ? Colors.white54 : Colors.black54,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          notes,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? Colors.white54 : Colors.black54,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
-            if (checkin.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text('وقت التسجيل: $checkin', style: TextStyle(color: scheme.outline)),
-            ],
-            if (notes.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(notes),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -318,7 +574,6 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
   String _safeFormatDateDay(String? iso) {
     if (iso == null || iso.isEmpty) return '';
     try {
-      // accept date-only
       if (iso.length <= 10) {
         final d = DateTime.parse(iso).toLocal();
         return DateFormat('dd/MM/yyyy').format(d);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:dirasiq/shared/themes/app_colors.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 
 class StudentEvaluationsScreen extends StatefulWidget {
@@ -32,9 +33,22 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
     'weak': 'ضعيف',
   };
 
+  static const Map<String, Color> _ratingColors = {
+    'excellent': AppColors.success,
+    'very_good': Color(0xFF4CAF50),
+    'good': AppColors.info,
+    'fair': AppColors.warning,
+    'weak': AppColors.error,
+  };
+
   String _toAr(String? v) {
     if (v == null || v.isEmpty) return '—';
     return _ratingAr[v] ?? v;
+  }
+
+  Color _getColor(String? v) {
+    if (v == null || v.isEmpty) return Colors.grey;
+    return _ratingColors[v] ?? AppColors.primary;
   }
 
   Future<void> _openDetailsById(String id) async {
@@ -45,7 +59,12 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        SnackBar(
+          content: Text(
+            e.toString().replaceAll('Exception: ', ''),
+            style: const TextStyle(fontSize: 11),
+          ),
+        ),
       );
     }
   }
@@ -68,7 +87,6 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
     _fetch(refresh: true).then((_) {
       if (widget.initialEvaluationId != null &&
           widget.initialEvaluationId!.isNotEmpty) {
-        // حاول إيجاد التقييم ضمن الصفحة الحالية، وإن لم يوجد اجلبه مباشرة
         final found = _items.firstWhere(
           (e) =>
               (e['id'] ?? e['_id'] ?? '').toString() ==
@@ -172,18 +190,27 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
   }
 
   void _openDetails(Map<String, dynamic> ev) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Padding(
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [surfaceColor, surfaceColor.withOpacity(0.98)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-          left: 16,
-          right: 16,
-          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+          left: 14,
+          right: 14,
+          top: 14,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -192,58 +219,165 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.fact_check, color: Colors.blueAccent),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'تفاصيل التقييم',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primary, AppColors.primary],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.fact_check_outlined,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'تفاصيل التقييم',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+
               _kv(
+                Icons.calendar_today_outlined,
                 'التاريخ',
                 _fmtDate(ev['eval_date']?.toString() ?? ev['date']?.toString()),
-              ),
-              _kv('المستوى العلمي', _toAr(ev['scientific_level']?.toString())),
-              _kv('المستوى السلوكي', _toAr(ev['behavioral_level']?.toString())),
-              _kv(
-                'الانضباط الحضوري',
-                _toAr(ev['attendance_level']?.toString()),
-              ),
-              _kv(
-                'التحضير للواجبات',
-                _toAr(ev['homework_preparation']?.toString()),
-              ),
-              _kv('المشاركة', _toAr(ev['participation_level']?.toString())),
-              _kv(
-                'اتباع التعليمات',
-                _toAr(ev['instruction_following']?.toString()),
+                isDark,
               ),
               const SizedBox(height: 8),
+
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.grey[300]!,
+                    width: 0.5,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    _kvRating(
+                      Icons.school_outlined,
+                      'المستوى العلمي',
+                      ev['scientific_level']?.toString(),
+                      isDark,
+                    ),
+                    const SizedBox(height: 6),
+                    _kvRating(
+                      Icons.psychology_outlined,
+                      'المستوى السلوكي',
+                      ev['behavioral_level']?.toString(),
+                      isDark,
+                    ),
+                    const SizedBox(height: 6),
+                    _kvRating(
+                      Icons.access_time_outlined,
+                      'الانضباط الحضوري',
+                      ev['attendance_level']?.toString(),
+                      isDark,
+                    ),
+                    const SizedBox(height: 6),
+                    _kvRating(
+                      Icons.book_outlined,
+                      'التحضير للواجبات',
+                      ev['homework_preparation']?.toString(),
+                      isDark,
+                    ),
+                    const SizedBox(height: 6),
+                    _kvRating(
+                      Icons.group_outlined,
+                      'المشاركة',
+                      ev['participation_level']?.toString(),
+                      isDark,
+                    ),
+                    const SizedBox(height: 6),
+                    _kvRating(
+                      Icons.rule_outlined,
+                      'اتباع التعليمات',
+                      ev['instruction_following']?.toString(),
+                      isDark,
+                    ),
+                  ],
+                ),
+              ),
+
               if ((ev['guidance']?.toString().trim().isNotEmpty ?? false)) ...[
-                const Text(
-                  'التوجيه',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                const SizedBox(height: 12),
+                _sectionTitle('التوجيه', Icons.lightbulb_outline, isDark),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.info.withOpacity(0.3),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    ev['guidance'].toString(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.4,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(ev['guidance'].toString()),
-                const SizedBox(height: 8),
               ],
+
               if ((ev['notes']?.toString().trim().isNotEmpty ?? false)) ...[
-                const Text(
-                  'الملاحظات',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                const SizedBox(height: 12),
+                _sectionTitle('الملاحظات', Icons.note_outlined, isDark),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.warning.withOpacity(0.3),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    ev['notes'].toString(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.4,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(ev['notes'].toString()),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -251,100 +385,239 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
     );
   }
 
-  Widget _kv(String k, String? v) {
+  Widget _sectionTitle(String title, IconData icon, bool isDark) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 14,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Icon(icon, size: 14, color: AppColors.primary),
+        const SizedBox(width: 6),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _kv(IconData icon, String k, String? v, bool isDark) {
     final val = (v == null || v.trim().isEmpty) ? '—' : v;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Text('$k: ', style: const TextStyle(fontWeight: FontWeight.w600)),
-          Expanded(child: Text(val)),
-        ],
-      ),
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: isDark ? Colors.white54 : Colors.black54),
+        const SizedBox(width: 6),
+        Text(
+          '$k: ',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white70 : Colors.black87,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            val,
+            style: TextStyle(
+              fontSize: 10,
+              color: isDark ? Colors.white60 : Colors.black54,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _kvRating(IconData icon, String label, String? value, bool isDark) {
+    final val = _toAr(value);
+    final color = _getColor(value);
+
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white70 : Colors.black87,
+          ),
+        ),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+            ),
+            child: Text(
+              val,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: const GlobalAppBar(title: 'تقييماتي', centerTitle: true),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              border: Border(
+                bottom: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.grey[300]!,
+                  width: 0.5,
+                ),
+              ),
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _pickFrom,
-                    icon: const Icon(Icons.date_range),
-                    label: Text(_from != null ? _fmtYMD(_from!) : 'من تاريخ'),
+                    icon: const Icon(Icons.date_range_outlined, size: 14),
+                    label: Text(
+                      _from != null ? _fmtYMD(_from!) : 'من تاريخ',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _pickTo,
-                    icon: const Icon(Icons.date_range),
-                    label: Text(_to != null ? _fmtYMD(_to!) : 'إلى تاريخ'),
+                    icon: const Icon(Icons.date_range_outlined, size: 14),
+                    label: Text(
+                      _to != null ? _fmtYMD(_to!) : 'إلى تاريخ',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 IconButton(
-                  tooltip: 'مسح التصفية',
+                  tooltip: 'مسح',
                   onPressed: (_from != null || _to != null)
                       ? _clearFilters
                       : null,
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear_rounded, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
-          Expanded(child: _buildBody()),
+          Expanded(child: _buildBody(isDark)),
         ],
       ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(bool isDark) {
     if (_loading && _items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
+
     if (_error != null) {
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Icon(Icons.error_outline, size: 40, color: Colors.red),
+          const SizedBox(height: 40),
+          Icon(Icons.error_outline_rounded, size: 40, color: AppColors.error),
           const SizedBox(height: 8),
-          Text(_error!, textAlign: TextAlign.center),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12),
+          ),
           const SizedBox(height: 12),
           Center(
             child: ElevatedButton(
               onPressed: () => _fetch(refresh: true),
-              child: const Text('إعادة المحاولة'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              child: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(fontSize: 11),
+              ),
             ),
           ),
         ],
       );
     }
+
     if (_items.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(16),
-        children: const [Center(child: Text('لا توجد تقييمات'))],
+        children: [
+          const SizedBox(height: 40),
+          Icon(
+            Icons.inbox_outlined,
+            size: 40,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'لا توجد تقييمات',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white54 : Colors.black54,
+            ),
+          ),
+        ],
       );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       itemCount: _items.length + (_hasMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (index == _items.length) {
           _fetch();
           return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator()),
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           );
         }
 
@@ -353,121 +626,152 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
           ev['eval_date']?.toString() ?? ev['date']?.toString(),
         );
 
-        // مثال: نحدد لون البطاقة حسب المستوى العلمي
         final sci = ev['scientific_level']?.toString() ?? '';
-        Color cardColor;
-        if (sci == 'excellent') {
-          cardColor = Colors.green.shade50;
-        } else if (sci == 'weak') {
-          cardColor = Colors.red.shade50;
-        } else {
-          cardColor = Colors.blueGrey.shade50;
-        }
+        final sciColor = _getColor(sci);
+        final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
 
-        return Card(
-          color: cardColor,
-          shape: RoundedRectangleBorder(
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [surfaceColor, surfaceColor],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: sciColor.withOpacity(0.2), width: 0.5),
+            boxShadow: [
+              BoxShadow(
+                color: sciColor.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          elevation: 2,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => _openDetails(ev),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // التاريخ + أيقونة
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 18,
-                        color: Colors.blueGrey,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        date.isNotEmpty ? date : '—',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const Spacer(),
-                      const Icon(Icons.chevron_left, color: Colors.black54),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // الـ Chips
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: -6,
-                    children: [
-                      _chip(
-                        Icons.school,
-                        'علمي',
-                        _toAr(ev['scientific_level']?.toString()),
-                      ),
-                      _chip(
-                        Icons.psychology,
-                        'سلوكي',
-                        _toAr(ev['behavioral_level']?.toString()),
-                      ),
-                      _chip(
-                        Icons.access_time,
-                        'حضوري',
-                        _toAr(ev['attendance_level']?.toString()),
-                      ),
-                      _chip(
-                        Icons.book,
-                        'واجب',
-                        _toAr(ev['homework_preparation']?.toString()),
-                      ),
-                      _chip(
-                        Icons.group,
-                        'مشاركة',
-                        _toAr(ev['participation_level']?.toString()),
-                      ),
-                      _chip(
-                        Icons.rule,
-                        'تعليمات',
-                        _toAr(ev['instruction_following']?.toString()),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // الملاحظات أو التوجيه بشكل مختصر
-                  if ((ev['notes']?.toString().trim().isNotEmpty ?? false))
-                    Container(
-                      margin: const EdgeInsets.only(top: 6),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.note_alt,
-                            size: 18,
-                            color: Colors.brown,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _openDetails(ev),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: sciColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              ev['notes'].toString(),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontStyle: FontStyle.italic,
+                          child: Icon(
+                            Icons.fact_check_outlined,
+                            size: 14,
+                            color: sciColor,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          date.isNotEmpty ? date : '—',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.chevron_left_rounded,
+                          size: 16,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _chip(
+                          Icons.school_outlined,
+                          'علمي',
+                          ev['scientific_level']?.toString(),
+                          isDark,
+                        ),
+                        _chip(
+                          Icons.psychology_outlined,
+                          'سلوكي',
+                          ev['behavioral_level']?.toString(),
+                          isDark,
+                        ),
+                        _chip(
+                          Icons.access_time_outlined,
+                          'حضوري',
+                          ev['attendance_level']?.toString(),
+                          isDark,
+                        ),
+                        _chip(
+                          Icons.book_outlined,
+                          'واجب',
+                          ev['homework_preparation']?.toString(),
+                          isDark,
+                        ),
+                        _chip(
+                          Icons.group_outlined,
+                          'مشاركة',
+                          ev['participation_level']?.toString(),
+                          isDark,
+                        ),
+                        _chip(
+                          Icons.rule_outlined,
+                          'تعليمات',
+                          ev['instruction_following']?.toString(),
+                          isDark,
+                        ),
+                      ],
+                    ),
+                    if ((ev['notes']?.toString().trim().isNotEmpty ??
+                        false)) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.warning.withOpacity(0.3),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.note_outlined,
+                              size: 12,
+                              color: AppColors.warning,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                ev['notes'].toString(),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontStyle: FontStyle.italic,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black87,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                ],
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -476,15 +780,32 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
     );
   }
 
-  Widget _chip(IconData icon, String label, String value) {
-    return Chip(
-      avatar: Icon(icon, size: 16, color: Colors.white),
-      label: Text(
-        '$label: $value',
-        style: const TextStyle(color: Colors.white, fontSize: 13),
+  Widget _chip(IconData icon, String label, String? value, bool isDark) {
+    final val = _toAr(value);
+    final color = _getColor(value);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
       ),
-      backgroundColor: Colors.blueAccent,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 4),
+          Text(
+            '$label: $val',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

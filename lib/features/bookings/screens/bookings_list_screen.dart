@@ -5,7 +5,7 @@ import 'package:dirasiq/core/services/api_service.dart';
 import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 
 class BookingsListScreen extends StatefulWidget {
-  final void Function(int index)? onNavigateToTab; // 👈 الكولباك
+  final void Function(int index)? onNavigateToTab;
 
   const BookingsListScreen({super.key, this.onNavigateToTab});
 
@@ -30,27 +30,27 @@ class _BookingsListScreenState extends State<BookingsListScreen>
 
   static const Map<String, String> statusLabels = {
     'pending': 'قيد الانتظار',
-    'pre_approved': 'موافقة أولية من المدرس',
-    'confirmed': 'تم تأكيد الحجز',
+    'pre_approved': 'موافقة أولية',
+    'confirmed': 'تم التأكيد',
     'rejected': 'مرفوض',
     'cancelled': 'ملغي',
   };
 
   static const Map<String, IconData> statusIcons = {
-    'pending': Icons.schedule,
-    'pre_approved': Icons.task_alt,
-    'confirmed': Icons.verified,
-    'approved': Icons.check_circle,
-    'rejected': Icons.cancel,
-    'cancelled': Icons.block,
-    'canceled': Icons.block,
+    'pending': Icons.schedule_rounded,
+    'pre_approved': Icons.task_alt_rounded,
+    'confirmed': Icons.verified_rounded,
+    'approved': Icons.check_circle_rounded,
+    'rejected': Icons.cancel_rounded,
+    'cancelled': Icons.block_rounded,
+    'canceled': Icons.block_rounded,
   };
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -94,23 +94,15 @@ class _BookingsListScreenState extends State<BookingsListScreen>
         status: _statusFilter,
       );
 
-      print('[v0] API Response: $res');
-
-      // Handle different response structures
       List<dynamic> list = [];
       if (res['data'] is List) {
-        // Direct array in data field
         list = res['data'] as List;
       } else if (res['data'] is Map) {
-        // Nested structure with items or data field
         final data = res['data'] as Map<String, dynamic>;
         list = (data['items'] ?? data['data'] ?? []) as List;
       } else {
-        // Fallback to empty list
         list = [];
       }
-
-      print('[v0] Parsed list length: ${list.length}');
 
       final items = List<Map<String, dynamic>>.from(list);
       setState(() {
@@ -122,10 +114,7 @@ class _BookingsListScreenState extends State<BookingsListScreen>
         _hasMore = items.length >= _limit;
         if (_hasMore) _page++;
       });
-
-      print('[v0] Items in state: ${_items.length}');
     } catch (e) {
-      print('[v0] Error in _fetchPage: $e');
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -139,8 +128,10 @@ class _BookingsListScreenState extends State<BookingsListScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       appBar: const GlobalAppBar(title: 'حجوزاتي', centerTitle: true),
       body: FadeTransition(
         opacity: _fadeAnimation,
@@ -151,54 +142,73 @@ class _BookingsListScreenState extends State<BookingsListScreen>
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      _buildFilters(),
-                      const SizedBox(height: 16),
-                      if (_error != null) _buildError(),
+                      _buildFilters(isDark),
+                      const SizedBox(height: 10),
+                      if (_error != null) _buildError(isDark),
                     ],
                   ),
                 ),
               ),
               if (_items.isEmpty && !_loading && _error == null)
-                SliverFillRemaining(child: _buildEmpty())
+                SliverFillRemaining(child: _buildEmpty(isDark))
               else
                 SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     if (index < _items.length) {
                       return AnimatedContainer(
-                        duration: Duration(milliseconds: 300 + (index * 100)),
-                        curve: Curves.easeOutBack,
-                        child: _buildBookingCard(_items[index], index),
+                        duration: Duration(milliseconds: 300 + (index * 50)),
+                        curve: Curves.easeOutCubic,
+                        child: _buildBookingCard(_items[index], index, isDark),
                       );
                     } else if (index == _items.length) {
                       return Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           children: [
                             if (_loading)
-                              const Center(child: CircularProgressIndicator()),
-                            if (!_loading && _hasMore)
-                              Center(
-                                child: ElevatedButton.icon(
-                                  onPressed: _fetchPage,
-                                  icon: const Icon(Icons.more_horiz),
-                                  label: const Text('تحميل المزيد'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(25),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: AppColors.primary,
                                     ),
                                   ),
                                 ),
                               ),
-                            const SizedBox(height: 24),
+                            if (!_loading && _hasMore)
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: _fetchPage,
+                                  icon: const Icon(
+                                    Icons.expand_more_rounded,
+                                    size: 18,
+                                  ),
+                                  label: const Text(
+                                    'تحميل المزيد',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
                           ],
                         ),
                       );
@@ -213,67 +223,86 @@ class _BookingsListScreenState extends State<BookingsListScreen>
     );
   }
 
-  Widget _buildFilters() {
+  Widget _buildFilters(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withOpacity(0.1), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: AppColors.primary.withOpacity(0.04),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.filter_list, color: AppColors.primary, size: 20),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.filter_list_rounded,
+                  color: AppColors.white,
+                  size: 14,
+                ),
+              ),
               const SizedBox(width: 8),
               Text(
                 'تصفية الحجوزات',
                 style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.textPrimary,
+                  fontSize: 13,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 400) {
-                // Use Column layout for small screens
-                return Column(children: [_buildStatusDropdown()]);
-              } else {
-                // Use Row layout for larger screens
-                return Row(children: [Expanded(child: _buildStatusDropdown())]);
-              }
-            },
-          ),
+          const SizedBox(height: 10),
+          _buildStatusDropdown(isDark),
         ],
       ),
     );
   }
 
-  Widget _buildStatusDropdown() {
+  Widget _buildStatusDropdown(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(12),
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
       ),
       child: DropdownButtonFormField<String?>(
-        initialValue: _statusFilter,
+        value: _statusFilter,
         isExpanded: true,
+        dropdownColor: isDark ? AppColors.darkSurface : AppColors.surface,
+        style: TextStyle(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+          fontSize: 12,
+        ),
         items: [
-          const DropdownMenuItem(
+          DropdownMenuItem(
             value: null,
-            child: Text('كل الحالات', overflow: TextOverflow.ellipsis),
+            child: Text(
+              'كل الحالات',
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+                fontSize: 12,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           ...statusLabels.entries.map(
             (e) => DropdownMenuItem(
@@ -283,15 +312,20 @@ class _BookingsListScreenState extends State<BookingsListScreen>
                 children: [
                   Icon(
                     statusIcons[e.key],
-                    size: 14,
-                    color: _getStatusColor(e.key),
+                    size: 12,
+                    color: _getStatusColor(e.key, isDark),
                   ),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       e.value,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.textPrimary,
+                      ),
                     ),
                   ),
                 ],
@@ -299,10 +333,19 @@ class _BookingsListScreenState extends State<BookingsListScreen>
             ),
           ),
         ],
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'الحالة',
+          labelStyle: TextStyle(
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
+            fontSize: 11,
+          ),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
         ),
         onChanged: (v) {
           setState(() => _statusFilter = v);
@@ -315,7 +358,7 @@ class _BookingsListScreenState extends State<BookingsListScreen>
     );
   }
 
-  Widget _buildBookingCard(Map<String, dynamic> b, int index) {
+  Widget _buildBookingCard(Map<String, dynamic> b, int index, bool isDark) {
     final status = (b['status'] ?? '').toString();
     final statusLabel = statusLabels[status] ?? status;
 
@@ -331,131 +374,201 @@ class _BookingsListScreenState extends State<BookingsListScreen>
         ? b['courseImages'][0]
         : null;
 
-    final statusColor = _getStatusColor(status);
-    final statusIcon = statusIcons[status] ?? Icons.help;
+    final statusColor = _getStatusColor(status, isDark);
+    final statusIcon = statusIcons[status] ?? Icons.help_outline_rounded;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withOpacity(0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Material(
-        elevation: 2,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           onTap: () => Navigator.pushNamed(
             context,
             '/booking-details',
-            arguments: b['id'], // 👈 مرر الـ id فقط
+            arguments: b['id'],
           ),
-
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                colors: [AppColors.white, AppColors.white.withOpacity(0.95)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            padding: const EdgeInsets.all(20),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // صورة الكورس
+                // صورة الدورة
                 if (courseImage != null) ...[
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     child: Image.network(
                       "${AppConfig.serverBaseUrl}$courseImage",
-                      height: 160,
+                      height: 110,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 110,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.image_not_supported_rounded,
+                            size: 32,
+                            color: AppColors.primary.withOpacity(0.3),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                 ],
 
                 // العنوان + الحالة
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(statusIcon, color: statusColor, size: 20),
+                      child: Icon(statusIcon, color: statusColor, size: 16),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         courseName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 8,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         color: statusColor,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         statusLabel,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // تفاصيل مختصرة
-                _buildDetailRow('المدرس', teacherName, Icons.person),
-                _buildDetailRow('الطالب', studentName, Icons.person_outline),
-                if (price.isNotEmpty)
-                  _buildDetailRow('السعر', '$price د.ع', Icons.attach_money),
-                if (bookingDate.isNotEmpty)
-                  _buildDetailRow(
-                    'تاريخ الحجز',
-                    _formatDate(bookingDate),
-                    Icons.event,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkSurface : AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                if (studyYear.isNotEmpty)
-                  _buildDetailRow('السنة الدراسية', studyYear, Icons.school),
+                  child: Column(
+                    children: [
+                      _buildDetailRow(
+                        Icons.person_rounded,
+                        'المدرس',
+                        teacherName,
+                        AppColors.primary,
+                      ),
+                      const SizedBox(height: 6),
+                      _buildDetailRow(
+                        Icons.person_outline_rounded,
+                        'الطالب',
+                        studentName,
+                        AppColors.info,
+                      ),
+                      if (price.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        _buildDetailRow(
+                          Icons.attach_money_rounded,
+                          'السعر',
+                          '$price د.ع',
+                          AppColors.success,
+                        ),
+                      ],
+                      if (bookingDate.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        _buildDetailRow(
+                          Icons.event_rounded,
+                          'تاريخ الحجز',
+                          _formatDate(bookingDate),
+                          AppColors.warning,
+                        ),
+                      ],
+                      if (studyYear.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        _buildDetailRow(
+                          Icons.school_rounded,
+                          'السنة الدراسية',
+                          studyYear,
+                          AppColors.primary,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
 
                 if (studentMessage.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: AppColors.info.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
+                      border: Border.all(
+                        color: AppColors.info.withOpacity(0.2),
+                        width: 1,
+                      ),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
-                          Icons.message,
-                          size: 16,
-                          color: Colors.blue.shade600,
+                          Icons.message_rounded,
+                          size: 12,
+                          color: AppColors.info,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             studentMessage,
                             style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 13,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.textSecondary,
+                              fontSize: 10,
+                              height: 1.3,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -463,35 +576,66 @@ class _BookingsListScreenState extends State<BookingsListScreen>
                   ),
                 ],
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // العمليات
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
+                Row(
                   children: [
-                    TextButton.icon(
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        '/booking-details',
-                        arguments: b['id'],
-                      ),
-
-                      icon: const Icon(Icons.visibility, size: 16),
-                      label: const Text('عرض التفاصيل'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                      ),
-                    ),
-                    if (status == 'pending')
-                      TextButton.icon(
-                        onPressed: () => _showCancelDialog(b['id']),
-                        icon: const Icon(Icons.cancel, size: 16),
-                        label: const Text('إلغاء'),
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          '/booking-details',
+                          arguments: b['id'],
+                        ),
+                        icon: Icon(
+                          Icons.visibility_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        label: Text(
+                          'عرض التفاصيل',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                         ),
                       ),
+                    ),
+                    if (status == 'pending') ...[
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: TextButton.icon(
+                          onPressed: () => _showCancelDialog(b['id']),
+                          icon: const Icon(
+                            Icons.cancel_rounded,
+                            size: 14,
+                            color: AppColors.error,
+                          ),
+                          label: const Text(
+                            'إلغاء',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.error,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -502,40 +646,55 @@ class _BookingsListScreenState extends State<BookingsListScreen>
     );
   }
 
-  Widget _buildDetailRow(String label, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start, // 👈 يخلي النصوص تلتف تحت
-        children: [
-          Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 8),
-          Flexible(
-            // 👈 بدل Expanded
-            child: Text(
-              '$label: $value',
-              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-              softWrap: true, // يسمح يلف
-              overflow: TextOverflow.clip, // يقص لو زاد
-            ),
+  Widget _buildDetailRow(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 10,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 10,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildError() {
+  Widget _buildError(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.shade200),
+        color: AppColors.error.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.error.withOpacity(0.3), width: 1),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red.shade600),
-          const SizedBox(width: 12),
+          Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,69 +702,27 @@ class _BookingsListScreenState extends State<BookingsListScreen>
                 Text(
                   'حدث خطأ',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.error,
+                    fontSize: 12,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   _error ?? '',
-                  style: TextStyle(color: Colors.red.shade600),
+                  style: TextStyle(color: AppColors.error, fontSize: 10),
                 ),
               ],
             ),
           ),
           TextButton(
             onPressed: _loadInitial,
-            child: const Text('إعادة المحاولة'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.inbox_outlined,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'لا توجد حجوزات حتى الآن',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'ستظهر حجوزاتك هنا عند إنشائها',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () =>
-                widget.onNavigateToTab?.call(1), // 👈 يروح لتبويب الدورات
-            icon: const Icon(Icons.add),
-            label: const Text('تصفح الدورات'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
+            child: Text(
+              'إعادة',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.error,
               ),
             ),
           ),
@@ -614,18 +731,85 @@ class _BookingsListScreenState extends State<BookingsListScreen>
     );
   }
 
-  Color _getStatusColor(String status) {
+  Widget _buildEmpty(bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.inbox_rounded,
+                size: 48,
+                color: AppColors.primary.withOpacity(0.5),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'لا توجد حجوزات حتى الآن',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'ستظهر حجوزاتك هنا عند إنشائها',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => widget.onNavigateToTab?.call(1),
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text(
+                'تصفح الدورات',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                elevation: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status, bool isDark) {
     switch (status) {
       case 'pending':
-        return Colors.orange; // قيد الانتظار
+        return AppColors.warning;
       case 'pre_approved':
-        return AppColors.info; // موافقة أولية
+        return AppColors.info;
       case 'confirmed':
-        return AppColors.success; // تم التأكيد
+        return AppColors.success;
       case 'rejected':
-        return AppColors.error; // مرفوض
+        return AppColors.error;
       case 'cancelled':
-        return Colors.grey; // ملغي
+        return isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
       default:
         return AppColors.info;
     }
@@ -644,22 +828,60 @@ class _BookingsListScreenState extends State<BookingsListScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('إلغاء الحجز'),
-        content: const Text('هل أنت متأكد من رغبتك في إلغاء هذا الحجز؟'),
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.darkSurface
+            : AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'إلغاء الحجز',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkTextPrimary
+                : AppColors.textPrimary,
+          ),
+        ),
+        content: Text(
+          'هل أنت متأكد من رغبتك في إلغاء هذا الحجز؟',
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+            child: Text(
+              'إلغاء',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
+              // TODO: إضافة منطق الإلغاء الفعلي
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: const Text('تأكيد الإلغاء'),
+            child: const Text(
+              'تأكيد الإلغاء',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../shared/themes/app_colors.dart';
 
 class AuthTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -9,6 +8,7 @@ class AuthTextField extends StatelessWidget {
   final TextInputAction textInputAction;
   final String? Function(String?)? validator;
   final Widget? suffixIcon;
+  final bool enabled;
 
   const AuthTextField({
     super.key,
@@ -19,48 +19,64 @@ class AuthTextField extends StatelessWidget {
     this.textInputAction = TextInputAction.next,
     this.validator,
     this.suffixIcon,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       validator: validator,
-      style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      enabled: enabled,
+      cursorColor: scheme.primary,
+      style: TextStyle(
+        color: scheme.onSurface,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        labelStyle: TextStyle(
+          color: scheme.onSurface.withOpacity(0.7),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
         suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.outline),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.outline),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.error),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.error, width: 2),
-        ),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: isDark
+            ? scheme.surface.withOpacity(0.9)
+            : scheme.surfaceVariant.withOpacity(0.7),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
         ),
         isDense: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.outline.withOpacity(0.6)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.primary, width: 1.8),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.error, width: 1.8),
+        ),
       ),
     );
   }

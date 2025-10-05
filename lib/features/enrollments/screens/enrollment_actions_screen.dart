@@ -164,19 +164,19 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
                 item.title,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14.5,
+                  fontSize: 10.5,
                   color: cs.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
             Flexible(
               child: Text(
                 item.subtitle,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 10.5,
                   color: cs.onSurfaceVariant,
                   height: 1.3,
                 ),

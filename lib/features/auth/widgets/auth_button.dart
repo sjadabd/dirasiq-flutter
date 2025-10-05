@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../shared/themes/app_colors.dart';
 
 class AuthButton extends StatelessWidget {
   final String text;
@@ -17,59 +16,64 @@ class AuthButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: isSecondary
-            ? null
-            : LinearGradient(
-                colors: AppColors.gradientMotivation,
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: isSecondary
-            ? null
-            : [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+    final scheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      height: 52,
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: isSecondary
+              ? null
+              : LinearGradient(
+                  colors: [scheme.primary, scheme.secondary],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-              ],
-      ),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isSecondary
-              ? AppColors.buttonSecondary
-              : Colors.transparent,
-          foregroundColor: isSecondary
-              ? AppColors.textPrimary
-              : AppColors.white,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: isSecondary
-                ? BorderSide(color: AppColors.outline)
-                : BorderSide.none,
-          ),
+          border: isSecondary
+              ? Border.all(color: scheme.outline.withOpacity(0.4), width: 1)
+              : null,
+          boxShadow: isSecondary
+              ? null
+              : [
+                  BoxShadow(
+                    color: scheme.primary.withOpacity(0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
-        onPressed: isLoading ? null : onPressed,
-        child: isLoading
-            ? SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    isSecondary ? AppColors.primary : AppColors.white,
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: isSecondary ? scheme.onSurface : scheme.onPrimary,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: isLoading
+              ? SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isSecondary ? scheme.primary : scheme.onPrimary,
+                    ),
+                  ),
+                )
+              : Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isSecondary ? scheme.onSurface : scheme.onPrimary,
                   ),
                 ),
-              )
-            : Text(
-                text,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
+        ),
       ),
     );
   }

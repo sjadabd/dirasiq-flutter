@@ -12,11 +12,15 @@ class ProfileCompletionGuard extends StatefulWidget {
 
 class _ProfileCompletionGuardState extends State<ProfileCompletionGuard> {
   final AuthService _authService = AuthService();
+  bool _checked = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _checkProfile();
+    if (!_checked) {
+      _checked = true;
+      _checkProfile();
+    }
   }
 
   Future<void> _checkProfile() async {
@@ -24,15 +28,33 @@ class _ProfileCompletionGuardState extends State<ProfileCompletionGuard> {
 
     if (!isComplete && mounted) {
       Future.delayed(Duration.zero, () {
+        final scheme = Theme.of(context).colorScheme;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
         Get.snackbar(
-          'إكمال البيانات',
-          'يرجى إكمال بياناتك لتحسين تجربتك. يمكنك المتابعة بدون إكمال الآن.',
+          'إكمال الملف الشخصي',
+          'يرجى إكمال بياناتك الشخصية لتحسين تجربتك التعليمية.',
           snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: isDark
+              ? scheme.surface.withOpacity(0.95)
+              : scheme.surface,
+          colorText: scheme.onSurface,
+          margin: const EdgeInsets.all(12),
+          borderRadius: 12,
+          icon: Icon(Icons.info_outline, color: scheme.primary),
+          duration: const Duration(seconds: 8),
           mainButton: TextButton(
             onPressed: () {
-              Get.offNamed('/complete-profile');
+              Get.closeCurrentSnackbar();
+              Get.toNamed('/complete-profile');
             },
-            child: const Text('إكمال الآن'),
+            child: Text(
+              'إكمال الآن',
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         );
       });
@@ -41,6 +63,6 @@ class _ProfileCompletionGuardState extends State<ProfileCompletionGuard> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.child; // يرجع الصفحة الأصلية
+    return widget.child;
   }
 }

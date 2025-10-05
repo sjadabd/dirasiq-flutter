@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -22,26 +21,23 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _IntroPageData(
       title: 'مرحبًا بك في ديراسِق',
       subtitle:
-          'منصة تعليمية متطورة تساعدك على تنظيم دراستك والوصول إلى دروسك بسهولة وفعالية.',
-      icon: Icons.school,
-      gradient: AppColors.gradientWelcome,
-      features: ['دروس تفاعلية', 'متابعة التقدم', 'مجتمع تعليمي'],
+          'منصتك التعليمية الذكية لتنظيم دراستك والتواصل مع أفضل الأساتذة بسهولة واحترافية.',
+      icon: Icons.school_rounded,
+      features: ['تعلّم بمرونة', 'تابع تقدمك', 'كن جزءاً من مجتمع تعليمي'],
     ),
     _IntroPageData(
-      title: 'تعلّم بخطوات بسيطة',
+      title: 'كل ما تحتاجه في مكان واحد',
       subtitle:
-          'استكشف الدورات المتنوعة، تابع تقدمك اليومي، وتواصل مع أفضل المُدرّسين في مجالك.',
-      icon: Icons.auto_graph,
-      gradient: AppColors.gradientSuccess,
-      features: ['دورات متخصصة', 'تقييم مستمر', 'شهادات معتمدة'],
+          'دروس مباشرة، اختبارات، تقييمات وتقارير الأداء – كل ذلك ضمن تجربة تعليمية متكاملة.',
+      icon: Icons.auto_graph_rounded,
+      features: ['اختبارات فورية', 'تقييم ذكي', 'إحصائيات دقيقة'],
     ),
     _IntroPageData(
-      title: 'جاهز للبدء؟',
+      title: 'جاهز للانطلاق؟',
       subtitle:
-          'أنشئ حسابًا مجانيًا أو سجّل دخولك وابدأ رحلتك التعليمية المثيرة الآن!',
-      icon: Icons.rocket_launch,
-      gradient: AppColors.gradientMotivation,
-      features: ['بدء فوري', 'محتوى مجاني', 'دعم 24/7'],
+          'ابدأ رحلتك التعليمية اليوم وحقق أهدافك بخطوات واثقة وسهلة مع ديراسِق.',
+      icon: Icons.rocket_launch_rounded,
+      features: ['ابدأ الآن', 'محتوى مجاني', 'دعم متواصل'],
     ),
   ];
 
@@ -49,26 +45,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
       vsync: this,
+      duration: const Duration(milliseconds: 800),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
     );
     _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
           CurvedAnimation(
             parent: _animationController,
-            curve: Curves.easeOutBack,
+            curve: Curves.easeOutCubic,
           ),
         );
     _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   Future<void> _finishOnboarding() async {
@@ -81,7 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (_currentIndex < _pages.length - 1) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOutCubic,
+        curve: Curves.easeInOut,
       );
       _animationController.reset();
       _animationController.forward();
@@ -94,341 +85,221 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (_currentIndex > 0) {
       _controller.previousPage(
         duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOutCubic,
+        curve: Curves.easeInOut,
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              _pages[_currentIndex].gradient[0].withOpacity(0.1),
-              _pages[_currentIndex].gradient[1].withOpacity(0.05),
-              // استخدام لون الخلفية النفسية المريح
-              AppColors.background,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (_currentIndex > 0)
-                      AnimatedOpacity(
-                        opacity: _currentIndex > 0 ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: TextButton.icon(
-                          onPressed: _previous,
-                          icon: const Icon(Icons.arrow_back_ios, size: 16),
-                          label: const Text('السابق'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: _pages[_currentIndex].gradient[0],
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
+      backgroundColor: scheme.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 🔹 Header Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_currentIndex > 0)
+                    TextButton.icon(
+                      onPressed: _previous,
+                      icon: const Icon(Icons.arrow_back_ios, size: 14),
+                      label: const Text('السابق'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: scheme.primary,
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 70),
+                  Text(
+                    '${_currentIndex + 1} / ${_pages.length}',
+                    style: TextStyle(
+                      color: scheme.onSurface.withOpacity(0.6),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _finishOnboarding,
+                    child: Text(
+                      'تخطي',
+                      style: TextStyle(
+                        color: scheme.onSurface.withOpacity(0.7),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 🔹 Pages
+            Expanded(
+              child: PageView.builder(
+                controller: _controller,
+                onPageChanged: (i) {
+                  setState(() => _currentIndex = i);
+                  _animationController.reset();
+                  _animationController.forward();
+                },
+                itemCount: _pages.length,
+                itemBuilder: (context, index) {
+                  final p = _pages[index];
+                  return FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 24,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                color: scheme.primary.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                p.icon,
+                                color: scheme.primary,
+                                size: 52,
+                              ),
                             ),
-                          ),
-                        ),
-                      )
-                    else
-                      const SizedBox(width: 80),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: _pages[_currentIndex].gradient,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _pages[_currentIndex].gradient[0]
-                                .withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        '${_currentIndex + 1} من ${_pages.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
+                            const SizedBox(height: 24),
+
+                            Text(
+                              p.title,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: scheme.onSurface,
+                                  ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            Text(
+                              p.subtitle,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: scheme.onSurface.withOpacity(0.7),
+                                    height: 1.6,
+                                  ),
+                            ),
+                            const SizedBox(height: 26),
+
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: p.features.map((f) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: scheme.primary.withOpacity(0.2),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    f,
+                                    style: TextStyle(
+                                      color: scheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    TextButton(
-                      onPressed: _finishOnboarding,
-                      child: Text(
-                        'تخطي',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
+            ),
 
-              Expanded(
-                child: PageView.builder(
-                  controller: _controller,
-                  onPageChanged: (i) {
-                    setState(() => _currentIndex = i);
-                    _animationController.reset();
-                    _animationController.forward();
-                  },
-                  itemCount: _pages.length,
-                  itemBuilder: (context, index) {
-                    final p = _pages[index];
-                    return AnimatedBuilder(
-                      animation: _animationController,
-                      builder: (context, child) {
-                        return FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: SlideTransition(
-                            position: _slideAnimation,
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 32,
-                                vertical: 24,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 110,
-                                    height: 110,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: p.gradient,
-                                      ),
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: p.gradient[0].withOpacity(0.3),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 10),
-                                        ),
-                                        BoxShadow(
-                                          color: p.gradient[1].withOpacity(0.1),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, -5),
-                                          spreadRadius: -5,
-                                        ),
-                                      ],
-                                    ),
-                                    child: Icon(
-                                      p.icon,
-                                      size: 60,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-
-                                  ShaderMask(
-                                    shaderCallback: (bounds) => LinearGradient(
-                                      colors: p.gradient,
-                                    ).createShader(bounds),
-                                    child: Text(
-                                      p.title,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .headlineMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            height: 1.2,
-                                          ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-
-                                  Text(
-                                    p.subtitle,
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context).textTheme.bodyLarge
-                                        ?.copyWith(
-                                          color: AppColors.textSecondary,
-                                          height: 1.6,
-                                          fontSize: 16,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 32),
-
-                                  Wrap(
-                                    alignment: WrapAlignment.center,
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: p.features.map((feature) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: p.gradient[0].withOpacity(
-                                            0.08,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          border: Border.all(
-                                            color: p.gradient[0].withOpacity(
-                                              0.2,
-                                            ),
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: p.gradient[0].withOpacity(
-                                                0.1,
-                                              ),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Text(
-                                          feature,
-                                          style: TextStyle(
-                                            color: p.gradient[0],
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              Row(
+            // 🔹 Page Indicator
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   _pages.length,
                   (i) => AnimatedContainer(
                     duration: const Duration(milliseconds: 400),
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    margin: const EdgeInsets.symmetric(horizontal: 5),
+                    width: _currentIndex == i ? 28 : 8,
                     height: 8,
-                    width: _currentIndex == i ? 32 : 8,
                     decoration: BoxDecoration(
-                      gradient: _currentIndex == i
-                          ? LinearGradient(
-                              colors: _pages[_currentIndex].gradient,
-                            )
-                          : null,
-                      color: _currentIndex != i
-                          ? _pages[_currentIndex].gradient[0].withOpacity(0.3)
-                          : null,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: _currentIndex == i
-                          ? [
-                              BoxShadow(
-                                color: _pages[_currentIndex].gradient[0]
-                                    .withOpacity(0.3),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                          : null,
+                      color: _currentIndex == i
+                          ? scheme.primary
+                          : scheme.primary.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                   ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 32),
-
-              Padding(
-                padding: const EdgeInsets.fromLTRB(32, 0, 32, 32),
-                child: Container(
-                  width: double.infinity,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: _pages[_currentIndex].gradient,
+            // 🔹 Next Button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(32, 0, 32, 32),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _next,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _pages[_currentIndex].gradient[0].withOpacity(
-                          0.4,
+                    elevation: 0,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _currentIndex == _pages.length - 1
+                            ? 'ابدأ الآن'
+                            : 'التالي',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
                       ),
-                      BoxShadow(
-                        color: _pages[_currentIndex].gradient[1].withOpacity(
-                          0.2,
-                        ),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                      const SizedBox(width: 6),
+                      Icon(
+                        _currentIndex == _pages.length - 1
+                            ? Icons.check_circle_rounded
+                            : Icons.arrow_forward_ios_rounded,
+                        size: 18,
                       ),
                     ],
                   ),
-                  child: ElevatedButton(
-                    onPressed: _next,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _currentIndex == _pages.length - 1
-                              ? 'ابدأ الآن'
-                              : 'التالي',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          _currentIndex == _pages.length - 1
-                              ? Icons.rocket_launch
-                              : Icons.arrow_forward_ios,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -439,14 +310,12 @@ class _IntroPageData {
   final String title;
   final String subtitle;
   final IconData icon;
-  final List<Color> gradient;
   final List<String> features;
 
   const _IntroPageData({
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.gradient,
     required this.features,
   });
 }

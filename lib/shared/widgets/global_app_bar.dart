@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:get/get.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/core/services/api_service.dart';
 import 'package:dirasiq/core/config/app_config.dart';
 import 'package:dirasiq/core/services/auth_service.dart';
 import 'package:dirasiq/features/auth/screens/login_screen.dart';
-import 'package:dirasiq/core/services/notification_events.dart';
-import 'dart:async';
 import 'package:dirasiq/features/search/screens/student_unified_search_screen.dart';
+import 'package:dirasiq/shared/controllers/global_controller.dart';
 
-class GlobalAppBar extends StatefulWidget implements PreferredSizeWidget {
+class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool centerTitle;
   final void Function(String query)? onSearch;
@@ -26,220 +23,61 @@ class GlobalAppBar extends StatefulWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(50);
 
   @override
-  State<GlobalAppBar> createState() => _GlobalAppBarState();
-}
-
-class _GlobalAppBarState extends State<GlobalAppBar>
-    with WidgetsBindingObserver {
-  final _api = ApiService();
-  final _auth = AuthService();
-  int _unreadCount = 0;
-  StreamSubscription<void>? _notifSub;
-  StreamSubscription<Map<String, dynamic>>? _payloadSub;
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
-  Map<String, dynamic>? _user;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _loadUser();
-    _loadUnread();
-    _notifSub = NotificationEvents.instance.onNewNotification.listen((_) {
-      _loadUnread();
-    });
-    _payloadSub = NotificationEvents.instance.onNotificationPayload.listen((_) {
-      // زيّد الشارة فوراً بشكل تفاؤلي، وسيتم التصحيح عبر _loadUnread لاحقاً
-      if (!mounted) return;
-      setState(() => _unreadCount = (_unreadCount + 1).clamp(0, 999));
-      // أعد الحساب من الخادم بعد لحظات لتأكيد العدد
-      Future.delayed(const Duration(milliseconds: 800), _loadUnread);
-    });
-  }
-
-  Future<void> _loadUser() async {
-    try {
-      final u = await _auth.getUser();
-      if (!mounted) return;
-      setState(() => _user = u);
-    } catch (_) {}
-  }
-
-  Future<void> _loadUnread() async {
-    try {
-      final unread = await _api.fetchUnreadNotificationsCount();
-      if (!mounted) return;
-      setState(() => _unreadCount = unread);
-    } catch (_) {}
-  }
-
-  Future<void> _logout(BuildContext context) async {
-    try {
-      if (!context.mounted) return;
-      final authService = AuthService();
-      await authService.logout();
-      if (context.mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => LoginScreen()),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('حدث خطأ في تسجيل الخروج'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final controller = Get.find<GlobalController>();
+
     return AppBar(
       backgroundColor: cs.surface,
       elevation: 0,
       toolbarHeight: 50,
-      automaticallyImplyLeading: false,
       titleSpacing: 8,
+      automaticallyImplyLeading: false,
       title: SafeArea(
         child: Row(
           children: [
-            // Profile popup avatar
+            // ✅ الصورة الشخصية + قائمة الحساب
             PopupMenuButton<String>(
               tooltip: 'الحساب',
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              elevation: 8,
               offset: const Offset(0, 50),
-              itemBuilder: (context) {
-                final cs = Theme.of(context).colorScheme;
-
-                return [
-                  PopupMenuItem(
-                    value: 'profile',
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: cs.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.person_outline,
-                            color: cs.primary,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'الملف الشخصي',
-                          style: TextStyle(
-                            color: cs.onSurface,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 14,
-                          color: cs.onSurface.withValues(alpha: 0.4),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ===== Divider =====
-                  PopupMenuDivider(height: 1),
-
-                  PopupMenuItem(
-                    value: 'logout',
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: cs.error.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.logout_rounded,
-                            color: cs.error,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'تسجيل الخروج',
-                          style: TextStyle(
-                            color: cs.onSurface,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 14,
-                          color: cs.onSurface.withValues(alpha: 0.4),
-                        ),
-                      ],
-                    ),
-                  ),
-                ];
-              },
-
               onSelected: (value) async {
-                if (!context.mounted) return;
                 if (value == 'profile') {
                   await Navigator.pushNamed(context, '/student-profile');
-                  if (mounted) _loadUser();
+                  controller.loadUser();
                 } else if (value == 'logout') {
-                  _logout(context);
+                  await AuthService().logout();
+                  Get.offAll(() => LoginScreen());
                 }
               },
-              child: _buildAvatar(cs),
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'profile',
+                  child: Text('الملف الشخصي'),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Text('تسجيل الخروج'),
+                ),
+              ],
+              child: Obx(() {
+                final user = controller.user.value;
+                final avatar = _buildAvatar(user, cs);
+                return avatar;
+              }),
             ),
+
             const SizedBox(width: 10),
 
-            // Search field
+            // ✅ حقل البحث
             Expanded(
               child: SizedBox(
                 height: 40,
                 child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
                   readOnly: true,
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (q) => widget.onSearch?.call(q),
-                  onTap: () async {
-                    if (!context.mounted) return;
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const StudentUnifiedSearchScreen(),
-                      ),
-                    );
-                  },
-                  onTapOutside: (_) {
-                    _searchFocusNode.unfocus();
-                  },
-                  style: TextStyle(color: cs.onSurface, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'ابحث...',
                     hintStyle: TextStyle(
@@ -248,26 +86,16 @@ class _GlobalAppBarState extends State<GlobalAppBar>
                     ),
                     filled: true,
                     fillColor: cs.surfaceContainerHighest,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 0,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      size: 20,
-                      color: cs.onSurfaceVariant,
-                    ),
+                    prefixIcon: Icon(Icons.search, color: cs.onSurfaceVariant),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: cs.outline),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: cs.outline),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: cs.primary, width: 1.2),
+                  ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StudentUnifiedSearchScreen(),
                     ),
                   ),
                 ),
@@ -276,7 +104,7 @@ class _GlobalAppBarState extends State<GlobalAppBar>
 
             const SizedBox(width: 10),
 
-            // Theme toggle
+            // ✅ تبديل الوضع الليلي والنهاري
             IconButton(
               tooltip: 'تبديل النمط',
               icon: Icon(
@@ -285,88 +113,68 @@ class _GlobalAppBarState extends State<GlobalAppBar>
               ),
               onPressed: () {
                 final next = Get.isDarkMode ? ThemeMode.light : ThemeMode.dark;
-                Get.changeThemeMode(next);
+                Future.microtask(() => Get.changeThemeMode(next));
               },
             ),
 
-            // Notifications with badge
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  tooltip: 'الإشعارات',
-                  icon: Icon(Icons.notifications_outlined, color: cs.onSurface),
-                  onPressed: () async {
-                    try {
-                      if (!context.mounted) return;
+            // ✅ الإشعارات مع الشارة
+            Obx(() {
+              final count = controller.unreadCount.value;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    tooltip: 'الإشعارات',
+                    icon: Icon(
+                      Icons.notifications_outlined,
+                      color: cs.onSurface,
+                    ),
+                    onPressed: () async {
                       await Navigator.pushNamed(context, '/notifications');
-                      await _loadUnread();
-                    } catch (_) {}
-                  },
-                ),
-                if (_unreadCount > 0)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white24, width: 1),
-                      ),
-                      child: Text(
-                        _unreadCount > 99 ? '99+' : '$_unreadCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                      controller.loadUnread();
+                    },
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              );
+            }),
           ],
         ),
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    _notifSub?.cancel();
-    _payloadSub?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _loadUnread();
-      _loadUser();
-    }
-  }
-
-  Widget _buildAvatar(ColorScheme cs) {
-    final provider = _avatarImageProvider();
+  Widget _buildAvatar(Map<String, dynamic>? user, ColorScheme cs) {
+    final provider = _avatarImageProvider(user);
     if (provider != null) {
-      return CircleAvatar(
-        radius: 18,
-        backgroundImage: provider,
-        backgroundColor: Colors.transparent,
-      );
+      return CircleAvatar(radius: 18, backgroundImage: provider);
     }
-    final initials = _userInitials();
+    final initials = _userInitials(user);
     return CircleAvatar(
       radius: 18,
-      backgroundColor: cs.primary.withValues(alpha: 0.15),
+      backgroundColor: cs.primary.withOpacity(0.15),
       child: Text(
         initials,
         style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),
@@ -374,40 +182,21 @@ class _GlobalAppBarState extends State<GlobalAppBar>
     );
   }
 
-  ImageProvider<Object>? _avatarImageProvider() {
-    // Try base64 fields
-    final possibleB64Keys = [
-      'profileImageBase64',
-      'avatarBase64',
-      'photoBase64',
-      'imageBase64',
-    ];
-    for (final k in possibleB64Keys) {
-      final raw = _user?[k]?.toString();
+  ImageProvider<Object>? _avatarImageProvider(Map<String, dynamic>? user) {
+    final possibleB64 = ['profileImageBase64', 'avatarBase64'];
+    for (final key in possibleB64) {
+      final raw = user?[key]?.toString();
       if (raw != null && raw.isNotEmpty) {
         try {
-          final b64 = raw.contains(',')
-              ? raw.split(',').last
-              : raw; // handle data URLs
+          final b64 = raw.contains(',') ? raw.split(',').last : raw;
           return MemoryImage(base64Decode(b64));
         } catch (_) {}
       }
     }
 
-    // Try URL/path fields
-    final possibleUrlKeys = [
-      'profileImageUrl',
-      'profileImagePath',
-      'avatarUrl',
-      'photoUrl',
-      'imageUrl',
-      'profileImage',
-      'avatar',
-      'photo',
-      'image',
-    ];
-    for (final k in possibleUrlKeys) {
-      final url = _user?[k]?.toString();
+    final possibleUrls = ['profileImage', 'avatarUrl', 'photoUrl'];
+    for (final key in possibleUrls) {
+      final url = user?[key]?.toString();
       if (url != null && url.isNotEmpty) {
         if (url.startsWith('http')) return NetworkImage(url);
         if (url.startsWith('/')) {
@@ -418,19 +207,12 @@ class _GlobalAppBarState extends State<GlobalAppBar>
     return null;
   }
 
-  String _userInitials() {
-    final name = (_user?['name']?.toString() ?? '').trim();
+  String _userInitials(Map<String, dynamic>? user) {
+    final name = (user?['name']?.toString() ?? '').trim();
     if (name.isEmpty) return '?';
-    final parts = name
-        .split(RegExp(r"\s+"))
-        .where((e) => e.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return '?';
-    final first = parts[0].substring(0, 1);
-    String second = '';
-    if (parts.length > 1) {
-      second = parts[1].substring(0, 1);
-    }
+    final parts = name.split(RegExp(r'\s+'));
+    final first = parts.first.substring(0, 1);
+    final second = parts.length > 1 ? parts[1].substring(0, 1) : '';
     return (first + second).toUpperCase();
   }
 }

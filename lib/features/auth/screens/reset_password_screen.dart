@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../widgets/auth_text_field.dart';
 import '../../../core/services/auth_service.dart';
 import 'login_screen.dart';
+import '../../../shared/themes/app_colors.dart';
+import '../widgets/auth_button.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String? initialEmail;
@@ -35,15 +37,27 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final confirm = _confirmPassController.text;
 
     if (email.isEmpty || code.isEmpty || pass.isEmpty || confirm.isEmpty) {
-      Get.snackbar('تنبيه', 'يرجى ملء جميع الحقول', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تنبيه',
+        'يرجى ملء جميع الحقول',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
     if (pass != confirm) {
-      Get.snackbar('تنبيه', 'كلمتا المرور غير متطابقتين', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تنبيه',
+        'كلمتا المرور غير متطابقتين',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
     if (pass.length < 8) {
-      Get.snackbar('تنبيه', 'كلمة المرور يجب أن تكون 8 أحرف على الأقل', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تنبيه',
+        'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
@@ -52,8 +66,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _loading = false);
 
     if (error == null) {
-      Get.snackbar('تم', 'تم تحديث كلمة المرور بنجاح، يمكنك تسجيل الدخول الآن', snackPosition: SnackPosition.BOTTOM);
-      // إعادة التوجيه صراحةً إلى شاشة تسجيل الدخول
+      Get.snackbar(
+        'تم',
+        'تم تحديث كلمة المرور بنجاح، يمكنك تسجيل الدخول الآن',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       Get.offAll(() => LoginScreen());
     } else {
       Get.snackbar('خطأ', error, snackPosition: SnackPosition.BOTTOM);
@@ -62,16 +79,76 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('إعادة تعيين كلمة المرور')),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+      appBar: AppBar(
+        title: const Text('إعادة تعيين كلمة المرور'),
+        backgroundColor: scheme.surface,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: 32,
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text('أدخل البريد، الرمز الذي وصلك، وكلمة المرور الجديدة'),
+              const SizedBox(height: 12),
+
+              // 🧭 أيقونة العنوان
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: AppColors.gradientWelcome,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: scheme.primary.withOpacity(0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.lock_reset_rounded,
+                  size: 40,
+                  color: Colors.white,
+                ),
+              ),
               const SizedBox(height: 16),
+
+              // 🩵 عنوان
+              Text(
+                "استعادة الوصول إلى حسابك",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Text(
+                "أدخل البريد الإلكتروني، الرمز المرسل، ثم كلمة المرور الجديدة.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+              ),
+
+              const SizedBox(height: 28),
+
+              // 🧾 الحقول
               AuthTextField(
                 controller: _emailController,
                 label: 'البريد الإلكتروني',
@@ -99,13 +176,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 obscureText: true,
                 textInputAction: TextInputAction.done,
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                child: _loading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('تأكيد إعادة التعيين'),
-              ),
+              const SizedBox(height: 24),
+
+              // 🔘 زر التأكيد
+              _loading
+                  ? const CircularProgressIndicator()
+                  : AuthButton(text: "تأكيد إعادة التعيين", onPressed: _submit),
             ],
           ),
         ),
