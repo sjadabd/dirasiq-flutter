@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/config/initial_bindings.dart';
 import 'core/services/notification_service.dart';
 import 'shared/themes/app_colors.dart';
+import 'shared/controllers/theme_controller.dart';
 
 // ✅ الشاشات
 import 'features/splash/splash_screen.dart';
@@ -32,6 +33,7 @@ import 'shared/controllers/global_controller.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.instance.init();
+  Get.put(ThemeController(), permanent: true);
   runApp(const MyApp());
 }
 
@@ -42,11 +44,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = AppColors.lightScheme;
     final dark = AppColors.darkScheme;
+    final theme = ThemeController.to;
 
-    // ✅ تحميل المتحكم العام
-    Get.put(GlobalController(), permanent: true);
-
-    return GetMaterialApp(
+    return Obx(() => GetMaterialApp(
       title: 'Dirasiq',
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar'),
@@ -57,19 +57,15 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
 
-      // ✅ الاتجاه الافتراضي RTL
+      // ✅ الاتجاه الافتراضي RTL + اعتراض زر الرجوع للخروج
       builder: (context, child) {
-        return AnimatedTheme(
-          data: Theme.of(context),
-          duration: const Duration(milliseconds: 300),
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: child ?? const SizedBox(),
-          ),
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: _ExitGuard(child: child ?? const SizedBox()),
         );
       },
 
-      themeMode: ThemeMode.system,
+      themeMode: theme.themeMode.value,
 
       // ✅ الثيم الفاتح
       theme: ThemeData(
@@ -170,7 +166,7 @@ class MyApp extends StatelessWidget {
       ),
 
       initialBinding: InitialBindings(),
-      smartManagement: SmartManagement.full,
+      smartManagement: SmartManagement.onlyBuilder,
 
       // ✅ تعريف الصفحات
       initialRoute: "/splash",
@@ -256,6 +252,44 @@ class MyApp extends StatelessWidget {
           },
         ),
       ],
+    ));
+  }
+}
+
+/// اعتراض الخروج من التطبيق فقط عند آخر صفحة
+class _ExitGuard extends StatelessWidget {
+  const _ExitGuard({required this.child});
+  final Widget child;
+
+  Future<bool> _onWillPop() async {
+    if (Get.key.currentState?.canPop() ?? false) {
+      return true;
+    }
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('تأكيد الخروج'),
+        content: const Text('هل أنت متأكد أنك تريد الخروج من التطبيق؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('نعم، خروج'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+    return result ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: child,
     );
   }
 }

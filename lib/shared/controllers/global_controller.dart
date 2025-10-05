@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:dirasiq/core/services/auth_service.dart';
 import 'package:dirasiq/core/services/notification_events.dart';
+import 'package:flutter_app_badger/flutter_app_badger.dart';
 
 /// 🧩 المتحكم العام لتطبيق Dirasiq
 /// يدير بيانات المستخدم وعدد الإشعارات ويتفاعل مع النظام بالكامل.
@@ -62,6 +63,7 @@ class GlobalController extends GetxController {
     try {
       final count = await _api.fetchUnreadNotificationsCount();
       unreadCount.value = count;
+      _updateBadge(count);
     } catch (_) {
       // تجاهل الأخطاء (بدون تأثير)
     }
@@ -73,6 +75,7 @@ class GlobalController extends GetxController {
       await _auth.logout();
       user.value = null;
       unreadCount.value = 0;
+      _removeBadge();
     } catch (_) {}
   }
 
@@ -81,5 +84,23 @@ class GlobalController extends GetxController {
     _notifSub?.cancel();
     _payloadSub?.cancel();
     super.onClose();
+  }
+
+  Future<void> _updateBadge(int count) async {
+    try {
+      if (count > 0) {
+        final isSupported = await FlutterAppBadger.isAppBadgeSupported();
+        if (isSupported) FlutterAppBadger.updateBadgeCount(count);
+      } else {
+        _removeBadge();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _removeBadge() async {
+    try {
+      final isSupported = await FlutterAppBadger.isAppBadgeSupported();
+      if (isSupported) FlutterAppBadger.removeBadge();
+    } catch (_) {}
   }
 }

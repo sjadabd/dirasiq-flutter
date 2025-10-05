@@ -6,6 +6,7 @@ import 'package:dirasiq/core/services/auth_service.dart';
 import 'package:dirasiq/features/auth/screens/login_screen.dart';
 import 'package:dirasiq/features/search/screens/student_unified_search_screen.dart';
 import 'package:dirasiq/shared/controllers/global_controller.dart';
+import 'package:dirasiq/shared/controllers/theme_controller.dart';
 
 class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -112,8 +113,7 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
                 color: cs.onSurface,
               ),
               onPressed: () {
-                final next = Get.isDarkMode ? ThemeMode.light : ThemeMode.dark;
-                Future.microtask(() => Get.changeThemeMode(next));
+                ThemeController.to.toggleDarkLight();
               },
             ),
 
@@ -169,7 +169,12 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget _buildAvatar(Map<String, dynamic>? user, ColorScheme cs) {
     final provider = _avatarImageProvider(user);
     if (provider != null) {
-      return CircleAvatar(radius: 18, backgroundImage: provider);
+      return CircleAvatar(
+        radius: 18,
+        backgroundColor: cs.surface,
+        foregroundImage: provider,
+        child: const SizedBox.shrink(),
+      );
     }
     final initials = _userInitials(user);
     return CircleAvatar(
@@ -183,7 +188,12 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   ImageProvider<Object>? _avatarImageProvider(Map<String, dynamic>? user) {
-    final possibleB64 = ['profileImageBase64', 'avatarBase64'];
+    final possibleB64 = [
+      'profileImageBase64',
+      'avatarBase64',
+      'imageBase64',
+      'photoBase64',
+    ];
     for (final key in possibleB64) {
       final raw = user?[key]?.toString();
       if (raw != null && raw.isNotEmpty) {
@@ -194,17 +204,66 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
       }
     }
 
-    final possibleUrls = ['profileImage', 'avatarUrl', 'photoUrl'];
+    final possibleUrls = [
+      'profileImagePath',
+      'profileImageUrl',
+      'profileImage',
+      'avatarUrl',
+      'photoUrl',
+      'photoURL',
+      'imageUrl',
+      'image',
+      'avatar',
+      'profile_photo_url',
+      'profilePhotoUrl',
+    ];
     for (final key in possibleUrls) {
       final url = user?[key]?.toString();
       if (url != null && url.isNotEmpty) {
-        if (url.startsWith('http')) return NetworkImage(url);
-        if (url.startsWith('/')) {
-          return NetworkImage('${AppConfig.serverBaseUrl}$url');
-        }
+        final normalized = _normalizeImageUrl(url);
+        return NetworkImage(normalized);
+      }
+    }
+
+    // Nested fallbacks like profile.imageUrl, account.profileImage, data.image
+    final nestedKeys = [
+      ['profile', 'imageUrl'],
+      ['profile', 'avatar'],
+      ['account', 'profileImage'],
+      ['data', 'image'],
+    ];
+    for (final path in nestedKeys) {
+      dynamic val = user;
+      for (final key in path) {
+        val = (val is Map) ? val[key] : null;
+      }
+      if (val is String && val.isNotEmpty) {
+        final normalized = _normalizeImageUrl(val);
+        return NetworkImage(normalized);
       }
     }
     return null;
+  }
+
+  // Normalize various URL shapes to a usable absolute URL
+  String _normalizeImageUrl(String raw) {
+    String s = raw.trim();
+    if (s.isEmpty) return s;
+
+    if ((s.startsWith('"') && s.endsWith('"')) ||
+        (s.startsWith("'") && s.endsWith("'"))) {
+      s = s.substring(1, s.length - 1).trim();
+    }
+    if (s.startsWith('data:image')) return s;
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('//')) {
+      final scheme = Uri.parse(AppConfig.serverBaseUrl).scheme;
+      return '$scheme:$s';
+    }
+    String path = s.replaceAll('\\', '/');
+    if (!path.startsWith('/')) path = '/$path';
+    final base = AppConfig.serverBaseUrl.replaceAll(RegExp(r'/+$'), '');
+    return '$base$path';
   }
 
   String _userInitials(Map<String, dynamic>? user) {
