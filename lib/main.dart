@@ -27,9 +27,6 @@ import 'features/invoices/screens/student_invoices_screen.dart';
 import 'features/invoices/screens/invoice_details_screen.dart';
 import 'features/teachers/screens/suggested_teachers_screen.dart';
 
-// ✅ المتحكم العام للإشعارات والمستخدم
-import 'shared/controllers/global_controller.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.instance.init();
@@ -46,213 +43,215 @@ class MyApp extends StatelessWidget {
     final dark = AppColors.darkScheme;
     final theme = ThemeController.to;
 
-    return Obx(() => GetMaterialApp(
-      title: 'Dirasiq',
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('ar'),
-      supportedLocales: const [Locale('ar'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+    return Obx(
+      () => GetMaterialApp(
+        title: 'Dirasiq',
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('ar'),
+        supportedLocales: const [Locale('ar'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
 
-      // ✅ الاتجاه الافتراضي RTL + اعتراض زر الرجوع للخروج
-      builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: _ExitGuard(child: child ?? const SizedBox()),
-        );
-      },
+        // ✅ الاتجاه الافتراضي RTL + اعتراض زر الرجوع للخروج
+        builder: (context, child) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: _ExitGuard(child: child ?? const SizedBox()),
+          );
+        },
 
-      themeMode: theme.themeMode.value,
+        themeMode: theme.themeMode.value,
 
-      // ✅ الثيم الفاتح
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: scheme,
-        scaffoldBackgroundColor: AppColors.background,
-        appBarTheme: AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: scheme.surface,
-          foregroundColor: scheme.onSurface,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: scheme.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: scheme.outline),
+        // ✅ الثيم الفاتح
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: scheme,
+          scaffoldBackgroundColor: AppColors.background,
+          appBarTheme: AppBarTheme(
+            centerTitle: true,
+            elevation: 0,
+            backgroundColor: scheme.surface,
+            foregroundColor: scheme.onSurface,
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: scheme.primary, width: 1.6),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: scheme.primary,
-            foregroundColor: scheme.onPrimary,
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: scheme.surface,
+            border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: scheme.outline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: scheme.primary, width: 1.6),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: scheme.primary,
+              foregroundColor: scheme.onPrimary,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(foregroundColor: scheme.primary),
+          ),
+          cardTheme: CardThemeData(
+            color: scheme.surface,
+            elevation: 1.5,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(foregroundColor: scheme.primary),
-        ),
-        cardTheme: CardThemeData(
-          color: scheme.surface,
-          elevation: 1.5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
 
-      // ✅ الثيم الداكن
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: dark,
-        scaffoldBackgroundColor: AppColors.darkBackground,
-        appBarTheme: AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: dark.surface,
-          foregroundColor: dark.onSurface,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: dark.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: dark.outline),
+        // ✅ الثيم الداكن
+        darkTheme: ThemeData(
+          useMaterial3: true,
+          colorScheme: dark,
+          scaffoldBackgroundColor: AppColors.darkBackground,
+          appBarTheme: AppBarTheme(
+            centerTitle: true,
+            elevation: 0,
+            backgroundColor: dark.surface,
+            foregroundColor: dark.onSurface,
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: dark.primary, width: 1.6),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: dark.primary,
-            foregroundColor: dark.onPrimary,
-            minimumSize: const Size.fromHeight(48),
-            shape: RoundedRectangleBorder(
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: dark.surface,
+            border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: dark.outline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: dark.primary, width: 1.6),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: dark.primary,
+              foregroundColor: dark.onPrimary,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(foregroundColor: dark.primary),
+          ),
+          cardTheme: CardThemeData(
+            color: dark.surface,
+            elevation: 1.5,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(foregroundColor: dark.primary),
-        ),
-        cardTheme: CardThemeData(
-          color: dark.surface,
-          elevation: 1.5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+
+        initialBinding: InitialBindings(),
+        smartManagement: SmartManagement.onlyBuilder,
+
+        // ✅ تعريف الصفحات
+        initialRoute: "/splash",
+        getPages: [
+          GetPage(name: "/splash", page: () => const SplashScreen()),
+          GetPage(name: "/onboarding", page: () => const OnboardingScreen()),
+          GetPage(name: "/login", page: () => LoginScreen()),
+          GetPage(name: "/home", page: () => const RootShell()),
+          GetPage(
+            name: "/complete-profile",
+            page: () => const CompleteProfileScreen(),
           ),
-        ),
+          GetPage(
+            name: "/student-profile",
+            page: () => const StudentProfileScreen(),
+          ),
+          GetPage(
+            name: "/notifications",
+            page: () => const NotificationsScreen(),
+          ),
+          GetPage(name: "/enrollments", page: () => const EnrollmentsScreen()),
+          GetPage(
+            name: "/enrollment-actions",
+            page: () {
+              final args = Get.arguments as Map<String, dynamic>? ?? {};
+              return EnrollmentActionsScreen(
+                courseId: args['courseId'] ?? '',
+                courseName: args['courseName'],
+                teacherId: args['teacherId'],
+              );
+            },
+          ),
+          GetPage(name: "/qr-scan", page: () => const QrScanScreen()),
+          GetPage(
+            name: "/course-weekly-schedule",
+            page: () {
+              final args = Get.arguments as Map<String, dynamic>? ?? {};
+              return CourseWeeklyScheduleScreen(
+                courseId: args['courseId'] ?? '',
+                courseName: args['courseName'],
+              );
+            },
+          ),
+          GetPage(
+            name: "/course-attendance",
+            page: () {
+              final args = Get.arguments as Map<String, dynamic>? ?? {};
+              return CourseAttendanceScreen(
+                courseId: args['courseId'] ?? '',
+                courseName: args['courseName'],
+              );
+            },
+          ),
+          GetPage(name: "/invoices", page: () => const StudentInvoicesScreen()),
+          GetPage(
+            name: "/invoice-details",
+            page: () {
+              final id = Get.arguments as String;
+              return InvoiceDetailsScreen(invoiceId: id);
+            },
+          ),
+          GetPage(
+            name: "/suggested-courses",
+            page: () => const SuggestedCoursesScreen(),
+          ),
+          GetPage(
+            name: "/course-details",
+            page: () {
+              final id = Get.arguments as String;
+              return CourseDetailsScreen(courseId: id);
+            },
+          ),
+          GetPage(
+            name: "/suggested-teachers",
+            page: () => const SuggestedTeachersScreen(),
+          ),
+          GetPage(name: "/bookings", page: () => const BookingsListScreen()),
+          GetPage(
+            name: "/booking-details",
+            page: () {
+              final id = Get.arguments as String;
+              return BookingDetailsScreen(bookingId: id);
+            },
+          ),
+        ],
       ),
-
-      initialBinding: InitialBindings(),
-      smartManagement: SmartManagement.onlyBuilder,
-
-      // ✅ تعريف الصفحات
-      initialRoute: "/splash",
-      getPages: [
-        GetPage(name: "/splash", page: () => const SplashScreen()),
-        GetPage(name: "/onboarding", page: () => const OnboardingScreen()),
-        GetPage(name: "/login", page: () => LoginScreen()),
-        GetPage(name: "/home", page: () => const RootShell()),
-        GetPage(
-          name: "/complete-profile",
-          page: () => const CompleteProfileScreen(),
-        ),
-        GetPage(
-          name: "/student-profile",
-          page: () => const StudentProfileScreen(),
-        ),
-        GetPage(
-          name: "/notifications",
-          page: () => const NotificationsScreen(),
-        ),
-        GetPage(name: "/enrollments", page: () => const EnrollmentsScreen()),
-        GetPage(
-          name: "/enrollment-actions",
-          page: () {
-            final args = Get.arguments as Map<String, dynamic>? ?? {};
-            return EnrollmentActionsScreen(
-              courseId: args['courseId'] ?? '',
-              courseName: args['courseName'],
-              teacherId: args['teacherId'],
-            );
-          },
-        ),
-        GetPage(name: "/qr-scan", page: () => const QrScanScreen()),
-        GetPage(
-          name: "/course-weekly-schedule",
-          page: () {
-            final args = Get.arguments as Map<String, dynamic>? ?? {};
-            return CourseWeeklyScheduleScreen(
-              courseId: args['courseId'] ?? '',
-              courseName: args['courseName'],
-            );
-          },
-        ),
-        GetPage(
-          name: "/course-attendance",
-          page: () {
-            final args = Get.arguments as Map<String, dynamic>? ?? {};
-            return CourseAttendanceScreen(
-              courseId: args['courseId'] ?? '',
-              courseName: args['courseName'],
-            );
-          },
-        ),
-        GetPage(name: "/invoices", page: () => const StudentInvoicesScreen()),
-        GetPage(
-          name: "/invoice-details",
-          page: () {
-            final id = Get.arguments as String;
-            return InvoiceDetailsScreen(invoiceId: id);
-          },
-        ),
-        GetPage(
-          name: "/suggested-courses",
-          page: () => const SuggestedCoursesScreen(),
-        ),
-        GetPage(
-          name: "/course-details",
-          page: () {
-            final id = Get.arguments as String;
-            return CourseDetailsScreen(courseId: id);
-          },
-        ),
-        GetPage(
-          name: "/suggested-teachers",
-          page: () => const SuggestedTeachersScreen(),
-        ),
-        GetPage(name: "/bookings", page: () => const BookingsListScreen()),
-        GetPage(
-          name: "/booking-details",
-          page: () {
-            final id = Get.arguments as String;
-            return BookingDetailsScreen(bookingId: id);
-          },
-        ),
-      ],
-    ));
+    );
   }
 }
 
@@ -287,9 +286,6 @@ class _ExitGuard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: child,
-    );
+    return WillPopScope(onWillPop: _onWillPop, child: child);
   }
 }
