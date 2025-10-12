@@ -72,6 +72,13 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
 
             const SizedBox(width: 10),
+            // شعار التطبيق صغير في الشريط
+            Image.asset(
+              'assets/logo.png',
+              width: 28,
+              height: 28,
+            ),
+            const SizedBox(width: 10),
 
             // ✅ حقل البحث
             Expanded(

@@ -218,25 +218,17 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // شعار التطبيق
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.school_rounded,
-                size: 60,
-                color: AppColors.primary,
-              ),
+            // شعار التطبيق (لوغو)
+            SizedBox(
+              width: 140,
+              height: 140,
+              child: Image.asset('assets/logo.png', fit: BoxFit.contain),
             ),
             const SizedBox(height: 24),
 
             // اسم التطبيق
             Text(
-              'ديراسِق',
+              'Mulhim IQ',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

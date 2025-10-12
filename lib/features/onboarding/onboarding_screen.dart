@@ -91,6 +91,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   @override
+  void dispose() {
+    // Dispose controllers to avoid active ticker leaks
+    _animationController.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 

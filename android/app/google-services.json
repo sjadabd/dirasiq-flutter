@@ -1,33 +1,33 @@
 {
   "project_info": {
-    "project_number": "347174406018",
-    "project_id": "mypro-385614",
-    "storage_bucket": "mypro-385614.firebasestorage.app"
+    "project_number": "236714696249",
+    "project_id": "mulhimiq-845df",
+    "storage_bucket": "mulhimiq-845df.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:347174406018:android:70a84ff2c3395217d8f19b",
+        "mobilesdk_app_id": "1:236714696249:android:5e3e0cba0f1f4f2f5037e8",
         "android_client_info": {
-          "package_name": "com.example.dirasiq"
+          "package_name": "com.mulhimiq.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "347174406018-8q0gaa0spce1hr7rsa1okge2or0sd6br.apps.googleusercontent.com",
+          "client_id": "236714696249-hf3ad7p3i8261fl9q6nqaps29ukumk63.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDauhsjdmjgqctUWAx2UIcS-QzdFTYgCqE"
+          "current_key": "AIzaSyCsj6iQ8LfqSl_fpZgX7MlWv656YLKXnR4"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "347174406018-8q0gaa0spce1hr7rsa1okge2or0sd6br.apps.googleusercontent.com",
+              "client_id": "236714696249-hf3ad7p3i8261fl9q6nqaps29ukumk63.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

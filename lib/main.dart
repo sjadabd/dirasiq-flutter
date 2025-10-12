@@ -45,7 +45,7 @@ class MyApp extends StatelessWidget {
 
     return Obx(
       () => GetMaterialApp(
-        title: 'Dirasiq',
+        title: 'Mulhim IQ',
         debugShowCheckedModeBanner: false,
         locale: const Locale('ar'),
         supportedLocales: const [Locale('ar'), Locale('en')],

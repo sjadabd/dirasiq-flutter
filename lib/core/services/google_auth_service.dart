@@ -9,7 +9,7 @@ class GoogleAuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
     serverClientId:
-        "347174406018-8q0gaa0spce1hr7rsa1okge2or0sd6br.apps.googleusercontent.com",
+        "577832490185-gnglmomcjlkn9us9fm5qofc2geiau296.apps.googleusercontent.com",
   );
 
   final Dio _dio = Dio(
@@ -28,47 +28,51 @@ class GoogleAuthService {
   /// ✅ تسجيل الدخول بجوجل
   Future<String?> signInWithGoogle(String userType) async {
     try {
+      print("STEP 1: بدء تسجيل الدخول عبر Google...");
       final account = await _googleSignIn.signIn();
+      print("STEP 2: account = ${account?.email}");
+
       if (account == null) {
         return "تم إلغاء العملية";
       }
 
       final auth = await account.authentication;
-      // أرسل OneSignal player id مع تسجيل دخول Google إن وُجد
+      print("STEP 3: حصلنا على التوكن ✅");
+
       final playerId = await NotificationService.instance.getPlayerId();
+      print("STEP 4: playerId = $playerId");
+
       final payload = {
         "googleToken": auth.idToken,
         "userType": userType,
         if (playerId != null && playerId.isNotEmpty)
           "oneSignalPlayerId": playerId,
       };
+      print("STEP 5: payload = $payload");
 
-      final response = await _dio.post(
-        "/google-auth",
-        data: payload,
-      );
+      final response = await _dio.post("/google-auth", data: payload);
+      print("STEP 6: response = ${response.data}");
 
       if (response.statusCode == 200 && response.data["success"] == true) {
         final prefs = await SharedPreferences.getInstance();
-
         final data = response.data["data"];
         final user = data["user"];
         final token = data["token"];
 
         await prefs.setString("token", token);
         await prefs.setString("user", jsonEncode(user));
-
-        // إعادة ربط OneSignal باليوزر بعد الحفظ المحلي
         await NotificationService.instance.rebindExternalUserId();
-        return null; // ✅ نجاح
+        print("STEP 7: تسجيل الدخول تم بنجاح ✅");
+        return null;
       }
 
       return response.data["message"] ?? "فشل تسجيل الدخول عبر Google";
     } on DioException catch (e) {
-      final message =
-          e.response?.data?["message"] ?? e.message ?? "خطأ في الشبكة";
-      return message;
-    } catch (e) {
+      print("🔥 DioException: ${e.response?.data ?? e.message}");
+      return e.response?.data?["message"] ?? "خطأ في الشبكة";
+    } catch (e, st) {
+      print("❌ Unexpected error during Google Sign-In: $e");
+      print("StackTrace: $st");
       return "حدث خطأ غير متوقع";
     }
   }

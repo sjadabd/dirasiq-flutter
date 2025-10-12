@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.dirasiq"
+    namespace = "com.mulhimiq.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.dirasiq"
+        applicationId = "com.mulhimiq.app"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode

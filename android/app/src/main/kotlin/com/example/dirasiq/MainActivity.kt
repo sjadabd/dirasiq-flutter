@@ -1,4 +1,4 @@
-package com.example.dirasiq
+package com.mulhimiq.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -8,5 +8,5 @@ class AppConfig {
   static const String apiBaseUrl = "$serverBaseUrl/api";
 
   // OneSignal configuration
-  static const String oneSignalAppId = "69b01adf-8a70-41fe-b47c-270f12f9662c";
+  static const String oneSignalAppId = "b136e33d-56f0-4fc4-ad08-8c8a534ca447";
 }
