@@ -44,6 +44,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    print('🎯 OnboardingScreen initState called');
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -63,12 +64,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> _finishOnboarding() async {
+    print('🏁 Finishing onboarding...');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('has_seen_onboarding', true);
+    print('🔐 Navigating to login...');
     Get.offAllNamed('/login');
   }
 
   void _next() {
+    print('➡️ Next button pressed, current index: $_currentIndex');
     if (_currentIndex < _pages.length - 1) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 400),
@@ -100,11 +104,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    print('🎨 OnboardingScreen build called, currentIndex: $_currentIndex');
     final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: scheme.background,
-      body: SafeArea(
+    return WillPopScope(
+      onWillPop: () async => false, // منع العودة
+      child: Scaffold(
+        backgroundColor: scheme.background,
+        body: SafeArea(
         child: Column(
           children: [
             // 🔹 Header Bar
@@ -309,6 +316,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ],
         ),
+      ),
       ),
     );
   }

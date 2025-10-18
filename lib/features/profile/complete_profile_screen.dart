@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:dirasiq/core/services/auth_service.dart';
+import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:dirasiq/shared/controllers/theme_controller.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   const CompleteProfileScreen({super.key});
@@ -155,6 +157,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   Future<void> _pickBirthDate() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime(2007, 1, 1),
@@ -168,8 +171,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: const Color(0xFF6366F1),
+              primary: isDark ? AppColors.darkPrimary : AppColors.primary,
               onPrimary: Colors.white,
+              surface: isDark ? AppColors.darkSurface : AppColors.surface,
+              onSurface: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
             ),
           ),
           child: child!,
@@ -185,6 +190,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   void _showErrorSnackBar(String message) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -194,7 +200,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: const Color(0xFFEF4444),
+        backgroundColor: isDark ? AppColors.darkAccent : AppColors.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -203,6 +209,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   void _showSuccessSnackBar(String message) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -212,7 +219,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: const Color(0xFF10B981),
+        backgroundColor: isDark ? AppColors.darkSecondary : AppColors.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -283,19 +290,22 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   Widget _buildSectionHeader(String title, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(top: 24, bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        gradient: LinearGradient(
+          colors: isDark 
+            ? AppColors.gradientWelcome.map((c) => isDark ? AppColors.darkPrimary : c).toList()
+            : AppColors.gradientWelcome,
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
+            color: (isDark ? AppColors.darkPrimary : AppColors.primary).withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -303,14 +313,14 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white, size: 20),
+          Icon(icon, color: AppColors.white, size: 20),
           const SizedBox(width: 8),
           Text(
             title,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: AppColors.white,
             ),
           ),
         ],
@@ -327,6 +337,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     VoidCallback? onTap,
     IconData? prefixIcon,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -334,31 +345,40 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         decoration: InputDecoration(
           labelText: required ? "$label *" : label,
           prefixIcon: prefixIcon != null
-              ? Icon(prefixIcon, color: const Color(0xFF6366F1))
+              ? Icon(prefixIcon, color: isDark ? AppColors.darkPrimary : AppColors.primary)
               : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkPrimary : AppColors.primary, 
+              width: 2
+            ),
           ),
           filled: true,
-          fillColor: const Color(0xFFF9FAFB),
+          fillColor: isDark ? AppColors.darkSurface : AppColors.surface,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 16,
           ),
-          labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+          labelStyle: TextStyle(
+            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, 
+            fontSize: 14
+          ),
         ),
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,
+        style: TextStyle(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+        ),
         validator: required
             ? (v) => v == null || v.isEmpty ? "مطلوب" : null
             : null,
@@ -367,38 +387,54 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   Widget _buildGradeDropdown(List<Map<String, dynamic>> grades) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
         decoration: InputDecoration(
           labelText: "المرحلة / الصف *",
-          prefixIcon: const Icon(Icons.school, color: Color(0xFF6366F1)),
+          prefixIcon: Icon(Icons.school, color: isDark ? AppColors.darkPrimary : AppColors.primary),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkPrimary : AppColors.primary, 
+              width: 2
+            ),
           ),
           filled: true,
-          fillColor: const Color(0xFFF9FAFB),
+          fillColor: isDark ? AppColors.darkSurface : AppColors.surface,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 16,
           ),
+          labelStyle: TextStyle(
+            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+          ),
         ),
         initialValue: _gradeId,
         isExpanded: true,
+        dropdownColor: isDark ? AppColors.darkSurface : AppColors.surface,
+        style: TextStyle(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+        ),
         items: grades
             .map(
               (g) => DropdownMenuItem<String>(
                 value: g["id"] as String,
-                child: Text(g["name"] as String),
+                child: Text(
+                  g["name"] as String,
+                  style: TextStyle(
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                  ),
+                ),
               ),
             )
             .toList(),
@@ -413,36 +449,63 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   Widget _buildGenderDropdown() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
         decoration: InputDecoration(
           labelText: "الجنس *",
-          prefixIcon: const Icon(Icons.person, color: Color(0xFF6366F1)),
+          prefixIcon: Icon(Icons.person, color: isDark ? AppColors.darkPrimary : AppColors.primary),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkPrimary : AppColors.primary, 
+              width: 2
+            ),
           ),
           filled: true,
-          fillColor: const Color(0xFFF9FAFB),
+          fillColor: isDark ? AppColors.darkSurface : AppColors.surface,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 16,
           ),
+          labelStyle: TextStyle(
+            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+          ),
         ),
         initialValue: _gender,
         isExpanded: true,
-        items: const [
-          DropdownMenuItem(value: "male", child: Text("ذكر")),
-          DropdownMenuItem(value: "female", child: Text("أنثى")),
+        dropdownColor: isDark ? AppColors.darkSurface : AppColors.surface,
+        style: TextStyle(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+        ),
+        items: [
+          DropdownMenuItem(
+            value: "male", 
+            child: Text(
+              "ذكر",
+              style: TextStyle(
+                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: "female", 
+            child: Text(
+              "أنثى",
+              style: TextStyle(
+                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              ),
+            ),
+          ),
         ],
         onChanged: (v) {
           if (v != _gender) {
@@ -455,14 +518,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   Widget _buildLocationCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: isDark 
+              ? AppColors.black.withOpacity(0.3)
+              : AppColors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -471,25 +537,36 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       child: CheckboxListTile(
         isThreeLine:
             _locationLoading || (_latitude != null && _longitude != null),
-        title: const Text(
+        title: Text(
           "إرسال موقعي الحالي",
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+          ),
         ),
         subtitle: _locationLoading
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: const [
+                children: [
                   SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isDark ? AppColors.darkPrimary : AppColors.primary,
+                      ),
+                    ),
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       "جاري الحصول على الموقع...",
                       overflow: TextOverflow.ellipsis,
                       maxLines: 2,
+                      style: TextStyle(
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -499,13 +576,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: (isDark ? AppColors.darkSecondary : AppColors.success).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   "تم الحصول على الموقع: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}",
-                  style: const TextStyle(
-                    color: Color(0xFF10B981),
+                  style: TextStyle(
+                    color: isDark ? AppColors.darkSecondary : AppColors.success,
                     fontSize: 12,
                   ),
                 ),
@@ -521,18 +598,26 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         secondary: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.1),
+            color: (isDark ? AppColors.darkPrimary : AppColors.primary).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: _locationLoading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isDark ? AppColors.darkPrimary : AppColors.primary,
+                    ),
+                  ),
                 )
-              : const Icon(Icons.location_on, color: Color(0xFF6366F1)),
+              : Icon(
+                  Icons.location_on, 
+                  color: isDark ? AppColors.darkPrimary : AppColors.primary,
+                ),
         ),
-        activeColor: const Color(0xFF6366F1),
+        activeColor: isDark ? AppColors.darkPrimary : AppColors.primary,
         contentPadding: const EdgeInsets.all(16),
       ),
     );
@@ -540,21 +625,41 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "إكمال البيانات الشخصية",
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1F2937),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
         centerTitle: true,
+        actions: [
+          Obx(() => IconButton(
+            icon: Icon(
+              ThemeController.to.themeMode.value == ThemeMode.dark
+                ? Icons.light_mode
+                : Icons.dark_mode,
+              color: Colors.white,
+            ),
+            onPressed: () => ThemeController.to.toggleDarkLight(),
+            tooltip: ThemeController.to.themeMode.value == ThemeMode.dark
+              ? "التبديل للوضع النهاري"
+              : "التبديل للوضع الليلي",
+          )),
+        ],
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              colors: isDark 
+                ? AppColors.gradientWelcome.map((c) => AppColors.darkPrimary).toList()
+                : AppColors.gradientWelcome,
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
@@ -568,28 +673,30 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
+                    colors: isDark 
+                      ? [AppColors.darkBackground, AppColors.darkSurface]
+                      : [AppColors.background, AppColors.surfaceVariant],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                 ),
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFF6366F1),
+                          isDark ? AppColors.darkPrimary : AppColors.primary,
                         ),
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       Text(
                         "جاري تحميل البيانات...",
                         style: TextStyle(
                           fontSize: 16,
-                          color: Color(0xFF6B7280),
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -604,11 +711,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   margin: const EdgeInsets.all(24),
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? AppColors.darkSurface : AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: isDark 
+                          ? Colors.black.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -620,29 +729,31 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withOpacity(0.1),
+                          color: (isDark ? AppColors.darkAccent : AppColors.error).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.error_outline,
                           size: 48,
-                          color: Color(0xFFEF4444),
+                          color: isDark ? AppColors.darkAccent : AppColors.error,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         "خطأ في تحميل البيانات",
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1F2937),
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         "${snapshot.error}",
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFF6B7280)),
+                        style: TextStyle(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
@@ -654,8 +765,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         icon: const Icon(Icons.refresh),
                         label: const Text("إعادة المحاولة"),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
-                          foregroundColor: Colors.white,
+                          backgroundColor: isDark ? AppColors.darkPrimary : AppColors.primary,
+                          foregroundColor: AppColors.white,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 12,
@@ -731,7 +842,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        color: (isDark ? AppColors.darkPrimary : AppColors.primary).withOpacity(0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -740,15 +851,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   child: _loading
                       ? Container(
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                            gradient: LinearGradient(
+                              colors: isDark 
+                                ? AppColors.gradientWelcome.map((c) => AppColors.darkPrimary).toList()
+                                : AppColors.gradientWelcome,
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: const Center(
                             child: CircularProgressIndicator(
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                                AppColors.white,
                               ),
                             ),
                           ),
@@ -766,7 +879,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           style:
                               ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
-                                foregroundColor: Colors.white,
+                                foregroundColor: AppColors.white,
                                 shadowColor: Colors.transparent,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),

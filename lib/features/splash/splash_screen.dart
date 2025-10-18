@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dirasiq/core/services/auth_service.dart';
 import 'package:dirasiq/shared/themes/app_colors.dart';
@@ -17,32 +18,46 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _handleStartup();
+    // استخدام SchedulerBinding لتجنب مشاكل Hot Reload
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          _handleStartup();
+        }
+      });
+    });
   }
 
   Future<void> _handleStartup() async {
-    // مهلة بسيطة لعرض شاشة السبلاتش
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    // عرض رسالة ترحيب لأول مرة فقط
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeenWelcome = prefs.getBool('has_seen_welcome_dialog') ?? false;
-    if (!hasSeenWelcome) {
-      await _showWelcomeDialog();
-      await prefs.setBool('has_seen_welcome_dialog', true);
+    if (!mounted) {
+      print('❌ Widget unmounted during startup');
+      return;
     }
-    if (!mounted) return;
+
+    // تخطي رسالة الترحيب لتجنب مشاكل الـ widget
+    final prefs = await SharedPreferences.getInstance();
+    print('🔍 Skipping welcome dialog to avoid widget issues');
 
     final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
     final loggedIn = await _authService.isLoggedIn();
+    
+    print('🔍 hasSeenOnboarding: $hasSeenOnboarding');
+    print('🔍 loggedIn: $loggedIn');
 
     if (loggedIn) {
+      print('👤 User is logged in, checking profile completion...');
       // مستخدم قديم مسجل دخول → نُبقي المنطق السابق (الرئيسية/إكمال الملف)
       final complete = await _authService.isProfileComplete();
-      if (!mounted) return;
+      print('🔍 Profile complete: $complete');
+      if (!mounted) {
+        print('❌ Widget unmounted during profile check');
+        return;
+      }
       if (complete) {
+        print('🏠 Navigating to home...');
         Navigator.pushReplacementNamed(context, "/home");
       } else {
+        print('📝 Navigating to complete profile...');
         Navigator.pushReplacementNamed(context, "/complete-profile");
       }
       return;
@@ -50,11 +65,25 @@ class _SplashScreenState extends State<SplashScreen> {
 
     // غير مسجل دخول
     if (!hasSeenOnboarding) {
+      print('🎯 First time user, navigating to onboarding...');
       // أول مرة: اذهب للتعريف
-      Get.offAllNamed('/onboarding');
+      if (mounted) {
+        try {
+          // استخدام Get.offAllNamed بدلاً من Navigator
+          Get.offAllNamed('/onboarding');
+          print('✅ Successfully navigated to onboarding');
+        } catch (e) {
+          print('❌ Error navigating to onboarding: $e');
+        }
+      } else {
+        print('❌ Widget already unmounted');
+      }
     } else {
+      print('🔐 Returning user, navigating to login...');
       // فتح سابقًا: فقط إلى تسجيل الدخول
-      Navigator.pushReplacementNamed(context, "/login");
+      if (mounted) {
+        Get.offAllNamed("/login");
+      }
     }
   }
 
@@ -260,6 +289,23 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: AppColors.primary,
               ),
             ),
+            
+            // زر إعادة تعيين للاختبار (فقط في وضع التطوير)
+            const SizedBox(height: 20),
+            if (const bool.fromEnvironment('dart.vm.product') == false)
+              TextButton(
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('has_seen_onboarding');
+                  await prefs.remove('has_seen_welcome_dialog');
+                  print('🔄 Reset onboarding state');
+                  setState(() {});
+                },
+                child: const Text(
+                  'إعادة تعيين الـ Onboarding (للاختبار)',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
           ],
         ),
       ),
