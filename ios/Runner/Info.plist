@@ -50,5 +50,11 @@
 		<string>نحتاج إلى استخدام الكاميرا لمسح رمز QR لتسجيل حضورك.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>UIBackgroundModes</key>
+		<array>
+		<string>remote-notification</string>
+		</array>
+		<key>FirebaseAppDelegateProxyEnabled</key>
+		<false/>
 	</dict>
 </plist>
