@@ -358,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10.0),
                     child: SizedBox(
-                      height: 80, // 👈 ارتفاع ثابت للكروت
+                      height: 90, // 👈 ارتفاع ثابت للكروت
                       child: Row(
                         children: [
                           // ===== كارت المحاضرة =====

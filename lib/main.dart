@@ -5,7 +5,7 @@ import 'core/config/initial_bindings.dart';
 import 'core/services/notification_service.dart';
 import 'shared/themes/app_colors.dart';
 import 'shared/controllers/theme_controller.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart'; // ✅ إضافة OneSignal
+// import 'package:onesignal_flutter/onesignal_flutter.dart'; // handled inside NotificationService
 
 // ✅ الشاشات
 import 'features/splash/splash_screen.dart';
@@ -31,14 +31,7 @@ import 'features/teachers/screens/suggested_teachers_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ 1. تهيئة OneSignal
-  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-  OneSignal.initialize(
-    "YOUR-ONESIGNAL-APP-ID",
-  ); // ← ضع App ID الخاص بك من OneSignal
-  OneSignal.Notifications.requestPermission(
-    true,
-  ); // طلب الإذن من المستخدم في iOS
+  // ✅ تهيئة الإشعارات من خلال الخدمة المركزية فقط
 
   // ✅ 2. تهيئة نظام الإشعارات المحلي إن وُجد
   await NotificationService.instance.init();

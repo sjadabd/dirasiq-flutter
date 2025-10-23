@@ -27,4 +27,37 @@ class PermissionService {
     final result = await Permission.camera.request();
     return result.isGranted;
   }
+
+  static Future<bool> requestNotificationPermission() async {
+    var status = await Permission.notification.status;
+    if (status.isGranted) return true;
+    if (status.isDenied) {
+      final result = await Permission.notification.request();
+      return result.isGranted;
+    }
+    if (status.isPermanentlyDenied || status.isRestricted) {
+      await openAppSettings();
+      status = await Permission.notification.status;
+      return status.isGranted;
+    }
+    final result = await Permission.notification.request();
+    return result.isGranted;
+  }
+
+  static Future<bool> requestLocationWhenInUsePermission() async {
+    var status = await Permission.locationWhenInUse.status;
+    if (status.isGranted) return true;
+    if (status.isDenied) {
+      final result = await Permission.locationWhenInUse.request();
+      return result.isGranted;
+    }
+    if (status.isPermanentlyDenied || status.isRestricted) {
+      await openAppSettings();
+      status = await Permission.locationWhenInUse.status;
+      return status.isGranted;
+    }
+    final result = await Permission.locationWhenInUse.request();
+    return result.isGranted;
+  }
 }
+

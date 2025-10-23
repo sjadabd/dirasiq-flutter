@@ -47,6 +47,7 @@ class AuthService {
   /// ✅ تحديث الملف الشخصي
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
     try {
+      print(data);
       final response = await _apiService.dio.post(
         "/auth/update-profile",
         data: data,

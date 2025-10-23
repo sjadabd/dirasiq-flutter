@@ -522,7 +522,6 @@ class ApiService {
         "/notifications/user/my-notifications",
         queryParameters: qp,
       );
-      print("payload: $response");
 
       if (response.statusCode == 200 && response.data["success"] == true) {
         return Map<String, dynamic>.from(response.data["data"]);
@@ -773,7 +772,6 @@ class ApiService {
       };
       final response = await _dio.get("/student/bookings", queryParameters: qp);
       if (response.statusCode == 200) {
-        print(response.data);
         return Map<String, dynamic>.from(response.data);
       }
       throw Exception(response.data["message"] ?? "فشل تحميل الحجوزات");

@@ -6,6 +6,9 @@ import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_scre
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dirasiq/core/services/notification_events.dart';
+import 'package:dirasiq/features/exams/screens/student_exams_screen.dart';
+import 'package:dirasiq/features/invoices/screens/student_invoices_screen.dart';
+import 'package:dirasiq/features/invoices/screens/invoice_details_screen.dart';
 
 class NotificationService {
   NotificationService._();
@@ -124,6 +127,46 @@ class NotificationService {
 
     if (route != null && route.isNotEmpty) {
       Get.toNamed(route, arguments: data);
+      return;
+    }
+
+    // Exams routing: go directly to exams list (daily/monthly) instead of opening notifications list
+    final typeLower = type?.toLowerCase();
+    final payloadExamType = (data['exam_type'] ?? data['examType'] ?? data['kind'] ?? nested['exam_type'] ?? nested['examType'])
+        ?.toString()
+        .toLowerCase();
+    final inferredExamType = (data['type'] ?? data['category'] ?? nested['type'] ?? nested['category'])
+        ?.toString()
+        .toLowerCase();
+    final isExamNotification = (typeLower?.contains('exam') ?? false) ||
+        (payloadExamType == 'daily' || payloadExamType == 'monthly') ||
+        (inferredExamType == 'exam');
+    if (isExamNotification) {
+      final isMonthly = payloadExamType == 'monthly' || typeLower == 'monthly_exam';
+      if (isMonthly) {
+        Get.to(() => const StudentExamsScreen(fixedType: 'monthly', title: 'امتحانات شهرية'));
+      } else {
+        Get.to(() => const StudentExamsScreen(fixedType: 'daily', title: 'امتحانات يومية'));
+      }
+      return;
+    }
+
+    // Invoice routing
+    final invoiceId = (data['invoiceId'] ?? nested['invoiceId'] ?? data['invoice_id'] ?? nested['invoice_id'])?.toString();
+    final subType = (data['subType'] ?? data['sub_type'] ?? nested['subType'] ?? nested['sub_type'])?.toString().toLowerCase();
+    final isInvoiceBySubtype = const {
+      'invoice_created',
+      'invoice_updated',
+      'installment_due',
+      'installment_paid',
+    }.contains(subType);
+    final isInvoiceByType = (typeLower?.contains('invoice') ?? false) || typeLower == 'payment_reminder';
+    if (isInvoiceBySubtype || isInvoiceByType) {
+      if (invoiceId != null && invoiceId.isNotEmpty) {
+        Get.to(() => InvoiceDetailsScreen(invoiceId: invoiceId));
+      } else {
+        Get.to(() => const StudentInvoicesScreen());
+      }
       return;
     }
 

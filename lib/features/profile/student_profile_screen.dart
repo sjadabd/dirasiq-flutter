@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/services/auth_service.dart';
 import 'package:dirasiq/shared/widgets/global_app_bar.dart';
 import 'package:dirasiq/core/config/app_config.dart';
+import 'package:geolocator/geolocator.dart';
 
 class StudentProfileScreen extends StatefulWidget {
   const StudentProfileScreen({super.key});
@@ -28,6 +29,11 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
   DateTime? _birthDate;
   XFile? _pickedImage;
   String? _profileImageBase64;
+
+  bool _sendLocation = false;
+  bool _locationLoading = false;
+  double? _latitude;
+  double? _longitude;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -75,6 +81,19 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             _birthDate = DateTime.tryParse(user['birthDate']);
           }
           _profileImageBase64 = user['profileImageBase64'];
+
+          // Prefill stored location if available
+          final lat = user['latitude'];
+          final lng = user['longitude'];
+          if (lat != null && lng != null) {
+            final dLat = double.tryParse(lat.toString());
+            final dLng = double.tryParse(lng.toString());
+            if (dLat != null && dLng != null) {
+              _latitude = dLat;
+              _longitude = dLng;
+              _sendLocation = true;
+            }
+          }
         });
       }
     } catch (e) {
@@ -124,6 +143,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
     setState(() => _loading = true);
 
     try {
+      if (_sendLocation && (_latitude == null || _longitude == null)) {
+        await _getLocation();
+      }
       await _authService.updateProfile({
         'name': _nameController.text.trim(),
         'gender': _gender,
@@ -131,6 +153,10 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
         'studentPhone': _studentPhoneController.text.trim(),
         'parentPhone': _parentPhoneController.text.trim(),
         'schoolName': _schoolNameController.text.trim(),
+        if (_sendLocation) ...{
+          'latitude': _latitude ?? 33.36871840,
+          'longitude': _longitude ?? 44.51151040,
+        },
         if (_profileImageBase64 != null && _profileImageBase64!.isNotEmpty)
           'profileImageBase64': _profileImageBase64,
       });
@@ -267,6 +293,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
           _buildField(_nameController, 'الاسم الكامل', Icons.person_outline),
           _buildDropdown(),
           _buildDatePicker(),
+          const SizedBox(height: 12),
           _buildField(_studentPhoneController, 'هاتف الطالب', Icons.phone),
           _buildField(
             _parentPhoneController,
@@ -278,9 +305,125 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             'اسم المدرسة',
             Icons.school_outlined,
           ),
+          const SizedBox(height: 8),
+          _buildLocationSection(cs),
         ],
       ),
     );
+  }
+
+  Widget _buildLocationSection(ColorScheme cs) {
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outline.withOpacity(0.2)),
+      ),
+      child: CheckboxListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        activeColor: cs.primary,
+        secondary: _locationLoading
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: cs.primary,
+                ),
+              )
+            : Icon(Icons.location_on, color: cs.primary),
+        title: Text(
+          'إرسال موقعي الحالي',
+          style: TextStyle(color: cs.onSurface),
+        ),
+        subtitle: _locationLoading
+            ? Text(
+                'جاري الحصول على الموقع...',
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+              )
+            : (_latitude != null && _longitude != null)
+                ? Text(
+                    '${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                  )
+                : Text(
+                    'يساعد على تخصيص التجربة التعليمية',
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                  ),
+        value: _sendLocation,
+        onChanged: _locationLoading
+            ? null
+            : (val) async {
+                final wantSend = val ?? false;
+                if (wantSend) {
+                  // If already selected, treat tap as a refresh and upload new location
+                  if (_sendLocation) {
+                    await _getLocation();
+                    if (_latitude != null && _longitude != null) {
+                      await _uploadLocation(_latitude!, _longitude!);
+                    }
+                  } else {
+                    setState(() => _sendLocation = true);
+                    await _getLocation();
+                    if (_latitude != null && _longitude != null) {
+                      await _uploadLocation(_latitude!, _longitude!);
+                    }
+                  }
+                } else {
+                  setState(() => _sendLocation = false);
+                }
+              },
+      ),
+    );
+  }
+
+  Future<void> _getLocation() async {
+    setState(() => _locationLoading = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Get.snackbar('الموقع', 'خدمة الموقع غير مفعلة');
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          Get.snackbar('الموقع', 'تم رفض إذن الموقع');
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        Get.snackbar('الموقع', 'إذن الموقع مرفوض نهائياً');
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      if (!mounted) return;
+      setState(() {
+        _latitude = pos.latitude;
+        _longitude = pos.longitude;
+      });
+    } catch (e) {
+      Get.snackbar('الموقع', 'خطأ في جلب الموقع');
+    } finally {
+      if (mounted) setState(() => _locationLoading = false);
+    }
+  }
+
+  Future<void> _uploadLocation(double lat, double lng) async {
+    try {
+      await _authService.updateProfile({
+        'latitude': lat,
+        'longitude': lng,
+      });
+      Get.snackbar('الموقع', 'تم تحديث موقعك بنجاح');
+      await _loadUserData();
+    } catch (_) {
+      Get.snackbar('الموقع', 'تعذر إرسال الموقع إلى الخادم');
+    }
   }
 
   Widget _buildField(
@@ -585,7 +728,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
       ),
     );
   }
-  
+
   // Normalizes various image URL formats into a full absolute URL we can load.
   // Handles:
   // - data URLs (returned as-is)

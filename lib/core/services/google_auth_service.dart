@@ -28,19 +28,15 @@ class GoogleAuthService {
   /// ✅ تسجيل الدخول بجوجل
   Future<String?> signInWithGoogle(String userType) async {
     try {
-      print("STEP 1: بدء تسجيل الدخول عبر Google...");
       final account = await _googleSignIn.signIn();
-      print("STEP 2: account = ${account?.email}");
 
       if (account == null) {
         return "تم إلغاء العملية";
       }
 
       final auth = await account.authentication;
-      print("STEP 3: حصلنا على التوكن ✅");
 
       final playerId = await NotificationService.instance.getPlayerId();
-      print("STEP 4: playerId = $playerId");
 
       final payload = {
         "googleToken": auth.idToken,
@@ -48,10 +44,8 @@ class GoogleAuthService {
         if (playerId != null && playerId.isNotEmpty)
           "oneSignalPlayerId": playerId,
       };
-      print("STEP 5: payload = $payload");
 
       final response = await _dio.post("/google-auth", data: payload);
-      print("STEP 6: response = ${response.data}");
 
       if (response.statusCode == 200 && response.data["success"] == true) {
         final prefs = await SharedPreferences.getInstance();
@@ -62,17 +56,13 @@ class GoogleAuthService {
         await prefs.setString("token", token);
         await prefs.setString("user", jsonEncode(user));
         await NotificationService.instance.rebindExternalUserId();
-        print("STEP 7: تسجيل الدخول تم بنجاح ✅");
         return null;
       }
 
       return response.data["message"] ?? "فشل تسجيل الدخول عبر Google";
     } on DioException catch (e) {
-      print("🔥 DioException: ${e.response?.data ?? e.message}");
       return e.response?.data?["message"] ?? "خطأ في الشبكة";
-    } catch (e, st) {
-      print("❌ Unexpected error during Google Sign-In: $e");
-      print("StackTrace: $st");
+    } catch (e) {
       return "حدث خطأ غير متوقع";
     }
   }

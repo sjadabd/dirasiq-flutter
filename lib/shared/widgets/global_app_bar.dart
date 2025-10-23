@@ -7,6 +7,8 @@ import 'package:dirasiq/features/auth/screens/login_screen.dart';
 import 'package:dirasiq/features/search/screens/student_unified_search_screen.dart';
 import 'package:dirasiq/shared/controllers/global_controller.dart';
 import 'package:dirasiq/shared/controllers/theme_controller.dart';
+import 'package:dirasiq/core/services/permission_service.dart';
+import 'package:dirasiq/core/services/notification_service.dart';
 
 class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -137,8 +139,28 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
                       color: cs.onSurface,
                     ),
                     onPressed: () async {
-                      await Navigator.pushNamed(context, '/notifications');
-                      controller.loadUnread();
+                      final granted = await PermissionService.requestNotificationPermission();
+                      if (granted) {
+                        await NotificationService.instance.requestPermissionIfNeeded();
+                        await Navigator.pushNamed(context, '/notifications');
+                        controller.loadUnread();
+                        return;
+                      }
+
+                      final scheme = Theme.of(context).colorScheme;
+                      Get.snackbar(
+                        'تفعيل الإشعارات',
+                        'للتمكن من استقبال التحديثات، فعّل إذن الإشعارات من الإعدادات.',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark
+                            ? scheme.surface.withOpacity(0.95)
+                            : scheme.surface,
+                        colorText: scheme.onSurface,
+                        margin: const EdgeInsets.all(12),
+                        borderRadius: 12,
+                        icon: Icon(Icons.notifications_active_outlined, color: scheme.primary),
+                        duration: const Duration(seconds: 7),
+                      );
                     },
                   ),
                   if (count > 0)

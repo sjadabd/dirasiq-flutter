@@ -39,21 +39,47 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   static const List<Map<String, dynamic>> _filters = [
     {"text": "الكل", "value": null, "icon": Icons.notifications_rounded},
-    {"text": "واجب", "value": "homework", "icon": Icons.assignment_rounded},
-    {"text": "رسالة", "value": "message", "icon": Icons.message_rounded},
-    {"text": "تقرير", "value": "report", "icon": Icons.description_rounded},
-    {"text": "تبليغ", "value": "notice", "icon": Icons.campaign_rounded},
-    {"text": "أقساط", "value": "installments", "icon": Icons.payments_rounded},
     {
-      "text": "حضور",
-      "value": "attendance",
+      "text": "واجب",
+      "value": "assignment_due",
+      "icon": Icons.assignment_rounded,
+    },
+    {
+      "text": "امتحان جديد",
+      "value": "class_reminder",
+      "icon": Icons.quiz_rounded,
+    },
+    {
+      "text": "نتيجة امتحان",
+      "value": "grade_update",
+      "icon": Icons.fact_check_rounded,
+    },
+    {
+      "text": "الدروس والحضور",
+      "value": "COURSE_UPDATE",
       "icon": Icons.event_available_rounded,
     },
-    {"text": "ملخص", "value": "daily_summary", "icon": Icons.summarize_rounded},
-    {"text": "أعياد", "value": "birthday", "icon": Icons.cake_rounded},
-    {"text": "امتحان", "value": "daily_exam", "icon": Icons.quiz_rounded},
+    {
+      "text": "المدفوعات",
+      "value": "PAYMENT_REMINDER",
+      "icon": Icons.payments_rounded,
+    },
+    {
+      "text": "رسالة معلم",
+      "value": "teacher_message",
+      "icon": Icons.sms_rounded,
+    },
+    {
+      "text": "إعلان النظام",
+      "value": "SYSTEM_ANNOUNCEMENT",
+      "icon": Icons.campaign_rounded,
+    },
+    {
+      "text": "حجز دورة",
+      "value": "booking_status",
+      "icon": Icons.event_note_rounded,
+    },
   ];
-
   @override
   void initState() {
     super.initState();
