@@ -47,11 +47,9 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 
-	<!-- إذن الكاميرا لمسح أكواد QR -->
 	<key>NSCameraUsageDescription</key>
 	<string>نحتاج إلى استخدام الكاميرا لمسح رمز QR لتسجيل حضورك.</string>
 
-	<!-- الإشعارات في الخلفية -->
 	<key>UIStatusBarHidden</key>
 	<false/>
 	<key>UIBackgroundModes</key>
@@ -59,12 +57,20 @@
 		<string>remote-notification</string>
 	</array>
 
-	<!-- Firebase / OneSignal -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
 
-	<!-- 🔐 هذا السطر هو المطلوب من Apple -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>This app requires access to your photo library to allow image selection and upload.</string>
+
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>This app uses your location to provide location-based features and improve user experience.</string>
+
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>This app requires access to your location even in the background to enable continuous location-based services.</string>
+
 </dict>
 </plist>
