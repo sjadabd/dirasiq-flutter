@@ -2,20 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>236714696249-vsm8los0ghf62s5q8j04tba7gq0v2o7i.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.236714696249-vsm8los0ghf62s5q8j04tba7gq0v2o7i</string>
 	<key>ANDROID_CLIENT_ID</key>
-	<string>347174406018-ui7itep0fl9nivdbbj9u9vpq48g9dard.apps.googleusercontent.com</string>
+	<string>236714696249-faca37apemcp5i7nfvilb8bk750mlg2d.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
-	<string>AIzaSyANVxGry6Tg1LvrBHUJ5g82bvjRyI_OYHw</string>
+	<string>AIzaSyCUJZLdfa0J2o2YSmnpzgxajNiZfazPkbw</string>
 	<key>GCM_SENDER_ID</key>
-	<string>347174406018</string>
+	<string>236714696249</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.mulhimiq.app</string>
 	<key>PROJECT_ID</key>
-	<string>mypro-385614</string>
+	<string>mulhimiq-845df</string>
 	<key>STORAGE_BUCKET</key>
-	<string>mypro-385614.firebasestorage.app</string>
+	<string>mulhimiq-845df.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -27,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:347174406018:ios:58e9ed76c4067922d8f19b</string>
+	<string>1:236714696249:ios:50a48721b90d33575037e8</string>
 </dict>
 </plist>

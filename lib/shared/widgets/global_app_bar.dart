@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:get/get.dart';
 import 'package:dirasiq/core/config/app_config.dart';
 import 'package:dirasiq/core/services/auth_service.dart';
@@ -148,19 +149,21 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
                       }
 
                       final scheme = Theme.of(context).colorScheme;
-                      Get.snackbar(
-                        'تفعيل الإشعارات',
-                        'للتمكن من استقبال التحديثات، فعّل إذن الإشعارات من الإعدادات.',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Theme.of(context).brightness == Brightness.dark
-                            ? scheme.surface.withOpacity(0.95)
-                            : scheme.surface,
-                        colorText: scheme.onSurface,
-                        margin: const EdgeInsets.all(12),
-                        borderRadius: 12,
-                        icon: Icon(Icons.notifications_active_outlined, color: scheme.primary),
-                        duration: const Duration(seconds: 7),
-                      );
+                      if (Platform.isAndroid) {
+                        Get.snackbar(
+                          'تفعيل الإشعارات',
+                          'للتمكن من استقبال التحديثات، فعّل إذن الإشعارات من الإعدادات.',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark
+                              ? scheme.surface.withOpacity(0.95)
+                              : scheme.surface,
+                          colorText: scheme.onSurface,
+                          margin: const EdgeInsets.all(12),
+                          borderRadius: 12,
+                          icon: Icon(Icons.notifications_active_outlined, color: scheme.primary),
+                          duration: const Duration(seconds: 7),
+                        );
+                      }
                     },
                   ),
                   if (count > 0)

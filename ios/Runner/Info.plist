@@ -57,6 +57,18 @@
 		<string>remote-notification</string>
 	</array>
 
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.236714696249-vsm8los0ghf62s5q8j04tba7gq0v2o7i</string>
+			</array>
+		</dict>
+	</array>
+
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
 
