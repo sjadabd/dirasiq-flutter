@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/config/initial_bindings.dart';
 import 'core/services/notification_service.dart';
@@ -66,10 +67,11 @@ class MyApp extends StatelessWidget {
 
         // ✅ الاتجاه الافتراضي RTL + اعتراض زر الرجوع للخروج
         builder: (context, child) {
-          return Directionality(
+          final base = Directionality(
             textDirection: TextDirection.rtl,
             child: _ExitGuard(child: child ?? const SizedBox()),
           );
+          return _WhatsAppSupportOverlay(child: base);
         },
 
         themeMode: theme.themeMode.value,
@@ -303,5 +305,116 @@ class _ExitGuard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(onWillPop: _onWillPop, child: child);
+  }
+}
+
+class _WhatsAppSupportOverlay extends StatefulWidget {
+  const _WhatsAppSupportOverlay({required this.child});
+  final Widget child;
+
+  @override
+  State<_WhatsAppSupportOverlay> createState() =>
+      _WhatsAppSupportOverlayState();
+}
+
+class _WhatsAppSupportOverlayState extends State<_WhatsAppSupportOverlay> {
+  Offset? _offset;
+  final String _localNumber = '07724275947';
+  final String _countryCode = '964';
+
+  String _normalizedNumber() {
+    final digits = _localNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (digits.startsWith('+')) {
+      return digits.substring(1);
+    }
+    if (digits.startsWith('0')) {
+      return _countryCode + digits.substring(1);
+    }
+    return digits;
+  }
+
+  Future<void> _openWhatsApp() async {
+    final phone = _normalizedNumber();
+    final uriApp = Uri.parse('whatsapp://send?phone=$phone');
+    final uriWeb = Uri.parse('https://wa.me/$phone');
+    try {
+      if (await canLaunchUrl(uriApp)) {
+        await launchUrl(uriApp, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uriWeb, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final mq = MediaQuery.of(context);
+      final size = mq.size;
+      final padding = mq.padding;
+      const btnSize = 56.0;
+      const margin = 16.0;
+      final dxDefault = size.width - btnSize - margin;
+      final dyDefault = size.height - btnSize - padding.bottom - margin - 80;
+      if (mounted) {
+        setState(() {
+          _offset = Offset(dxDefault, dyDefault);
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final size = mq.size;
+    final padding = mq.padding;
+    final btnSize = 56.0;
+    final margin = 16.0;
+    final pos =
+        _offset ??
+        Offset(
+          size.width - btnSize - margin,
+          size.height - btnSize - padding.bottom - margin - 80,
+        );
+
+    return Stack(
+      children: [
+        widget.child,
+        Positioned(
+          left: pos.dx.clamp(margin, size.width - btnSize - margin),
+          top: pos.dy.clamp(
+            margin + padding.top,
+            size.height - btnSize - padding.bottom - margin,
+          ),
+          child: GestureDetector(
+            onPanUpdate: (d) {
+              setState(() {
+                final current = _offset ?? pos;
+                _offset = Offset(
+                  current.dx + d.delta.dx,
+                  current.dy + d.delta.dy,
+                );
+              });
+            },
+            child: Material(
+              color: Colors.transparent,
+              child: SizedBox(
+                width: btnSize,
+                height: btnSize,
+                child: FloatingActionButton(
+                  heroTag: 'wa_support_fab',
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  onPressed: _openWhatsApp,
+                  child: const Icon(Icons.support_agent),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
