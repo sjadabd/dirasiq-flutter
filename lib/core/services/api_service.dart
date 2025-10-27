@@ -19,6 +19,27 @@ class ApiService {
     }
   }
 
+  /// ✅ جلب معلومات الفيديو التعريفي للمعلم (HLS)
+  Future<Map<String, dynamic>> fetchTeacherIntroVideo(String teacherId) async {
+    try {
+      final response = await _dio.get(
+        "/student/teachers/$teacherId/intro-video",
+      );
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        // ارجع الاستجابة كاملةً لأننا نحتاج content_url لبناء روابط مطلقة
+        return Map<String, dynamic>.from(response.data);
+      }
+      throw Exception(response.data["message"] ?? "فشل جلب الفيديو التعريفي");
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map<String, dynamic>
+          ? (e.response!.data["message"]?.toString() ?? e.message)
+          : e.message;
+      throw Exception("❌ خطأ أثناء جلب الفيديو التعريفي: $msg");
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء جلب الفيديو التعريفي: $e");
+    }
+  }
+
   /// ✅ البحث الموحّد للطالب (معلمين، كورسات، مواد)
   Future<Map<String, dynamic>> searchStudentUnified({
     required String q,

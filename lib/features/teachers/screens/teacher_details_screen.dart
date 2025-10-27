@@ -3,6 +3,7 @@ import 'package:dirasiq/core/services/api_service.dart';
 import 'package:dirasiq/core/config/app_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:better_player_plus/better_player_plus.dart';
 
 class TeacherDetailsScreen extends StatefulWidget {
   final String teacherId;
@@ -19,11 +20,19 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
   Map<String, dynamic>? _teacher;
   List<Map<String, dynamic>> _subjects = [];
   List<Map<String, dynamic>> _courses = [];
+  // Intro video state
+  bool _introLoading = true;
+  String? _introError;
+  Map<String, dynamic>? _introData; // response.data
+  String?
+  _contentBase; // response.content_url normalized without trailing slash
+  BetterPlayerController? _bpController;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadIntro();
   }
 
   Future<void> _load() async {
@@ -45,11 +54,78 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
     }
   }
 
-  String _fullImageUrl(String? p) {
+  Future<void> _loadIntro() async {
+    setState(() {
+      _introLoading = true;
+      _introError = null;
+    });
+    try {
+      final res = await _api.fetchTeacherIntroVideo(widget.teacherId);
+      final base = (res['content_url']?.toString() ?? '').replaceAll(
+        RegExp(r"/+$"),
+        '',
+      );
+      final data = Map<String, dynamic>.from(res['data'] ?? {});
+      setState(() {
+        _introData = data;
+        _contentBase = base.isEmpty ? AppConfig.serverBaseUrl : base;
+      });
+    } catch (e) {
+      setState(() => _introError = e.toString());
+    } finally {
+      if (mounted) setState(() => _introLoading = false);
+    }
+  }
+
+  String _absFromContent(String? p) {
     if (p == null || p.isEmpty) return '';
+    final base = (_contentBase ?? AppConfig.serverBaseUrl).replaceAll(
+      RegExp(r"/+$"),
+      '',
+    );
     if (p.startsWith('http')) return p;
-    if (p.startsWith('/')) return '${AppConfig.serverBaseUrl}$p';
-    return p;
+    if (p.startsWith('/')) return '$base$p';
+    return '$base/$p';
+  }
+
+  void _setupBetterPlayer({required String manifestUrl, String? thumbnail}) {
+    try {
+      final url = _absFromContent(manifestUrl);
+      final dataSource = BetterPlayerDataSource(
+        BetterPlayerDataSourceType.network,
+        url,
+        useAsmsSubtitles: true,
+        useAsmsTracks: true,
+        placeholder: (thumbnail != null && thumbnail.isNotEmpty)
+            ? Image.network(_absFromContent(thumbnail), fit: BoxFit.cover)
+            : null,
+      );
+      final config = BetterPlayerConfiguration(
+        autoPlay: false,
+        looping: false,
+        fit: BoxFit.cover,
+        handleLifecycle: true,
+        autoDetectFullscreenDeviceOrientation: true,
+        allowedScreenSleep: false,
+        controlsConfiguration: const BetterPlayerControlsConfiguration(
+          enableSkips: true,
+          enableQualities: true,
+          enableFullscreen: true,
+          showControlsOnInitialize: false,
+        ),
+      );
+      final controller = BetterPlayerController(config);
+      controller.setupDataSource(dataSource);
+      setState(() => _bpController = controller);
+    } catch (e) {
+      setState(() => _introError = 'تعذر تشغيل الفيديو: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _bpController?.dispose();
+    super.dispose();
   }
 
   double? _toDouble(dynamic v) {
@@ -92,127 +168,165 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    final name = (_teacher?['name'] ?? _teacher?['full_name'] ?? '').toString();
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: AppBar(title: const Text('تفاصيل المعلم')),
+      appBar: AppBar(title: Text(name.isEmpty ? 'تفاصيل المعلم' : name)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? _buildError(cs)
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                children: [
-                  // ✅ صورة المعلم في الأعلى
-                  Center(
+          : (_error != null
+                ? _buildError(cs)
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Container(
-                          width: 110,
-                          height: 110,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                              ),
-                            ],
+                        _buildIntroVideoSection(cs),
+                        const SizedBox(height: 16),
+                        if (_subjects.isNotEmpty)
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _subjects
+                                .map(
+                                  (s) => Chip(
+                                    label: Text(
+                                      s['name'] ?? '',
+                                      style: TextStyle(
+                                        color: cs.onSecondaryContainer,
+                                      ),
+                                    ),
+                                    backgroundColor: cs.secondaryContainer,
+                                  ),
+                                )
+                                .toList(),
                           ),
-                          child: ClipOval(
-                            child: Image.network(
-                              _fullImageUrl(
-                                _teacher?['profileImagePath'] ?? '',
-                              ),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: cs.surfaceVariant,
-                                child: Icon(
-                                  Icons.person,
-                                  size: 60,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _openOnMaps,
+                          icon: const Icon(Icons.map_outlined),
+                          label: const Text('عرض موقع المعلم على الخريطة'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: cs.primary,
+                            foregroundColor: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 24),
                         Text(
-                          _teacher?['name'] ?? 'غير معروف',
+                          'الدورات',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
                             color: cs.onSurface,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        if (_courses.isEmpty)
+                          Text(
+                            'لا توجد دورات حالياً',
+                            style: TextStyle(color: cs.onSurfaceVariant),
+                          )
+                        else
+                          ..._courses
+                              .asMap()
+                              .entries
+                              .map(
+                                (e) => _buildCourseItem(
+                                  e.value,
+                                  e.key,
+                                  cs,
+                                  isDark,
+                                ),
+                              )
+                              .toList(),
                       ],
                     ),
-                  ),
+                  )),
+    );
+  }
 
-                  const SizedBox(height: 20),
-
-                  // ✅ المواد التي يدرّسها
-                  if (_subjects.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _subjects
-                          .map(
-                            (s) => Chip(
-                              label: Text(
-                                s['name'] ?? '',
-                                style: TextStyle(
-                                  color: cs.onSecondaryContainer,
-                                ),
-                              ),
-                              backgroundColor: cs.secondaryContainer,
-                            ),
-                          )
-                          .toList(),
-                    ),
-
-                  const SizedBox(height: 16),
-
-                  ElevatedButton.icon(
-                    onPressed: _openOnMaps,
-                    icon: const Icon(Icons.map_outlined),
-                    label: const Text('عرض موقع المعلم على الخريطة'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: cs.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  Text(
-                    'الدورات',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  if (_courses.isEmpty)
-                    Text(
-                      'لا توجد دورات حالياً',
-                      style: TextStyle(color: cs.onSurfaceVariant),
-                    )
-                  else
-                    ..._courses
-                        .asMap()
-                        .entries
-                        .map(
-                          (e) => _buildCourseItem(e.value, e.key, cs, isDark),
-                        )
-                        .toList(),
-                ],
-              ),
+  Widget _buildIntroVideoSection(ColorScheme cs) {
+    if (_introLoading) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
+            SizedBox(width: 8),
+            Text('جاري تحميل الفيديو التعريفي...'),
+          ],
+        ),
+      );
+    }
+
+    if (_introError != null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cs.errorContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(_introError!, style: TextStyle(color: cs.onErrorContainer)),
+      );
+    }
+
+    final data = _introData ?? const {};
+    final status = (data['status'] ?? 'none').toString();
+    if (status != 'ready') {
+      final msg =
+          {
+            'processing': 'الفيديو قيد المعالجة، حاول لاحقاً',
+            'failed': 'تعذر تجهيز الفيديو التعريفي',
+            'none': 'لا يوجد فيديو تعريفي',
+          }[status] ??
+          'لا يوجد فيديو تعريفي';
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: cs.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(msg, style: TextStyle(color: cs.onSurfaceVariant)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final manifest = data['manifestUrl']?.toString() ?? '';
+    final thumb = data['thumbnailUrl']?.toString() ?? '';
+    final controller = _bpController;
+
+    if (controller == null && manifest.isNotEmpty) {
+      // initialize once when data becomes ready
+      _setupBetterPlayer(manifestUrl: manifest, thumbnail: thumb);
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: (_bpController != null)
+            ? BetterPlayer(controller: _bpController!)
+            : Container(color: cs.surfaceVariant),
+      ),
     );
   }
 

@@ -5,8 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dirasiq/core/config/app_config.dart'; // ✅ استدعاء AppConfig
 import 'package:dirasiq/core/services/notification_service.dart';
 
-import '../config/app_config.dart';
-
 class GoogleAuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],

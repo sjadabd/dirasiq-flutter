@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:dirasiq/core/services/api_service.dart';
 import 'package:dirasiq/core/config/app_config.dart';
 import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:get/get.dart';
+import 'package:dirasiq/features/teachers/screens/teacher_details_screen.dart';
 
 class CourseDetailsScreen extends StatefulWidget {
   final String courseId;
@@ -333,65 +335,72 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
   }
 
   Widget _teacherCard(ThemeData theme, Map<String, dynamic> t) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-            child: Icon(
-              Icons.person_rounded,
-              color: theme.colorScheme.primary,
-              size: 32,
+    final teacherId = t['id']?.toString();
+    return InkWell(
+      onTap: teacherId == null
+          ? null
+          : () => Get.to(() => TeacherDetailsScreen(teacherId: teacherId)),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+              child: Icon(
+                Icons.person_rounded,
+                color: theme.colorScheme.primary,
+                size: 32,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t['name'] ?? 'غير معروف',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t['name'] ?? 'غير معروف',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "${t['experienceYears'] ?? 0} سنوات خبرة",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 4),
+                  Text(
+                    "${t['experienceYears'] ?? 0} سنوات خبرة",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-                if (t['distance'] != null)
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 14,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        "${t['distance'].toStringAsFixed(1)} كم",
-                        style: TextStyle(
-                          fontSize: 12,
+                  if (t['distance'] != null)
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
                           color: theme.colorScheme.primary,
                         ),
-                      ),
-                    ],
-                  ),
-              ],
+                        const SizedBox(width: 4),
+                        Text(
+                          "${t['distance'].toStringAsFixed(1)} كم",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

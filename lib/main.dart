@@ -27,6 +27,7 @@ import 'features/enrollments/screens/course_attendance_screen.dart';
 import 'features/invoices/screens/student_invoices_screen.dart';
 import 'features/invoices/screens/invoice_details_screen.dart';
 import 'features/teachers/screens/suggested_teachers_screen.dart';
+import 'features/teachers/screens/teacher_details_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -248,6 +249,13 @@ class MyApp extends StatelessWidget {
           GetPage(
             name: "/suggested-teachers",
             page: () => const SuggestedTeachersScreen(),
+          ),
+          GetPage(
+            name: "/teacher-details",
+            page: () {
+              final id = Get.arguments as String;
+              return TeacherDetailsScreen(teacherId: id);
+            },
           ),
           GetPage(name: "/bookings", page: () => const BookingsListScreen()),
           GetPage(

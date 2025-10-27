@@ -313,7 +313,6 @@ class _SuggestedCoursesScreenState extends State<SuggestedCoursesScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Spacer(),
                     Row(
                       children: [
                         Icon(
@@ -322,25 +321,34 @@ class _SuggestedCoursesScreenState extends State<SuggestedCoursesScreen> {
                           color: theme.colorScheme.secondary,
                         ),
                         const SizedBox(width: 3),
-                        Text(
-                          "$distance كم",
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurfaceVariant,
+                        Expanded(
+                          child: Text(
+                            "$distance كم",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 6),
                         Icon(
                           Icons.attach_money,
                           size: 14,
                           color: theme.colorScheme.primary,
                         ),
-                        Text(
-                          price,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: Text(
+                            price,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
