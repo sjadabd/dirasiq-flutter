@@ -261,7 +261,7 @@ class LoginScreen extends StatelessWidget {
 
               // 🔹 Small Footer
               Text(
-                "© ديراسِق - جميع الحقوق محفوظة",
+                "© ملهم - جميع الحقوق محفوظة",
                 style: TextStyle(
                   color: scheme.onSurface.withOpacity(0.4),
                   fontSize: 11,
