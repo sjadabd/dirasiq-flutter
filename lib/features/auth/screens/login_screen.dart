@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/auth_text_field.dart';
 import 'register_screen.dart';
 import '../../../core/services/google_auth_service.dart';
 import '../../../core/services/auth_service.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:dirasiq/core/services/apple_auth_service.dart';
 import '../../profile/complete_profile_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -15,6 +18,7 @@ class LoginScreen extends StatelessWidget {
   final _passwordController = TextEditingController();
   final AuthController _controller = Get.find<AuthController>();
   final AuthService _authService = AuthService();
+  final AppleAuthService _appleAuthService = AppleAuthService();
 
   Future<void> _handleGoogleLogin(BuildContext context) async {
     final googleAuth = GoogleAuthService();
@@ -35,9 +39,30 @@ class LoginScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _handleAppleLogin(BuildContext context) async {
+    final String? error = await _appleAuthService.signInWithApple("student");
+
+    if (!context.mounted) return;
+
+    if (error == null) {
+      final complete = await _authService.isProfileComplete();
+
+      if (complete) {
+        Get.offAllNamed('/home');
+      } else {
+        Get.offAll(() => const CompleteProfileScreen());
+      }
+    } else {
+      Get.snackbar('خطأ', error, snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final bool isApple =
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
 
     return Scaffold(
       backgroundColor: scheme.surface,
@@ -175,7 +200,9 @@ class LoginScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: scheme.outline.withOpacity(0.4)),
+                    side: BorderSide(
+                      color: scheme.outline.withValues(alpha: 0.4),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -185,6 +212,21 @@ class LoginScreen extends StatelessWidget {
               ),
 
               const SizedBox(height: 20),
+
+              if (isApple) ...[
+                // 🔹 Apple Sign-In Button (iOS/macOS only)
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: SignInWithAppleButton(
+                    onPressed: () => _handleAppleLogin(context),
+                    borderRadius: const BorderRadius.all(Radius.circular(12)),
+                    text: 'تسجيل الدخول Apple',
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+              ],
 
               // 🔹 Forgot Password / Register
               Row(
