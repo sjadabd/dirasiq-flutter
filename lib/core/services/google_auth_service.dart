@@ -28,6 +28,10 @@ class GoogleAuthService {
   /// ✅ تسجيل الدخول بجوجل
   Future<String?> signInWithGoogle(String userType) async {
     try {
+      await _googleSignIn.signOut();
+      try {
+        await _googleSignIn.disconnect();
+      } catch (_) {}
       final account = await _googleSignIn.signIn();
 
       if (account == null) {

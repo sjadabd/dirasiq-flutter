@@ -31,6 +31,11 @@ class GlobalController extends GetxController {
   /// تحميل المستخدم والإشعارات + إعداد المستمعين
   Future<void> _initialize() async {
     await loadUser();
+    // لا تقم بتحميل الإشعارات أو إعداد المستمعين إذا لم يكن المستخدم مسجلاً
+    final loggedIn = await _auth.isLoggedIn();
+    if (!loggedIn) {
+      return;
+    }
     await loadUnread();
 
     // ✅ استمع لأي إشعار جديد
@@ -61,6 +66,9 @@ class GlobalController extends GetxController {
   /// ✅ تحميل عدد الإشعارات غير المقروءة
   Future<void> loadUnread() async {
     try {
+      // تجنب الطلبات الشبكية إذا لم يكن مسجلاً
+      final loggedIn = await _auth.isLoggedIn();
+      if (!loggedIn) return;
       final count = await _api.fetchUnreadNotificationsCount();
       unreadCount.value = count;
       _updateBadge(count);

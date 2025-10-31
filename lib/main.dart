@@ -65,11 +65,11 @@ class MyApp extends StatelessWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
 
-        // ✅ الاتجاه الافتراضي RTL + اعتراض زر الرجوع للخروج
+        // ✅ الاتجاه الافتراضي RTL
         builder: (context, child) {
           final base = Directionality(
             textDirection: TextDirection.rtl,
-            child: _ExitGuard(child: child ?? const SizedBox()),
+            child: child ?? const SizedBox(),
           );
           return _WhatsAppSupportOverlay(child: base);
         },
@@ -273,40 +273,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// اعتراض الخروج من التطبيق فقط عند آخر صفحة
-class _ExitGuard extends StatelessWidget {
-  const _ExitGuard({required this.child});
-  final Widget child;
-
-  Future<bool> _onWillPop() async {
-    if (Get.key.currentState?.canPop() ?? false) {
-      return true;
-    }
-    final result = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('تأكيد الخروج'),
-        content: const Text('هل أنت متأكد أنك تريد الخروج من التطبيق؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Get.back(result: true),
-            child: const Text('نعم، خروج'),
-          ),
-        ],
-      ),
-      barrierDismissible: false,
-    );
-    return result ?? false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(onWillPop: _onWillPop, child: child);
-  }
-}
+// تمت إزالة اعتراض الخروج العام. تأكيد الخروج موجود فقط في RootShell (الصفحة الرئيسية).
 
 class _WhatsAppSupportOverlay extends StatefulWidget {
   const _WhatsAppSupportOverlay({required this.child});

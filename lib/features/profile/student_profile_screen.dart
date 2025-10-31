@@ -81,6 +81,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             _birthDate = DateTime.tryParse(user['birthDate']);
           }
           _profileImageBase64 = user['profileImageBase64'];
+          _pickedImage = null;
 
           // Prefill stored location if available
           final lat = user['latitude'];
@@ -231,7 +232,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             children: [
               CircleAvatar(
                 radius: 32,
-                backgroundImage: _pickedImage != null
+                backgroundImage: (_pickedImage != null &&
+                        _profileImageBase64 != null &&
+                        _profileImageBase64!.isNotEmpty)
                     ? MemoryImage(base64Decode(_profileImageBase64!))
                     : _buildProfileImageProvider(),
                 backgroundColor: cs.primaryContainer,

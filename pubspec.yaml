@@ -20,6 +20,7 @@ dependencies:
   geolocator: ^12.0.0
   video_player: ^2.9.2
   better_player_plus: ^1.1.2
+  back_button_interceptor: ^7.0.3
   flutter_localizations: #  مهم عشان DatePicker واللغات
     sdk: flutter
   onesignal_flutter: ^5.1.4
