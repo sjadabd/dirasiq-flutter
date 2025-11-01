@@ -1,7 +1,7 @@
 import UIKit
 import Flutter
 import OneSignalFramework
-import GoogleSignIn   // 👈 أضف هذا السطر
+import GoogleSignIn
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -19,16 +19,19 @@ import GoogleSignIn   // 👈 أضف هذا السطر
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // 👇 أضف هذه الدالة لتفعيل Google Sign-In
+  // 👇 معالجة URLs لـ Google Sign-In (iOS 9+)
   override func application(
     _ app: UIApplication,
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
-    // إذا الرابط خاص بـ Google Sign-In → يتم معالجته هنا
-    if GIDSignIn.sharedInstance.handle(url) {
+    // معالجة Google Sign-In URLs
+    let handled = GIDSignIn.sharedInstance.handle(url)
+    if handled {
       return true
     }
+    
+    // تمرير باقي URLs للـ Flutter
     return super.application(app, open: url, options: options)
   }
 }
