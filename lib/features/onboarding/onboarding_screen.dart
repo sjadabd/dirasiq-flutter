@@ -17,44 +17,51 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  // محتوى جديد لشاشة التعريف (نسخة جديدة)
   final List<_IntroPageData> _pages = const [
     _IntroPageData(
-      title: 'مرحبًا بك في ملهم',
+      title: 'مرحباً بك في ملهم عراق',
       subtitle:
-          'منصتك التعليمية الذكية لتنظيم دراستك والتواصل مع أفضل الأساتذة بسهولة واحترافية.',
-      icon: Icons.school_rounded,
-      features: ['تعلّم بمرونة', 'تابع تقدمك', 'كن جزءاً من مجتمع تعليمي'],
+          'منصة تعليمية عراقية تُسهّل عليك الوصول للدورات المباشرة، الواجبات، والمتابعة الذكية.',
+      icon: Icons.flag_rounded,
+      features: ['واجهة عربية متكاملة', 'تعلم مباشر وتفاعلي', 'تجربة سريعة وآمنة'],
     ),
     _IntroPageData(
-      title: 'كل ما تحتاجه في مكان واحد',
+      title: 'تعلّم بذكاء ومرونة',
       subtitle:
-          'دروس مباشرة، اختبارات، تقييمات وتقارير الأداء – كل ذلك ضمن تجربة تعليمية متكاملة.',
-      icon: Icons.auto_graph_rounded,
-      features: ['اختبارات فورية', 'تقييم ذكي', 'إحصائيات دقيقة'],
+          'نخطط دراستك معك: محاضرات، تنبيهات، وتتبع للتقدم حتى تحقق أهدافك التعليمية.',
+      icon: Icons.psychology_rounded,
+      features: ['خطط أسبوعية', 'تنبيهات ذكية', 'تتبّع إنجازك'],
     ),
     _IntroPageData(
-      title: 'جاهز للانطلاق؟',
+      title: 'مجتمع أساتذة وطلاب',
       subtitle:
-          'ابدأ رحلتك التعليمية اليوم وحقق أهدافك بخطوات واثقة وسهلة مع ملهم.',
+          'أفضل الأساتذة مع مجتمع داعم. قيّم، اسأل، وتابع نتائجك أولاً بأول.',
+      icon: Icons.groups_rounded,
+      features: ['أساتذة موثوقون', 'محتوى مُحدّث', 'دعم فني متواصل'],
+    ),
+    _IntroPageData(
+      title: 'جاهز للبدء؟',
+      subtitle:
+          'أنشئ حسابك الآن لتجربة تعليمية مصممة لك. بلمسة واحدة تبدأ الرحلة.',
       icon: Icons.rocket_launch_rounded,
-      features: ['ابدأ الآن', 'محتوى مجاني', 'دعم متواصل'],
+      features: ['تسجيل سريع', 'تجربة مجانية', 'إعداد سهل'],
     ),
   ];
 
   @override
   void initState() {
     super.initState();
-    print('🎯 OnboardingScreen initState called');
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 700),
     );
     _fadeAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
     );
     _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero).animate(
           CurvedAnimation(
             parent: _animationController,
             curve: Curves.easeOutCubic,
@@ -64,18 +71,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> _finishOnboarding() async {
-    print('🏁 Finishing onboarding...');
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('has_seen_onboarding', true);
-    print('🔐 Navigating to login...');
+    const String onboardingSeenKey = 'has_seen_onboarding_2025_v1';
+    await prefs.setBool(onboardingSeenKey, true);
     Get.offAllNamed('/login');
   }
 
   void _next() {
-    print('➡️ Next button pressed, current index: $_currentIndex');
     if (_currentIndex < _pages.length - 1) {
       _controller.nextPage(
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
       );
       _animationController.reset();
@@ -88,7 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _previous() {
     if (_currentIndex > 0) {
       _controller.previousPage(
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
       );
     }
@@ -96,7 +101,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   void dispose() {
-    // Dispose controllers to avoid active ticker leaks
     _animationController.dispose();
     _controller.dispose();
     super.dispose();
@@ -104,17 +108,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
-    print('🎨 OnboardingScreen build called, currentIndex: $_currentIndex');
     final scheme = Theme.of(context).colorScheme;
 
     return WillPopScope(
-      onWillPop: () async => false, // منع العودة
+      onWillPop: () async => false,
       child: Scaffold(
         backgroundColor: scheme.background,
         body: SafeArea(
           child: Column(
             children: [
-              // 🔹 Header Bar
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -156,7 +158,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
 
-              // 🔹 Pages
               Expanded(
                 child: PageView.builder(
                   controller: _controller,
@@ -174,15 +175,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         position: _slideAnimation,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 24,
+                            horizontal: 28,
+                            vertical: 22,
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Container(
-                                width: 100,
-                                height: 100,
+                                width: 110,
+                                height: 110,
                                 decoration: BoxDecoration(
                                   color: scheme.primary.withOpacity(0.1),
                                   shape: BoxShape.circle,
@@ -190,7 +191,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 child: Icon(
                                   p.icon,
                                   color: scheme.primary,
-                                  size: 52,
+                                  size: 56,
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -204,18 +205,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                       color: scheme.onSurface,
                                     ),
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 12),
 
                               Text(
                                 p.subtitle,
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
-                                      color: scheme.onSurface.withOpacity(0.7),
+                                      color: scheme.onSurface.withOpacity(0.75),
                                       height: 1.6,
                                     ),
                               ),
-                              const SizedBox(height: 26),
+                              const SizedBox(height: 24),
 
                               Wrap(
                                 alignment: WrapAlignment.center,
@@ -254,15 +255,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
 
-              // 🔹 Page Indicator
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(vertical: 18),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     _pages.length,
                     (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
+                      duration: const Duration(milliseconds: 300),
                       margin: const EdgeInsets.symmetric(horizontal: 5),
                       width: _currentIndex == i ? 28 : 8,
                       height: 8,
@@ -277,9 +277,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
 
-              // 🔹 Next Button
               Padding(
-                padding: const EdgeInsets.fromLTRB(32, 0, 32, 32),
+                padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
                 child: SizedBox(
                   width: double.infinity,
                   height: 50,

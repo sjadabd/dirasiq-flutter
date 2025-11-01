@@ -34,7 +34,9 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final hasSeenOnboarding = prefs.getBool('has_seen_onboarding') ?? false;
+    // استخدام مفتاح جديد كلياً لإجبار عرض التعريف مرة واحدة لكل المستخدمين
+    const String onboardingSeenKey = 'has_seen_onboarding_2025_v1';
+    final bool hasSeenOnboarding = prefs.getBool(onboardingSeenKey) ?? false;
     final loggedIn = await _authService.isLoggedIn();
 
     if (loggedIn) {
@@ -141,7 +143,7 @@ class _SplashScreenState extends State<SplashScreen> {
               TextButton(
                 onPressed: () async {
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('has_seen_onboarding');
+                  await prefs.remove('has_seen_onboarding_2025_v1');
                   await prefs.remove('has_seen_welcome_dialog');
                   setState(() {});
                 },
