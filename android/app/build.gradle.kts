@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services") // ✅ بدون version هنا
+    id("com.google.gms.google-services")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -17,6 +17,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("my-key.keystore")
+            storePassword = "Mlak1212@Mlak1212"
+            keyAlias = "my-key-alias"
+            keyPassword = "Mlak1212@Mlak1212"
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -25,12 +46,6 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
-
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
-        }
-    }
 }
 
 flutter {
@@ -38,12 +53,7 @@ flutter {
 }
 
 dependencies {
-    // ✅ Firebase BOM
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
-
-    // ✅ Firebase Messaging (مطلوب لـ OneSignal)
     implementation("com.google.firebase:firebase-messaging")
-
-    // ✅ Firebase Analytics
     implementation("com.google.firebase:firebase-analytics")
 }
