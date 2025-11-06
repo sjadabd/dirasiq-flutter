@@ -57,6 +57,55 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
     _slideController.forward();
   }
 
+  Future<void> _confirmDelete() async {
+    Get.defaultDialog(
+      title: 'حذف الحساب',
+      titleStyle: const TextStyle(fontWeight: FontWeight.bold),
+      middleText: 'هل أنت متأكد من حذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه.',
+      textCancel: 'إلغاء',
+      textConfirm: 'حذف',
+      confirmTextColor: Colors.white,
+      buttonColor: Colors.red,
+      onConfirm: () async {
+        Get.back();
+        await _deleteAccount();
+      },
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    setState(() => _loading = true);
+    try {
+      final res = await _authService.deleteAccount();
+      if (res['success'] == true) {
+        Get.snackbar('تم', res['message'] ?? 'تم حذف الحساب بنجاح');
+        Get.offAllNamed('/login');
+      } else {
+        Get.snackbar('خطأ', res['message'] ?? 'فشل حذف الحساب');
+      }
+    } catch (_) {
+      Get.snackbar('خطأ', 'فشل حذف الحساب');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Widget _buildDeleteButton(ColorScheme cs) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _loading ? null : _confirmDelete,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        icon: const Icon(Icons.delete_forever),
+        label: const Text('حذف الحساب'),
+      ),
+    );
+  }
+
   // ✅ تصحيح مكان الـ dispose
   @override
   void dispose() {
@@ -203,6 +252,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                     _buildSaveButton(cs),
                     const SizedBox(height: 16),
                     _buildReadonlySection(Theme.of(context), Get.isDarkMode),
+                    const SizedBox(height: 16),
+                    _buildDeleteButton(cs),
                   ],
                 ),
               ),

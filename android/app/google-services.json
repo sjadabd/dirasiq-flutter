@@ -1,33 +1,33 @@
 {
   "project_info": {
-    "project_number": "236714696249",
-    "project_id": "mulhimiq-845df",
-    "storage_bucket": "mulhimiq-845df.firebasestorage.app"
+    "project_number": "86749213367",
+    "project_id": "mulhimiq-7483f",
+    "storage_bucket": "mulhimiq-7483f.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:236714696249:android:5e3e0cba0f1f4f2f5037e8",
+        "mobilesdk_app_id": "1:86749213367:android:4bca555feff3b452f35332",
         "android_client_info": {
           "package_name": "com.mulhimiq.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "236714696249-hf3ad7p3i8261fl9q6nqaps29ukumk63.apps.googleusercontent.com",
+          "client_id": "86749213367-um82p7r849j2asvbvvvoan2qj66a2utd.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyCsj6iQ8LfqSl_fpZgX7MlWv656YLKXnR4"
+          "current_key": "AIzaSyDu-OqVyGII4XbHLQw-aCtH6WFVvFwcyqM"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "236714696249-hf3ad7p3i8261fl9q6nqaps29ukumk63.apps.googleusercontent.com",
+              "client_id": "86749213367-um82p7r849j2asvbvvvoan2qj66a2utd.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

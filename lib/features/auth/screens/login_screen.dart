@@ -21,20 +21,27 @@ class LoginScreen extends StatelessWidget {
   final AppleAuthService _appleAuthService = AppleAuthService();
 
   Future<void> _handleGoogleLogin(BuildContext context) async {
+    debugPrint('[LoginScreen] Google login button pressed');
     final googleAuth = GoogleAuthService();
+    final start = DateTime.now();
     final String? error = await googleAuth.signInWithGoogle("student");
+    debugPrint('[LoginScreen] signInWithGoogle finished in ${DateTime.now().difference(start).inMilliseconds}ms error=${error != null}');
 
     if (!context.mounted) return;
 
     if (error == null) {
+      debugPrint('[LoginScreen] Google sign-in success, checking profile completeness');
       final complete = await _authService.isProfileComplete();
 
       if (complete) {
+        debugPrint('[LoginScreen] profile complete -> navigate /home');
         Get.offAllNamed('/home');
       } else {
+        debugPrint('[LoginScreen] profile incomplete -> navigate CompleteProfileScreen');
         Get.offAll(() => const CompleteProfileScreen());
       }
     } else {
+      debugPrint('[LoginScreen] Google sign-in error: $error');
       Get.snackbar('خطأ', error, snackPosition: SnackPosition.BOTTOM);
     }
   }

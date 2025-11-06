@@ -47,7 +47,6 @@ class AuthService {
   /// ✅ تحديث الملف الشخصي
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
     try {
-      print(data);
       final response = await _apiService.dio.post(
         "/auth/update-profile",
         data: data,
@@ -257,6 +256,28 @@ class AuthService {
       return {
         "success": false,
         "message": response.data["message"] ?? "فشل حفظ البيانات",
+      };
+    } on DioException catch (e) {
+      return {
+        "success": false,
+        "message": e.response?.data?["message"] ?? "خطأ في السيرفر",
+      };
+    }
+  }
+
+  /// ✅ حذف حساب الطالب (Soft Delete)
+  Future<Map<String, dynamic>> deleteAccount() async {
+    try {
+      final response = await _apiService.dio.delete("/api/student/account");
+
+      if (response.statusCode == 200 && (response.data["success"] == true)) {
+        await logout();
+        return {"success": true, "message": response.data["message"] ?? ""};
+      }
+
+      return {
+        "success": false,
+        "message": response.data["message"] ?? "فشل حذف الحساب",
       };
     } on DioException catch (e) {
       return {

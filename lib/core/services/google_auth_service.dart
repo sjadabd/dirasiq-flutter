@@ -9,7 +9,7 @@ class GoogleAuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
     serverClientId:
-        "577832490185-gnglmomcjlkn9us9fm5qofc2geiau296.apps.googleusercontent.com",
+        "86749213367-um82p7r849j2asvbvvvoan2qj66a2utd.apps.googleusercontent.com",
   );
 
   final Dio _dio = Dio(

@@ -1,9 +1,17 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// تحميل بيانات keystore من ملف key.properties
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 
 android {
     namespace = "com.mulhimiq.app"
@@ -19,10 +27,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("my-key.keystore")
-            storePassword = "Mlak1212@Mlak1212"
-            keyAlias = "my-key-alias"
-            keyPassword = "Mlak1212@Mlak1212"
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = rootProject.file("app/${keystoreProperties["storeFile"]}")
+            storePassword = keystoreProperties["storePassword"] as String
         }
     }
 
@@ -32,10 +40,7 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
         }
-
-        getByName("debug") {
-            signingConfig = signingConfigs.getByName("release")
-        }
+        getByName("debug") { }
     }
 
     compileOptions {
