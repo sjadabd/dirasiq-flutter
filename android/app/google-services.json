@@ -14,7 +14,23 @@
       },
       "oauth_client": [
         {
-          "client_id": "86749213367-um82p7r849j2asvbvvvoan2qj66a2utd.apps.googleusercontent.com",
+          "client_id": "86749213367-bl1vn9b2o3o5eghkj1b0jl31ri1b4gr2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mulhimiq.app",
+            "certificate_hash": "808f9ac10148d30b58c5a07fb1229a9dc19da7cb"
+          }
+        },
+        {
+          "client_id": "86749213367-enj02vboile8df8e2grqgmnp6pq2v1k2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mulhimiq.app",
+            "certificate_hash": "c2d5f8fe6aa247ed0ac5de813d5bcba685bc400d"
+          }
+        },
+        {
+          "client_id": "86749213367-bu708isbvui40kq5e4r84n8kk6ggr14g.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -27,7 +43,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "86749213367-um82p7r849j2asvbvvvoan2qj66a2utd.apps.googleusercontent.com",
+              "client_id": "86749213367-bu708isbvui40kq5e4r84n8kk6ggr14g.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
