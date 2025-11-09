@@ -1,30 +1,44 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- صلاحيات الموقع -->
+    <!-- ✅ أذونات النظام -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-
-    <!-- إذن إشعارات لأندرويد 13+ -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- ضروري لأندرويد 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
-    <!-- إذن الكاميرا لمسح QR -->
-    <uses-permission android:name="android.permission.CAMERA" />
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
 
     <application
-        android:label="Mulhim IQ"
         android:name="${applicationName}"
+        android:label="Mulhim IQ"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
 
-        <!-- ✅ ربط Google Sign-In -->
+        <!-- ✅ Google Play Services required -->
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
+        <!-- ✅ Google Sign-In Client ID -->
         <meta-data
             android:name="com.google.android.gms.client_id"
             android:value="86749213367-bu708isbvui40kq5e4r84n8kk6ggr14g.apps.googleusercontent.com" />
 
-        <!-- ✅ مطلوب من Google Play services -->
+        <!-- ✅ OneSignal App Id -->
         <meta-data
-            android:name="com.google.android.gms.version"
-            android:value="@integer/google_play_services_version" />
+            android:name="onesignal_app_id"
+            android:value="b136e33d-56f0-4fc4-ad08-8c8a534ca447" />
+
+        <!-- ✅ OneSignal Remote Sender -->
+        <meta-data
+            android:name="onesignal_google_project_number"
+            android:value="REMOTE" />
 
         <activity
             android:name=".MainActivity"
@@ -32,9 +46,9 @@
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode">
 
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
@@ -44,18 +58,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
         </activity>
 
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-    </application>
 
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
+    </application>
 
 </manifest>

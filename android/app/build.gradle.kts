@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.huawei.agconnect")
 }
 import java.util.Properties
 import java.io.FileInputStream
@@ -19,11 +20,12 @@ android {
 
     defaultConfig {
         applicationId = "com.mulhimiq.app"
-        minSdk = flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion   // ✅ بدل flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
+
 
     signingConfigs {
         create("release") {
@@ -60,4 +62,5 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-analytics")
+    implementation("com.huawei.hms:push:6.10.0.300")
 }

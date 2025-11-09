@@ -10,6 +10,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:dirasiq/core/services/apple_auth_service.dart';
 import '../../profile/complete_profile_screen.dart';
 import 'forgot_password_screen.dart';
+import 'email_verification_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   LoginScreen({super.key});
@@ -40,6 +41,10 @@ class LoginScreen extends StatelessWidget {
         debugPrint('[LoginScreen] profile incomplete -> navigate CompleteProfileScreen');
         Get.offAll(() => const CompleteProfileScreen());
       }
+    } else if (error == "EMAIL_VERIFICATION_REQUIRED") {
+      final email = GoogleAuthService().lastEmail ?? '';
+      debugPrint('[LoginScreen] account not activated -> navigate EmailVerificationScreen for $email');
+      Get.offAll(() => EmailVerificationScreen(email: email));
     } else {
       debugPrint('[LoginScreen] Google sign-in error: $error');
       Get.snackbar('خطأ', error, snackPosition: SnackPosition.BOTTOM);

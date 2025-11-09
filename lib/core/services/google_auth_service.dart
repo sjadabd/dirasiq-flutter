@@ -6,6 +6,8 @@ import 'package:dirasiq/core/config/app_config.dart'; // ✅ استدعاء AppC
 import 'package:dirasiq/core/services/notification_service.dart';
 
 class GoogleAuthService {
+  String? _lastEmail;
+  String? get lastEmail => _lastEmail;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
     serverClientId:
@@ -38,6 +40,7 @@ class GoogleAuthService {
         return "تم إلغاء العملية";
       }
 
+      _lastEmail = account.email;
       final auth = await account.authentication;
 
       final playerId = await NotificationService.instance.getPlayerId();
@@ -63,9 +66,17 @@ class GoogleAuthService {
         return null;
       }
 
-      return response.data["message"] ?? "فشل تسجيل الدخول عبر Google";
+      final message = response.data["message"]?.toString() ?? "فشل تسجيل الدخول عبر Google";
+      if (message.contains("غير مفعل")) {
+        return "EMAIL_VERIFICATION_REQUIRED";
+      }
+      return message;
     } on DioException catch (e) {
-      return e.response?.data?["message"] ?? "خطأ في الشبكة";
+      final msg = e.response?.data?["message"]?.toString() ?? "خطأ في الشبكة";
+      if (msg.contains("غير مفعل")) {
+        return "EMAIL_VERIFICATION_REQUIRED";
+      }
+      return msg;
     } catch (e) {
       return "حدث خطأ غير متوقع";
     }
