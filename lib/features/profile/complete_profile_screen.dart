@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/services/auth_service.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/shared/controllers/theme_controller.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/services/auth_service.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/shared/controllers/theme_controller.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   const CompleteProfileScreen({super.key});
@@ -174,7 +174,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               primary: isDark ? AppColors.darkPrimary : AppColors.primary,
               onPrimary: Colors.white,
               surface: isDark ? AppColors.darkSurface : AppColors.surface,
-              onSurface: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              onSurface: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.textPrimary,
             ),
           ),
           child: child!,
@@ -296,16 +298,19 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isDark 
-            ? AppColors.gradientWelcome.map((c) => isDark ? AppColors.darkPrimary : c).toList()
-            : AppColors.gradientWelcome,
+          colors: isDark
+              ? AppColors.gradientWelcome
+                    .map((c) => isDark ? AppColors.darkPrimary : c)
+                    .toList()
+              : AppColors.gradientWelcome,
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? AppColors.darkPrimary : AppColors.primary).withOpacity(0.3),
+            color: (isDark ? AppColors.darkPrimary : AppColors.primary)
+                .withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -345,21 +350,28 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         decoration: InputDecoration(
           labelText: required ? "$label *" : label,
           prefixIcon: prefixIcon != null
-              ? Icon(prefixIcon, color: isDark ? AppColors.darkPrimary : AppColors.primary)
+              ? Icon(
+                  prefixIcon,
+                  color: isDark ? AppColors.darkPrimary : AppColors.primary,
+                )
               : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: isDark ? AppColors.darkPrimary : AppColors.primary, 
-              width: 2
+              color: isDark ? AppColors.darkPrimary : AppColors.primary,
+              width: 2,
             ),
           ),
           filled: true,
@@ -369,8 +381,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             vertical: 16,
           ),
           labelStyle: TextStyle(
-            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, 
-            fontSize: 14
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
+            fontSize: 14,
           ),
         ),
         keyboardType: keyboardType,
@@ -393,20 +407,27 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       child: DropdownButtonFormField<String>(
         decoration: InputDecoration(
           labelText: "المرحلة / الصف *",
-          prefixIcon: Icon(Icons.school, color: isDark ? AppColors.darkPrimary : AppColors.primary),
+          prefixIcon: Icon(
+            Icons.school,
+            color: isDark ? AppColors.darkPrimary : AppColors.primary,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: isDark ? AppColors.darkPrimary : AppColors.primary, 
-              width: 2
+              color: isDark ? AppColors.darkPrimary : AppColors.primary,
+              width: 2,
             ),
           ),
           filled: true,
@@ -416,7 +437,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             vertical: 16,
           ),
           labelStyle: TextStyle(
-            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
         ),
         initialValue: _gradeId,
@@ -432,7 +455,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 child: Text(
                   g["name"] as String,
                   style: TextStyle(
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -455,20 +480,27 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       child: DropdownButtonFormField<String>(
         decoration: InputDecoration(
           labelText: "الجنس *",
-          prefixIcon: Icon(Icons.person, color: isDark ? AppColors.darkPrimary : AppColors.primary),
+          prefixIcon: Icon(
+            Icons.person,
+            color: isDark ? AppColors.darkPrimary : AppColors.primary,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: isDark ? AppColors.darkPrimary : AppColors.primary, 
-              width: 2
+              color: isDark ? AppColors.darkPrimary : AppColors.primary,
+              width: 2,
             ),
           ),
           filled: true,
@@ -478,7 +510,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             vertical: 16,
           ),
           labelStyle: TextStyle(
-            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
         ),
         initialValue: _gender,
@@ -489,20 +523,24 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         ),
         items: [
           DropdownMenuItem(
-            value: "male", 
+            value: "male",
             child: Text(
               "ذكر",
               style: TextStyle(
-                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
               ),
             ),
           ),
           DropdownMenuItem(
-            value: "female", 
+            value: "female",
             child: Text(
               "أنثى",
               style: TextStyle(
-                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
               ),
             ),
           ),
@@ -526,9 +564,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: isDark 
-              ? AppColors.black.withOpacity(0.3)
-              : AppColors.black.withOpacity(0.05),
+            color: isDark
+                ? AppColors.black.withValues(alpha: 0.3)
+                : AppColors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -565,7 +603,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                       overflow: TextOverflow.ellipsis,
                       maxLines: 2,
                       style: TextStyle(
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -576,7 +616,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (isDark ? AppColors.darkSecondary : AppColors.success).withOpacity(0.1),
+                  color: (isDark ? AppColors.darkSecondary : AppColors.success)
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -598,7 +639,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         secondary: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: (isDark ? AppColors.darkPrimary : AppColors.primary).withOpacity(0.1),
+            color: (isDark ? AppColors.darkPrimary : AppColors.primary)
+                .withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: _locationLoading
@@ -613,7 +655,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   ),
                 )
               : Icon(
-                  Icons.location_on, 
+                  Icons.location_on,
                   color: isDark ? AppColors.darkPrimary : AppColors.primary,
                 ),
         ),
@@ -631,35 +673,36 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       appBar: AppBar(
         title: Text(
           "إكمال البيانات الشخصية",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         centerTitle: true,
         actions: [
-          Obx(() => IconButton(
-            icon: Icon(
-              ThemeController.to.themeMode.value == ThemeMode.dark
-                ? Icons.light_mode
-                : Icons.dark_mode,
-              color: Colors.white,
+          Obx(
+            () => IconButton(
+              icon: Icon(
+                ThemeController.to.themeMode.value == ThemeMode.dark
+                    ? Icons.light_mode
+                    : Icons.dark_mode,
+                color: Colors.white,
+              ),
+              onPressed: () => ThemeController.to.toggleDarkLight(),
+              tooltip: ThemeController.to.themeMode.value == ThemeMode.dark
+                  ? "التبديل للوضع النهاري"
+                  : "التبديل للوضع الليلي",
             ),
-            onPressed: () => ThemeController.to.toggleDarkLight(),
-            tooltip: ThemeController.to.themeMode.value == ThemeMode.dark
-              ? "التبديل للوضع النهاري"
-              : "التبديل للوضع الليلي",
-          )),
+          ),
         ],
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: isDark 
-                ? AppColors.gradientWelcome.map((c) => AppColors.darkPrimary).toList()
-                : AppColors.gradientWelcome,
+              colors: isDark
+                  ? AppColors.gradientWelcome
+                        .map((c) => AppColors.darkPrimary)
+                        .toList()
+                  : AppColors.gradientWelcome,
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
@@ -675,9 +718,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               return Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: isDark 
-                      ? [AppColors.darkBackground, AppColors.darkSurface]
-                      : [AppColors.background, AppColors.surfaceVariant],
+                    colors: isDark
+                        ? [AppColors.darkBackground, AppColors.darkSurface]
+                        : [AppColors.background, AppColors.surfaceVariant],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -696,7 +739,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         "جاري تحميل البيانات...",
                         style: TextStyle(
                           fontSize: 16,
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -715,9 +760,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: isDark 
-                          ? Colors.black.withOpacity(0.3)
-                          : Colors.black.withOpacity(0.1),
+                        color: isDark
+                            ? Colors.black.withValues(alpha: 0.3)
+                            : Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -729,13 +774,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: (isDark ? AppColors.darkAccent : AppColors.error).withOpacity(0.1),
+                          color:
+                              (isDark ? AppColors.darkAccent : AppColors.error)
+                                  .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           Icons.error_outline,
                           size: 48,
-                          color: isDark ? AppColors.darkAccent : AppColors.error,
+                          color: isDark
+                              ? AppColors.darkAccent
+                              : AppColors.error,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -744,7 +793,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -752,7 +803,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         "${snapshot.error}",
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -765,7 +818,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         icon: const Icon(Icons.refresh),
                         label: const Text("إعادة المحاولة"),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark ? AppColors.darkPrimary : AppColors.primary,
+                          backgroundColor: isDark
+                              ? AppColors.darkPrimary.withValues(alpha: 0.1)
+                              : AppColors.primary,
                           foregroundColor: AppColors.white,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
@@ -842,7 +897,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: (isDark ? AppColors.darkPrimary : AppColors.primary).withOpacity(0.3),
+                        color:
+                            (isDark ? AppColors.darkPrimary : AppColors.primary)
+                                .withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -852,9 +909,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                       ? Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: isDark 
-                                ? AppColors.gradientWelcome.map((c) => AppColors.darkPrimary).toList()
-                                : AppColors.gradientWelcome,
+                              colors: isDark
+                                  ? AppColors.gradientWelcome
+                                        .map((c) => AppColors.darkPrimary)
+                                        .toList()
+                                  : AppColors.gradientWelcome,
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),

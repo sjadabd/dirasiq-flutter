@@ -32,13 +32,16 @@ class AuthButton extends StatelessWidget {
                   end: Alignment.centerRight,
                 ),
           border: isSecondary
-              ? Border.all(color: scheme.outline.withOpacity(0.4), width: 1)
+              ? Border.all(
+                  color: scheme.outline.withValues(alpha: 0.4),
+                  width: 1,
+                )
               : null,
           boxShadow: isSecondary
               ? null
               : [
                   BoxShadow(
-                    color: scheme.primary.withOpacity(0.25),
+                    color: scheme.primary.withValues(alpha: 0.25),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),

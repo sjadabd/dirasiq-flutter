@@ -43,15 +43,15 @@ class AuthTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
-          color: scheme.onSurface.withOpacity(0.7),
+          color: scheme.onSurface.withValues(alpha: 0.7),
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: isDark
-            ? scheme.surface.withOpacity(0.9)
-            : scheme.surfaceVariant.withOpacity(0.7),
+            ? scheme.surface.withValues(alpha: 0.9)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.7),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
@@ -63,7 +63,7 @@ class AuthTextField extends StatelessWidget {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.outline.withOpacity(0.6)),
+          borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.6)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

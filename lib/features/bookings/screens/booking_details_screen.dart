@@ -1,9 +1,9 @@
-import 'package:dirasiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
 
 class BookingDetailsScreen extends StatefulWidget {
   final String? bookingId;
@@ -19,7 +19,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
   String? _error;
   bool _loading = true;
 
-  String? _resolveBookingId(BuildContext context) {
+  String? _resolveBookingId() {
     return widget.bookingId ??
         (Get.arguments is String ? Get.arguments as String : null) ??
         (ModalRoute.of(context)?.settings.arguments as String?);
@@ -28,10 +28,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _load();
+    });
   }
 
-  Future<void> _load(BuildContext context) async {
-    final id = _resolveBookingId(context);
+  Future<void> _load() async {
+    final id = _resolveBookingId();
     if (id == null) {
       setState(() {
         _loading = false;
@@ -45,11 +48,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     });
     try {
       final res = await _api.fetchBookingDetails(id);
+      if (!mounted) return;
       setState(() {
         _data = res['data'] ?? res;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -71,7 +76,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
           backgroundColor: AppColors.success,
         ),
       );
-      _load(context);
+      _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,7 +154,8 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
           ),
         );
       }
-      _load(context);
+      if (!mounted) return;
+      _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -302,7 +308,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     if (_data == null && _error == null && _loading) {
-      Future.microtask(() => _load(context));
+      // Initial load is triggered from initState via addPostFrameCallback
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -337,7 +343,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
+                  color: AppColors.error.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -359,7 +365,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
               ),
               const SizedBox(height: 12),
               ElevatedButton.icon(
-                onPressed: () => _load(context),
+                onPressed: () => _load(),
                 icon: const Icon(Icons.refresh_rounded, size: 16),
                 label: const Text(
                   'إعادة المحاولة',
@@ -427,10 +433,10 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.2), width: 1),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.06),
+            color: statusColor.withValues(alpha: 0.06),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -445,7 +451,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -524,10 +530,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.04),
+            color: AppColors.primary.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -542,7 +551,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -662,10 +671,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.info.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: AppColors.info.withValues(alpha: 0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.info.withOpacity(0.04),
+            color: AppColors.info.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -680,7 +692,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.info.withOpacity(0.1),
+                  color: AppColors.info.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -737,10 +749,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.success.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: AppColors.success.withValues(alpha: 0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.success.withOpacity(0.04),
+            color: AppColors.success.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -755,7 +770,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -812,10 +827,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.04),
+            color: AppColors.primary.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -830,7 +848,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -909,10 +927,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.04),
+            color: AppColors.primary.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -927,7 +948,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -1095,10 +1116,10 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.warning.withOpacity(0.1),
+              color: AppColors.warning.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: AppColors.warning.withOpacity(0.3),
+                color: AppColors.warning.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -1134,9 +1155,9 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

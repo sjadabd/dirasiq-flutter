@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:dirasiq/core/services/auth_service.dart';
+import 'package:mulhimiq/core/services/auth_service.dart';
 
 class ProfileCompletionGuard extends StatefulWidget {
   final Widget child;
@@ -28,6 +28,7 @@ class _ProfileCompletionGuardState extends State<ProfileCompletionGuard> {
 
     if (!isComplete && mounted) {
       Future.delayed(Duration.zero, () {
+        if (!mounted) return;
         final scheme = Theme.of(context).colorScheme;
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -36,7 +37,7 @@ class _ProfileCompletionGuardState extends State<ProfileCompletionGuard> {
           'يرجى إكمال بياناتك الشخصية لتحسين تجربتك التعليمية.',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: isDark
-              ? scheme.surface.withOpacity(0.95)
+              ? scheme.surface.withValues(alpha: 0.95)
               : scheme.surface,
           colorText: scheme.onSurface,
           margin: const EdgeInsets.all(12),

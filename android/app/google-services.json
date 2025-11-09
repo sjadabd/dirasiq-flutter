@@ -1,49 +1,41 @@
 {
   "project_info": {
-    "project_number": "86749213367",
-    "project_id": "mulhimiq-7483f",
-    "storage_bucket": "mulhimiq-7483f.firebasestorage.app"
+    "project_number": "765386230641",
+    "project_id": "mulhimiqapp-13aff",
+    "storage_bucket": "mulhimiqapp-13aff.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:86749213367:android:4bca555feff3b452f35332",
+        "mobilesdk_app_id": "1:765386230641:android:31e9a8eeaeccd501b844d0",
         "android_client_info": {
           "package_name": "com.mulhimiq.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "86749213367-bl1vn9b2o3o5eghkj1b0jl31ri1b4gr2.apps.googleusercontent.com",
+          "client_id": "765386230641-7gqmmkll09hkdnov6jilu1sm7e94amug.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.mulhimiq.app",
-            "certificate_hash": "808f9ac10148d30b58c5a07fb1229a9dc19da7cb"
+            "certificate_hash": "e075130e51a40d33a2f857bce90e16d609c7f3f5"
           }
         },
         {
-          "client_id": "86749213367-enj02vboile8df8e2grqgmnp6pq2v1k2.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.mulhimiq.app",
-            "certificate_hash": "c2d5f8fe6aa247ed0ac5de813d5bcba685bc400d"
-          }
-        },
-        {
-          "client_id": "86749213367-bu708isbvui40kq5e4r84n8kk6ggr14g.apps.googleusercontent.com",
+          "client_id": "765386230641-1be5i4mejr0mql13ib6bk27dj0uq7n8f.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDu-OqVyGII4XbHLQw-aCtH6WFVvFwcyqM"
+          "current_key": "AIzaSyAUaTy-1btnrRcbo-AaviXlADCijkqY7QA"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "86749213367-bu708isbvui40kq5e4r84n8kk6ggr14g.apps.googleusercontent.com",
+              "client_id": "765386230641-1be5i4mejr0mql13ib6bk27dj0uq7n8f.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

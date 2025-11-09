@@ -1,22 +1,22 @@
 import 'dart:convert';
-import 'package:dirasiq/features/bookings/screens/booking_details_screen.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/features/bookings/screens/booking_details_screen.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:dirasiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/features/courses/screens/course_details_screen.dart';
-import 'package:dirasiq/features/enrollments/screens/course_attendance_screen.dart';
-import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-import 'package:dirasiq/core/services/notification_events.dart';
+import 'package:mulhimiq/features/courses/screens/course_details_screen.dart';
+import 'package:mulhimiq/features/enrollments/screens/course_attendance_screen.dart';
+import 'package:mulhimiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/services/notification_events.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dirasiq/features/assignments/screens/student_assignments_screen.dart';
-import 'package:dirasiq/features/assignments/screens/assignment_details_screen.dart';
-import 'package:dirasiq/features/exams/screens/student_exams_screen.dart';
-import 'package:dirasiq/features/exams/screens/student_exam_grades_screen.dart';
-import 'package:dirasiq/features/evaluations/screens/student_evaluations_screen.dart';
-import 'package:dirasiq/features/invoices/screens/invoice_details_screen.dart';
+import 'package:mulhimiq/features/assignments/screens/student_assignments_screen.dart';
+import 'package:mulhimiq/features/assignments/screens/assignment_details_screen.dart';
+import 'package:mulhimiq/features/exams/screens/student_exams_screen.dart';
+import 'package:mulhimiq/features/exams/screens/student_exam_grades_screen.dart';
+import 'package:mulhimiq/features/evaluations/screens/student_evaluations_screen.dart';
+import 'package:mulhimiq/features/invoices/screens/invoice_details_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});

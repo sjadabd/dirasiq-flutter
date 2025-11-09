@@ -24,7 +24,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         'تنبيه',
         'يرجى إدخال البريد الإلكتروني',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.withOpacity(0.1),
+        backgroundColor: Colors.red.withValues(alpha: 0.1),
         colorText: AppColors.error,
       );
       return;
@@ -39,7 +39,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         'تم الإرسال',
         'تم إرسال رمز إعادة التعيين إلى بريدك الإلكتروني',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.success.withOpacity(0.1),
+        backgroundColor: AppColors.success.withValues(alpha: 0.1),
         colorText: AppColors.success,
       );
       Get.to(() => ResetPasswordScreen(initialEmail: email));
@@ -48,7 +48,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         'خطأ',
         error,
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.error.withOpacity(0.1),
+        backgroundColor: AppColors.error.withValues(alpha: 0.1),
         colorText: AppColors.error,
       );
     }
@@ -85,7 +85,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: scheme.primary.withOpacity(0.2),
+                      color: scheme.primary.withValues(alpha: 0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
@@ -140,7 +140,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
+                      color: AppColors.primary.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),

@@ -1,9 +1,9 @@
-import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dirasiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -98,6 +98,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
       setState(() => mySubmission = sub);
     }
 
+    if (!mounted) return;
     final theme = Theme.of(context);
     final String contentText = (sub['content_text']?.toString() ?? '').trim();
     final String linkUrl = (sub['link_url']?.toString() ?? '').trim();
@@ -133,7 +134,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -262,9 +263,11 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                                       height: 120,
                                       width: double.infinity,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
+                                      errorBuilder: (_, _, _) => Container(
                                         height: 120,
-                                        color: theme.colorScheme.surfaceVariant,
+                                        color: theme
+                                            .colorScheme
+                                            .surfaceContainerHighest,
                                         alignment: Alignment.center,
                                         child: Icon(
                                           Icons.broken_image,
@@ -307,8 +310,9 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                                   ),
                                 );
                               }
-                              if (imageWidget == null)
+                              if (imageWidget == null) {
                                 return const SizedBox.shrink();
+                              }
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: imageWidget,
@@ -322,8 +326,8 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                               margin: const EdgeInsets.only(bottom: 6),
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceVariant
-                                    .withOpacity(0.5),
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -366,7 +370,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                         if (contentText.isEmpty &&
                             linkUrl.isEmpty &&
@@ -432,7 +436,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                 child: Image.network(
                   url,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (_, _, _) => Container(
                     color: Colors.grey.shade300,
                     child: const Center(
                       child: Icon(Icons.broken_image, size: 48),
@@ -515,6 +519,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
     bool submitting = false;
     final List<Map<String, dynamic>> attachments = [];
 
+    if (!mounted) return;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -540,7 +545,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
               final bool showFiles =
                   submissionType == 'file' || submissionType == 'mixed';
 
-              Future<void> _pickFiles({required bool images}) async {
+              Future<void> pickFiles({required bool images}) async {
                 try {
                   final res = await FilePicker.platform.pickFiles(
                     type: images ? FileType.image : FileType.custom,
@@ -588,10 +593,12 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
               String? validateInputs() {
                 if (!isActive) return 'الواجب غير مفعّل حالياً';
                 final now = DateTime.now();
-                if (assignedAt != null && now.isBefore(assignedAt))
+                if (assignedAt != null && now.isBefore(assignedAt)) {
                   return 'لم يبدأ وقت التسليم بعد';
-                if (dueAt != null && now.isAfter(dueAt))
+                }
+                if (dueAt != null && now.isAfter(dueAt)) {
                   return 'انتهى وقت التسليم';
+                }
 
                 final textVal = contentController.text.trim();
                 final linkVal = linkController.text.trim();
@@ -602,20 +609,24 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
 
                 switch (submissionType) {
                   case 'text':
-                    if (!hasText)
+                    if (!hasText) {
                       return 'نوع التسليم نصي، يرجى إدخال نص الإجابة';
+                    }
                     break;
                   case 'link':
-                    if (!hasLink)
+                    if (!hasLink) {
                       return 'نوع التسليم رابط، يرجى إدخال رابط صحيح';
+                    }
                     break;
                   case 'file':
-                    if (!hasFiles)
+                    if (!hasFiles) {
                       return 'هذا الواجب يتطلب رفع ملفات (صورة أو PDF)';
+                    }
                     break;
                   case 'mixed':
-                    if (!hasAny)
+                    if (!hasAny) {
                       return 'يرجى إدخال نص أو رابط (أو مرفقات) للتسليم';
+                    }
                     break;
                 }
                 return null;
@@ -630,6 +641,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                 }
                 setModal(() => submitting = true);
                 try {
+                  final nav = Navigator.of(context);
                   final res = await _api.submitAssignment(
                     assignmentId: assignmentId,
                     contentText: contentController.text.trim().isEmpty
@@ -644,16 +656,18 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                   final data = res['data'] is Map<String, dynamic>
                       ? Map<String, dynamic>.from(res['data'])
                       : null;
+                  if (!mounted) return;
                   if (data != null) {
                     setState(() => mySubmission = data);
                   }
-                  if (mounted) Navigator.of(ctx).pop();
+                  if (nav.mounted) nav.pop();
                   _showMessage('تم إرسال الإجابة بنجاح');
+                  if (!mounted) return;
                   await _fetch();
                 } catch (e) {
                   _showMessage(_cleanErrorMessage(e));
                 } finally {
-                  if (mounted) setModal(() => submitting = false);
+                  if (context.mounted) setModal(() => submitting = false);
                 }
               }
 
@@ -734,9 +748,8 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceVariant.withOpacity(
-                              0.3,
-                            ),
+                            color: theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Column(
@@ -765,7 +778,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                                 runSpacing: 6,
                                 children: [
                                   ElevatedButton.icon(
-                                    onPressed: () => _pickFiles(images: true),
+                                    onPressed: () => pickFiles(images: true),
                                     icon: const Icon(
                                       Icons.image_rounded,
                                       size: 14,
@@ -783,7 +796,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                                     ),
                                   ),
                                   ElevatedButton.icon(
-                                    onPressed: () => _pickFiles(images: false),
+                                    onPressed: () => pickFiles(images: false),
                                     icon: const Icon(
                                       Icons.picture_as_pdf_rounded,
                                       size: 14,
@@ -868,7 +881,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: theme.colorScheme.primaryContainer
-                                      .withOpacity(0.5),
+                                      .withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: DropdownButton<String>(
@@ -1003,11 +1016,11 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
         color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -1021,7 +1034,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 16),
@@ -1056,7 +1069,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.info.withOpacity(0.1),
+                color: AppColors.info.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -1176,6 +1189,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
       final uri = Uri.parse(url);
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
         if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('لا يمكن فتح الرابط'),
@@ -1188,6 +1202,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
         }
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في فتح الرابط: $e'),
@@ -1224,7 +1239,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -1274,11 +1289,11 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
         color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -1340,7 +1355,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: color, size: 14),
@@ -1373,12 +1388,14 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
 
   Widget _buildCompactAttachmentsCard(ThemeData theme, bool isDark) {
     final attachments = assignment!['attachments'];
-    if (attachments == null || attachments is! Map)
+    if (attachments == null || attachments is! Map) {
       return const SizedBox.shrink();
+    }
 
     final files = attachments['files'];
-    if (files == null || files is! List || files.isEmpty)
+    if (files == null || files is! List || files.isEmpty) {
       return const SizedBox.shrink();
+    }
 
     final List images = files
         .where(
@@ -1398,11 +1415,11 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
         color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -1453,8 +1470,8 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
                     child: Image.network(
                       imgUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: theme.colorScheme.surfaceVariant,
+                      errorBuilder: (_, _, _) => Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
                         child: Icon(
                           Icons.broken_image,
                           color: theme.colorScheme.outline,
@@ -1507,7 +1524,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -1515,7 +1532,7 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(icon, color: color, size: 16),
@@ -1557,11 +1574,11 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
         color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -1627,7 +1644,10 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [leadColor.withOpacity(0.1), leadColor.withOpacity(0.05)],
+          colors: [
+            leadColor.withValues(alpha: 0.1),
+            leadColor.withValues(alpha: 0.05),
+          ],
         ),
         borderRadius: BorderRadius.circular(8),
       ),

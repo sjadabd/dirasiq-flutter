@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:get/get.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/services/auth_service.dart';
-import 'package:dirasiq/core/services/notification_events.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/services/auth_service.dart';
+import 'package:mulhimiq/core/services/notification_events.dart';
 import 'package:app_badge_plus/app_badge_plus.dart';
 
-/// 🧩 المتحكم العام لتطبيق Dirasiq
+/// 🧩 المتحكم العام لتطبيق mulhimiq
 /// يدير بيانات المستخدم وعدد الإشعارات ويتفاعل مع النظام بالكامل.
 class GlobalController extends GetxController {
   /// ✅ بيانات المستخدم (قد تكون null إذا لم يتم تسجيل الدخول)
@@ -87,6 +87,7 @@ class GlobalController extends GetxController {
     } catch (_) {}
   }
 
+  @override
   void onClose() {
     _notifSub?.cancel();
     _payloadSub?.cancel();

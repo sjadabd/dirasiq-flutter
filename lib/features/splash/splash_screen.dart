@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:dirasiq/core/services/auth_service.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/core/services/auth_service.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 

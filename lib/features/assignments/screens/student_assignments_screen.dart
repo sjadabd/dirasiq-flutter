@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/features/assignments/screens/assignment_details_screen.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/features/assignments/screens/assignment_details_screen.dart';
 
 class StudentAssignmentsScreen extends StatefulWidget {
   const StudentAssignmentsScreen({super.key});
@@ -88,7 +88,7 @@ class _StudentAssignmentsScreenState extends State<StudentAssignmentsScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: scheme.background,
+      backgroundColor: scheme.surface,
       appBar: const GlobalAppBar(title: 'الواجبات', centerTitle: true),
       body: _buildBody(scheme),
     );
@@ -136,7 +136,7 @@ class _StudentAssignmentsScreenState extends State<StudentAssignmentsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         itemCount: _items.length + (_hasMore ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
           if (index == _items.length) {
             return const Padding(
@@ -162,7 +162,7 @@ class _StudentAssignmentsScreenState extends State<StudentAssignmentsScreen> {
               border: Border.all(color: borderColor, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -175,7 +175,7 @@ class _StudentAssignmentsScreenState extends State<StudentAssignmentsScreen> {
               ),
               leading: CircleAvatar(
                 radius: 26,
-                backgroundColor: scheme.primary.withOpacity(.1),
+                backgroundColor: scheme.primary.withValues(alpha: .1),
                 child: Icon(Icons.assignment_outlined, color: scheme.primary),
               ),
               title: Text(
@@ -199,7 +199,7 @@ class _StudentAssignmentsScreenState extends State<StudentAssignmentsScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: scheme.onSurface.withOpacity(0.7),
+                          color: scheme.onSurface.withValues(alpha: 0.7),
                           fontSize: 13,
                         ),
                       ),
@@ -217,7 +217,7 @@ class _StudentAssignmentsScreenState extends State<StudentAssignmentsScreen> {
                             Text(
                               'تسليم حتى: ${_readableDate(dueAt)}',
                               style: TextStyle(
-                                color: scheme.primary.withOpacity(0.8),
+                                color: scheme.primary.withValues(alpha: 0.8),
                                 fontSize: 12.5,
                               ),
                             ),

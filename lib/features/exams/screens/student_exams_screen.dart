@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
 
 class StudentExamsScreen extends StatefulWidget {
   final String fixedType; // 'daily' or 'monthly'
@@ -104,9 +104,11 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
+                  color: AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -128,7 +130,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2.5),
                 ),
               ),
-            ..._items.map(_examTile).toList(),
+            ..._items.map(_examTile),
             if (_loading && _items.isNotEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
@@ -213,12 +215,12 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDark
-              ? Colors.white.withOpacity(0.1)
-              : typeColor.withOpacity(0.2),
+              ? Colors.white.withValues(alpha: 0.1)
+              : typeColor.withValues(alpha: 0.2),
         ),
         boxShadow: [
           BoxShadow(
-            color: typeColor.withOpacity(0.05),
+            color: typeColor.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -240,7 +242,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.1),
+                        color: typeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(typeIcon, color: typeColor, size: 14),
@@ -267,7 +269,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: typeColor.withOpacity(0.15),
+                              color: typeColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -331,12 +333,12 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? Colors.white.withOpacity(0.05)
+                          ? Colors.white.withValues(alpha: 0.05)
                           : Colors.grey[100],
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
                         color: isDark
-                            ? Colors.white.withOpacity(0.1)
+                            ? Colors.white.withValues(alpha: 0.1)
                             : Colors.grey[300]!,
                       ),
                     ),
@@ -372,10 +374,10 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.tertiary.withOpacity(0.08),
+                      color: AppColors.tertiary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: AppColors.tertiary.withOpacity(0.2),
+                        color: AppColors.tertiary.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Row(
@@ -415,9 +417,9 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -428,7 +430,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
             text,
             style: TextStyle(
               fontSize: 9,
-              color: isDark ? color.withOpacity(0.9) : color,
+              color: isDark ? color.withValues(alpha: 0.9) : color,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -504,7 +506,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
               gradient: LinearGradient(
                 colors: isDark
                     ? [AppColors.darkSurface, AppColors.darkBackground]
-                    : [Colors.white, AppColors.primary.withOpacity(0.02)],
+                    : [Colors.white, AppColors.primary.withValues(alpha: 0.02)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -520,7 +522,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                     gradient: LinearGradient(
                       colors: [
                         AppColors.primary,
-                        AppColors.primary.withOpacity(0.8),
+                        AppColors.primary.withValues(alpha: 0.8),
                       ],
                     ),
                     borderRadius: const BorderRadius.vertical(
@@ -532,7 +534,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -617,7 +619,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                         Divider(
                           height: 1,
                           color: isDark
-                              ? Colors.white.withOpacity(0.1)
+                              ? Colors.white.withValues(alpha: 0.1)
                               : Colors.grey[300],
                         ),
                         const SizedBox(height: 10),
@@ -640,12 +642,12 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: isDark
-                                  ? Colors.white.withOpacity(0.05)
+                                  ? Colors.white.withValues(alpha: 0.05)
                                   : Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: isDark
-                                    ? Colors.white.withOpacity(0.1)
+                                    ? Colors.white.withValues(alpha: 0.1)
                                     : Colors.grey[300]!,
                               ),
                             ),
@@ -675,10 +677,10 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: AppColors.warning.withOpacity(0.08),
+                              color: AppColors.warning.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: AppColors.warning.withOpacity(0.3),
+                                color: AppColors.warning.withValues(alpha: 0.3),
                               ),
                             ),
                             child: Text(
@@ -698,7 +700,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                           Divider(
                             height: 1,
                             color: isDark
-                                ? Colors.white.withOpacity(0.1)
+                                ? Colors.white.withValues(alpha: 0.1)
                                 : Colors.grey[300],
                           ),
                           const SizedBox(height: 10),
@@ -736,7 +738,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.white.withOpacity(0.03)
+                        ? Colors.white.withValues(alpha: 0.03)
                         : Colors.grey[50],
                     borderRadius: const BorderRadius.vertical(
                       bottom: Radius.circular(16),
@@ -811,7 +813,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
           Container(
             padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(icon, size: 12, color: color),
@@ -858,14 +860,15 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
     final isFuture = diff.inMilliseconds > 0;
     final abs = diff.abs();
     String human;
-    if (abs.inDays >= 1)
+    if (abs.inDays >= 1) {
       human = '${abs.inDays} يوم';
-    else if (abs.inHours >= 1)
+    } else if (abs.inHours >= 1) {
       human = '${abs.inHours} ساعة';
-    else if (abs.inMinutes >= 1)
+    } else if (abs.inMinutes >= 1) {
       human = '${abs.inMinutes} دقيقة';
-    else
+    } else {
       human = '${abs.inSeconds} ثانية';
+    }
     return isFuture ? 'يبقى $human' : 'انتهى منذ $human';
   }
 }

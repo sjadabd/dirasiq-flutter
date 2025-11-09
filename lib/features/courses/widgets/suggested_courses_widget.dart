@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 

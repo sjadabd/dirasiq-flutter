@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:dirasiq/features/home/screens/home_screen.dart';
-import 'package:dirasiq/features/courses/screens/suggested_courses_screen.dart';
-import 'package:dirasiq/features/bookings/screens/bookings_list_screen.dart';
-import 'package:dirasiq/features/enrollments/screens/enrollments_screen.dart';
-import 'package:dirasiq/features/invoices/screens/student_invoices_screen.dart';
+import 'package:mulhimiq/features/home/screens/home_screen.dart';
+import 'package:mulhimiq/features/courses/screens/suggested_courses_screen.dart';
+import 'package:mulhimiq/features/bookings/screens/bookings_list_screen.dart';
+import 'package:mulhimiq/features/enrollments/screens/enrollments_screen.dart';
+import 'package:mulhimiq/features/invoices/screens/student_invoices_screen.dart';
 
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
@@ -47,49 +47,42 @@ class _RootShellState extends State<RootShell> {
     );
   }
 
-  Future<bool> _handleWillPop() async {
-    if (_currentIndex != 0) {
-      // ✅ لو مو على الرئيسية → رجعه للرئيسية
-      setState(() {
-        _currentIndex = 0;
-        _tabVersion[0]++;
-      });
-      return Future.value(false); // منع الخروج
-    }
-
-    // ✅ لو على الرئيسية → اعرض رسالة التأكيد
-    final shouldExit = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد الخروج'),
-        content: const Text('هل تريد الخروج من التطبيق؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('لا'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('نعم'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldExit == true) {
-      SystemNavigator.pop(); // خروج فعلي
-      return Future.value(true);
-    }
-
-    return Future.value(false); // لا يخرج
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return WillPopScope(
-      onWillPop: _handleWillPop, // ربط المعالجة بزِر الرجوع
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_currentIndex != 0) {
+          setState(() {
+            _currentIndex = 0;
+            _tabVersion[0]++;
+          });
+          return;
+        }
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('تأكيد الخروج'),
+            content: const Text('هل تريد الخروج من التطبيق؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('لا'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('نعم'),
+              ),
+            ],
+          ),
+        );
+        if (shouldExit == true) {
+          SystemNavigator.pop();
+        }
+      },
       child: Scaffold(
         body: SafeArea(top: false, bottom: true, child: _buildCurrentPage()),
         bottomNavigationBar: SafeArea(

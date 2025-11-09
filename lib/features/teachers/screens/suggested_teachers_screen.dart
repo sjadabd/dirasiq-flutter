@@ -1,9 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/config/app_config.dart';
-import 'package:dirasiq/features/teachers/screens/teacher_details_screen.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
+import 'package:mulhimiq/features/teachers/screens/teacher_details_screen.dart';
 
 class SuggestedTeachersScreen extends StatefulWidget {
   const SuggestedTeachersScreen({super.key});

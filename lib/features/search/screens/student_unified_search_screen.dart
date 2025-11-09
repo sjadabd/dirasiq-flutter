@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/features/teachers/screens/teacher_details_screen.dart';
-import 'package:dirasiq/features/courses/screens/course_details_screen.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/features/teachers/screens/teacher_details_screen.dart';
+import 'package:mulhimiq/features/courses/screens/course_details_screen.dart';
 
 class StudentUnifiedSearchScreen extends StatefulWidget {
   final String? initialQuery;

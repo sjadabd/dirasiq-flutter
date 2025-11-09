@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/services/auth_service.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/services/auth_service.dart';
 import 'package:geolocator/geolocator.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
-import 'package:dirasiq/features/auth/screens/email_verification_screen.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/features/auth/screens/email_verification_screen.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -69,6 +69,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("خدمة الموقع غير مفعلة")));
@@ -77,8 +78,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (!mounted) return;
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
+          if (!mounted) return;
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text("تم رفض إذن الموقع")));
@@ -87,6 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("صلاحية الموقع مرفوضة دائمًا")),
         );
@@ -102,6 +106,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _longitude = pos.longitude;
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("فشل الحصول على الموقع: $e")));
@@ -256,7 +261,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               // الجنس
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: "الجنس"),
-                value: _gender,
+                initialValue: _gender,
                 items: const [
                   DropdownMenuItem(value: "male", child: Text("ذكر")),
                   DropdownMenuItem(value: "female", child: Text("أنثى")),
@@ -268,7 +273,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               // الصف الدراسي
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: "الصف الدراسي"),
-                value: _gradeId,
+                initialValue: _gradeId,
                 items: _grades
                     .map(
                       (g) => DropdownMenuItem<String>(

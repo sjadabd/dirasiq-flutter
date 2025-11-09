@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/config/app_config.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
 
 class SuggestedCoursesScreen extends StatefulWidget {
   const SuggestedCoursesScreen({super.key});
@@ -104,95 +104,95 @@ class _SuggestedCoursesScreenState extends State<SuggestedCoursesScreen> {
 
   ScrollPhysics _refreshPhysics(BuildContext ctx) {
     final platform = Theme.of(ctx).platform;
-    final parent = platform == TargetPlatform.iOS || platform == TargetPlatform.macOS
+    final parent =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS
         ? const BouncingScrollPhysics()
         : const ClampingScrollPhysics();
     return AlwaysScrollableScrollPhysics(parent: parent);
   }
 
   Widget _buildLoading() => ListView(
-        physics: _refreshPhysics(context),
-        children: const [
-          SizedBox(height: 200),
-          Center(child: CircularProgressIndicator(color: AppColors.primary)),
-          SizedBox(height: 600),
-        ],
-      );
+    physics: _refreshPhysics(context),
+    children: const [
+      SizedBox(height: 200),
+      Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      SizedBox(height: 600),
+    ],
+  );
 
   Widget _buildError(ThemeData theme) => ListView(
-        physics: _refreshPhysics(context),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 200),
-                Icon(Icons.error_outline,
-                    color: theme.colorScheme.error, size: 60),
-                const SizedBox(height: 12),
-                Text(
-                  'حدث خطأ أثناء تحميل الكورسات',
-                  style: TextStyle(
-                    color: theme.colorScheme.error,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('إعادة المحاولة'),
-                  onPressed: () => _fetchCourses(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 600),
-              ],
+    physics: _refreshPhysics(context),
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 200),
+            Icon(Icons.error_outline, color: theme.colorScheme.error, size: 60),
+            const SizedBox(height: 12),
+            Text(
+              'حدث خطأ أثناء تحميل الكورسات',
+              style: TextStyle(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-        ],
-      );
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('إعادة المحاولة'),
+              onPressed: () => _fetchCourses(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 600),
+          ],
+        ),
+      ),
+    ],
+  );
 
   Widget _buildEmpty(ThemeData theme) => ListView(
-        physics: _refreshPhysics(context),
+    physics: _refreshPhysics(context),
+    children: [
+      const SizedBox(height: 200),
+      Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(height: 200),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.school_rounded,
-                color: theme.colorScheme.primary.withValues(alpha: 0.6),
-                size: 80,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'لا توجد كورسات مقترحة حالياً',
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'سيتم عرض الكورسات المناسبة قريباً',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 600),
-            ],
+          Icon(
+            Icons.school_rounded,
+            color: theme.colorScheme.primary.withValues(alpha: 0.6),
+            size: 80,
           ),
+          const SizedBox(height: 16),
+          Text(
+            'لا توجد كورسات مقترحة حالياً',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'سيتم عرض الكورسات المناسبة قريباً',
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 600),
         ],
-      );
+      ),
+    ],
+  );
 
   Widget _buildGrid(ThemeData theme, bool isDark) {
     return GridView.builder(

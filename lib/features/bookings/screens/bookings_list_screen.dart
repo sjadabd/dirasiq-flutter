@@ -1,8 +1,8 @@
-import 'package:dirasiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:flutter/material.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
 
 class BookingsListScreen extends StatefulWidget {
   final void Function(int index)? onNavigateToTab;
@@ -228,10 +228,13 @@ class _BookingsListScreenState extends State<BookingsListScreen>
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.1), width: 1),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.04),
+            color: AppColors.primary.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -280,10 +283,13 @@ class _BookingsListScreenState extends State<BookingsListScreen>
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: DropdownButtonFormField<String?>(
-        value: _statusFilter,
+        initialValue: _statusFilter,
         isExpanded: true,
         dropdownColor: isDark ? AppColors.darkSurface : AppColors.surface,
         style: TextStyle(
@@ -382,10 +388,10 @@ class _BookingsListScreenState extends State<BookingsListScreen>
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.2), width: 1),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.06),
+            color: statusColor.withValues(alpha: 0.06),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -414,17 +420,17 @@ class _BookingsListScreenState extends State<BookingsListScreen>
                       height: 110,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         height: 110,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Center(
                           child: Icon(
                             Icons.image_not_supported_rounded,
                             size: 32,
-                            color: AppColors.primary.withOpacity(0.3),
+                            color: AppColors.primary.withValues(alpha: 0.3),
                           ),
                         ),
                       ),
@@ -439,7 +445,7 @@ class _BookingsListScreenState extends State<BookingsListScreen>
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(statusIcon, color: statusColor, size: 16),
@@ -541,10 +547,10 @@ class _BookingsListScreenState extends State<BookingsListScreen>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.info.withOpacity(0.05),
+                      color: AppColors.info.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: AppColors.info.withOpacity(0.2),
+                        color: AppColors.info.withValues(alpha: 0.2),
                         width: 1,
                       ),
                     ),
@@ -687,9 +693,12 @@ class _BookingsListScreenState extends State<BookingsListScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.1),
+        color: AppColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.error.withOpacity(0.3), width: 1),
+        border: Border.all(
+          color: AppColors.error.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -741,13 +750,13 @@ class _BookingsListScreenState extends State<BookingsListScreen>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.inbox_rounded,
                 size: 48,
-                color: AppColors.primary.withOpacity(0.5),
+                color: AppColors.primary.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 16),
@@ -868,7 +877,6 @@ class _BookingsListScreenState extends State<BookingsListScreen>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // TODO: إضافة منطق الإلغاء الفعلي
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,

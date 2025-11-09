@@ -2,14 +2,16 @@ buildscript {
     repositories {
         google()
         mavenCentral()
-        maven(url = "https://developer.huawei.com/repo/")
     }
     dependencies {
-        // ✅ هنا نحط نسخ الـ Plugins الأساسية
+        // ✅ Android build tools
         classpath("com.android.tools.build:gradle:8.1.2")
+
+        // ✅ Kotlin plugin
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10")
-        classpath("com.google.gms:google-services:4.4.2") // 🔥 مهم عشان Firebase يشتغل
-        classpath("com.huawei.agconnect:agcp:1.9.1.301") // 🔔 مطلوب لـ HMS/AGConnect
+
+        // ✅ Firebase Google Services Plugin (مهم جداً)
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
 
@@ -17,7 +19,6 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        maven(url = "https://developer.huawei.com/repo/")
     }
 }
 

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
-import 'package:dirasiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 
 class ApiService {
   late final Dio _dio;

@@ -24,7 +24,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       subtitle:
           'منصة تعليمية عراقية تُسهّل عليك الوصول للدورات المباشرة، الواجبات، والمتابعة الذكية.',
       icon: Icons.flag_rounded,
-      features: ['واجهة عربية متكاملة', 'تعلم مباشر وتفاعلي', 'تجربة سريعة وآمنة'],
+      features: [
+        'واجهة عربية متكاملة',
+        'تعلم مباشر وتفاعلي',
+        'تجربة سريعة وآمنة',
+      ],
     ),
     _IntroPageData(
       title: 'تعلّم بذكاء ومرونة',
@@ -110,10 +114,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: Scaffold(
-        backgroundColor: scheme.background,
+        backgroundColor: scheme.surface,
         body: SafeArea(
           child: Column(
             children: [
@@ -139,7 +143,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     Text(
                       '${_currentIndex + 1} / ${_pages.length}',
                       style: TextStyle(
-                        color: scheme.onSurface.withOpacity(0.6),
+                        color: scheme.onSurface.withValues(alpha: 0.6),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -149,7 +153,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       child: Text(
                         'تخطي',
                         style: TextStyle(
-                          color: scheme.onSurface.withOpacity(0.7),
+                          color: scheme.onSurface.withValues(alpha: 0.7),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -185,7 +189,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 width: 110,
                                 height: 110,
                                 decoration: BoxDecoration(
-                                  color: scheme.primary.withOpacity(0.1),
+                                  color: scheme.primary.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -212,7 +216,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(
-                                      color: scheme.onSurface.withOpacity(0.75),
+                                      color: scheme.onSurface.withValues(
+                                        alpha: 0.75,
+                                      ),
                                       height: 1.6,
                                     ),
                               ),
@@ -229,10 +235,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: scheme.primary.withOpacity(0.08),
+                                      color: scheme.primary.withValues(
+                                        alpha: 0.08,
+                                      ),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: scheme.primary.withOpacity(0.2),
+                                        color: scheme.primary.withValues(
+                                          alpha: 0.2,
+                                        ),
                                       ),
                                     ),
                                     child: Text(
@@ -269,7 +279,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       decoration: BoxDecoration(
                         color: _currentIndex == i
                             ? scheme.primary
-                            : scheme.primary.withOpacity(0.3),
+                            : scheme.primary.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),

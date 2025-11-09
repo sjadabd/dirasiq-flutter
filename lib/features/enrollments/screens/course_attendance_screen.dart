@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
 
 class CourseAttendanceScreen extends StatefulWidget {
   final String courseId;
@@ -126,7 +126,9 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(
-                color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+                color: (isDark ? Colors.white : Colors.black).withValues(
+                  alpha: 0.08,
+                ),
               ),
             ),
             child: Padding(
@@ -270,14 +272,19 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+            color: (isDark ? Colors.white : Colors.black).withValues(
+              alpha: 0.08,
+            ),
           ),
         ),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
-              colors: [color.withOpacity(0.03), color.withOpacity(0.01)],
+              colors: [
+                color.withValues(alpha: 0.03),
+                color.withValues(alpha: 0.01),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -288,7 +295,7 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 14),
@@ -330,7 +337,7 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
   }
 
   Widget _filterChips(Map<String, int> c, bool isDark) {
-    Widget _chip(String key, String label, {IconData? icon}) {
+    Widget chip(String key, String label, {IconData? icon}) {
       final selected = _filter == key;
       return GestureDetector(
         onTap: () => setState(() => _filter = key),
@@ -338,13 +345,15 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: selected
-                ? AppColors.tertiary.withOpacity(0.1)
+                ? AppColors.tertiary.withValues(alpha: 0.1)
                 : (isDark ? AppColors.darkSurface : Colors.white),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: selected
                   ? AppColors.tertiary
-                  : (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                  : (isDark ? Colors.white : Colors.black).withValues(
+                      alpha: 0.1,
+                    ),
               width: 1,
             ),
           ),
@@ -381,10 +390,10 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
       spacing: 6,
       runSpacing: 6,
       children: [
-        _chip('all', 'الكل', icon: Icons.list_alt),
-        _chip('present', 'الحضور', icon: Icons.check_circle),
-        _chip('absent', 'الغياب', icon: Icons.cancel),
-        _chip('leave', 'الإجازات', icon: Icons.event_busy),
+        chip('all', 'الكل', icon: Icons.list_alt),
+        chip('present', 'الحضور', icon: Icons.check_circle),
+        chip('absent', 'الغياب', icon: Icons.cancel),
+        chip('leave', 'الإجازات', icon: Icons.event_busy),
       ],
     );
   }
@@ -440,14 +449,17 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
         ),
       ),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
-            colors: [color.withOpacity(0.03), color.withOpacity(0.01)],
+            colors: [
+              color.withValues(alpha: 0.03),
+              color.withValues(alpha: 0.01),
+            ],
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
           ),
@@ -460,7 +472,7 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 16),
@@ -484,7 +496,7 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -538,8 +550,8 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: (isDark ? Colors.white : Colors.black).withOpacity(
-                      0.03,
+                    color: (isDark ? Colors.white : Colors.black).withValues(
+                      alpha: 0.03,
                     ),
                     borderRadius: BorderRadius.circular(6),
                   ),

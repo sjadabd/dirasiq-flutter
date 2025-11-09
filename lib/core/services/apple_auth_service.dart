@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:dirasiq/core/config/app_config.dart';
-import 'package:dirasiq/core/services/notification_service.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/services/notification_service.dart';
 import 'dart:io' show Platform;
 
 class AppleAuthService {
@@ -58,7 +58,6 @@ class AppleAuthService {
 
       final decodedBody = utf8.decode(response.data);
       final jsonResponse = jsonDecode(decodedBody);
-      print('✅ AppleAuth response: $jsonResponse');
 
       if (response.statusCode == 200 && jsonResponse["success"] == true) {
         final prefs = await SharedPreferences.getInstance();
@@ -72,21 +71,14 @@ class AppleAuthService {
         return null;
       }
 
-      print('❌ Server responded with error: ${jsonResponse["message"]}');
       return jsonResponse["message"] ?? "فشل تسجيل الدخول عبر Apple";
-    } on DioException catch (e) {
-      print('❌ Dio Error: ${e.message}');
-      print('❌ Dio Response: ${e.response?.data}');
+    } on DioException {
       return "خطأ في الشبكة أثناء الاتصال بالخادم";
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
         return "تم إلغاء العملية";
       }
       return "فشل تسجيل الدخول عبر Apple";
-    } catch (e, stack) {
-      print('💥 Unexpected error in AppleAuthService: $e');
-      print(stack);
-      return "حدث خطأ غير متوقع";
     }
   }
 }

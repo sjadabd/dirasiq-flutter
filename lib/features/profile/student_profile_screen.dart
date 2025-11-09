@@ -4,8 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../core/services/auth_service.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-import 'package:dirasiq/core/config/app_config.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:geolocator/geolocator.dart';
 
 class StudentProfileScreen extends StatefulWidget {
@@ -268,10 +268,10 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
       decoration: BoxDecoration(
         color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withOpacity(0.2)),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(Get.isDarkMode ? 0.5 : 0.1),
+            color: Colors.black.withValues(alpha: Get.isDarkMode ? 0.5 : 0.1),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -283,7 +283,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             children: [
               CircleAvatar(
                 radius: 32,
-                backgroundImage: (_pickedImage != null &&
+                backgroundImage:
+                    (_pickedImage != null &&
                         _profileImageBase64 != null &&
                         _profileImageBase64!.isNotEmpty)
                     ? MemoryImage(base64Decode(_profileImageBase64!))
@@ -372,7 +373,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
       decoration: BoxDecoration(
         color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outline.withOpacity(0.2)),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
       ),
       child: CheckboxListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -397,14 +398,14 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                 style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
               )
             : (_latitude != null && _longitude != null)
-                ? Text(
-                    '${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
-                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-                  )
-                : Text(
-                    'يساعد على تخصيص التجربة التعليمية',
-                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-                  ),
+            ? Text(
+                '${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+              )
+            : Text(
+                'يساعد على تخصيص التجربة التعليمية',
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+              ),
         value: _sendLocation,
         onChanged: _locationLoading
             ? null
@@ -469,10 +470,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
 
   Future<void> _uploadLocation(double lat, double lng) async {
     try {
-      await _authService.updateProfile({
-        'latitude': lat,
-        'longitude': lng,
-      });
+      await _authService.updateProfile({'latitude': lat, 'longitude': lng});
       Get.snackbar('الموقع', 'تم تحديث موقعك بنجاح');
       await _loadUserData();
     } catch (_) {
@@ -509,7 +507,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: DropdownButtonFormField<String>(
-        value: _gender,
+        initialValue: _gender,
         items: const [
           DropdownMenuItem(value: 'male', child: Text('ذكر')),
           DropdownMenuItem(value: 'female', child: Text('أنثى')),
@@ -584,7 +582,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
       decoration: BoxDecoration(
         color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withOpacity(0.3)),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -721,12 +719,12 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: theme.colorScheme.primary.withOpacity(0.15),
+              color: theme.colorScheme.primary.withValues(alpha: 0.15),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: theme.colorScheme.primary.withOpacity(0.08),
+                color: theme.colorScheme.primary.withValues(alpha: 0.08),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -740,7 +738,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withOpacity(0.15),
+                      color: theme.colorScheme.secondary.withValues(
+                        alpha: 0.15,
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -839,14 +839,14 @@ class _CompactReadonlyTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.outline.withOpacity(0.2)),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(0.1),
+              color: cs.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: cs.primary, size: 18),

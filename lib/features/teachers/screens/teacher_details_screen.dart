@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:better_player_plus/better_player_plus.dart';
@@ -158,6 +158,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
         await launchUrl(fallbackWebUri, mode: LaunchMode.platformDefault);
       }
     } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تعذر فتح الخرائط')));
@@ -226,18 +227,9 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                             style: TextStyle(color: cs.onSurfaceVariant),
                           )
                         else
-                          ..._courses
-                              .asMap()
-                              .entries
-                              .map(
-                                (e) => _buildCourseItem(
-                                  e.value,
-                                  e.key,
-                                  cs,
-                                  isDark,
-                                ),
-                              )
-                              .toList(),
+                          ..._courses.asMap().entries.map(
+                            (e) => _buildCourseItem(e.value, e.key, cs, isDark),
+                          ),
                       ],
                     ),
                   )),
@@ -325,7 +317,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
         aspectRatio: 16 / 9,
         child: (_bpController != null)
             ? BetterPlayer(controller: _bpController!)
-            : Container(color: cs.surfaceVariant),
+            : Container(color: cs.surfaceContainerHighest),
       ),
     );
   }
@@ -380,11 +372,11 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark ? cs.primary.withOpacity(0.3) : cs.outlineVariant,
+          color: isDark ? cs.primary.withValues(alpha: 0.3) : cs.outlineVariant,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -396,13 +388,13 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
           child: Container(
             width: 52,
             height: 52,
-            color: cs.surfaceVariant,
+            color: cs.surfaceContainerHighest,
             child: imgUrl.isEmpty
                 ? Icon(Icons.school, color: cs.onSurfaceVariant)
                 : Image.network(
                     imgUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (_, _, _) =>
                         Icon(Icons.school, color: cs.onSurfaceVariant),
                   ),
           ),

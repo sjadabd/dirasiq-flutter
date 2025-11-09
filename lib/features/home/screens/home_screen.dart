@@ -1,10 +1,10 @@
-import 'package:dirasiq/features/home/widgets/student_calendar.dart';
+import 'package:mulhimiq/features/home/widgets/student_calendar.dart';
 import 'package:flutter/material.dart';
-import 'package:dirasiq/features/home/widgets/news_carousel.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/features/home/widgets/news_carousel.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
 import 'package:get/get.dart';
-import 'package:dirasiq/features/teachers/screens/suggested_teachers_screen.dart';
-import 'package:dirasiq/core/services/api_service.dart';
+import 'package:mulhimiq/features/teachers/screens/suggested_teachers_screen.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -371,12 +371,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   color:
                                       Theme.of(context).brightness ==
                                           Brightness.dark
-                                      ? Colors.white.withOpacity(
-                                          0.25,
-                                        ) // في الوضع الليلي
-                                      : Colors.black.withOpacity(
-                                          0.15,
-                                        ), // في الوضع النهاري
+                                      ? Colors.white.withValues(alpha: 0.25)
+                                      : Colors.black.withValues(alpha: 0.15),
                                   width: 1.2,
                                 ),
                               ),
@@ -446,8 +442,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   color:
                                       Theme.of(context).brightness ==
                                           Brightness.dark
-                                      ? Colors.white.withOpacity(0.25)
-                                      : Colors.black.withOpacity(0.15),
+                                      ? Colors.white.withValues(alpha: 0.25)
+                                      : Colors.black.withValues(alpha: 0.15),
                                   width: 1.2,
                                 ),
                               ),

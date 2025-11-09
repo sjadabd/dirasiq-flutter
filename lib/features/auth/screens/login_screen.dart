@@ -7,7 +7,7 @@ import 'register_screen.dart';
 import '../../../core/services/google_auth_service.dart';
 import '../../../core/services/auth_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:dirasiq/core/services/apple_auth_service.dart';
+import 'package:mulhimiq/core/services/apple_auth_service.dart';
 import '../../profile/complete_profile_screen.dart';
 import 'forgot_password_screen.dart';
 import 'email_verification_screen.dart';
@@ -26,24 +26,32 @@ class LoginScreen extends StatelessWidget {
     final googleAuth = GoogleAuthService();
     final start = DateTime.now();
     final String? error = await googleAuth.signInWithGoogle("student");
-    debugPrint('[LoginScreen] signInWithGoogle finished in ${DateTime.now().difference(start).inMilliseconds}ms error=${error != null}');
+    debugPrint(
+      '[LoginScreen] signInWithGoogle finished in ${DateTime.now().difference(start).inMilliseconds}ms error=${error != null}',
+    );
 
     if (!context.mounted) return;
 
     if (error == null) {
-      debugPrint('[LoginScreen] Google sign-in success, checking profile completeness');
+      debugPrint(
+        '[LoginScreen] Google sign-in success, checking profile completeness',
+      );
       final complete = await _authService.isProfileComplete();
 
       if (complete) {
         debugPrint('[LoginScreen] profile complete -> navigate /home');
         Get.offAllNamed('/home');
       } else {
-        debugPrint('[LoginScreen] profile incomplete -> navigate CompleteProfileScreen');
+        debugPrint(
+          '[LoginScreen] profile incomplete -> navigate CompleteProfileScreen',
+        );
         Get.offAll(() => const CompleteProfileScreen());
       }
     } else if (error == "EMAIL_VERIFICATION_REQUIRED") {
       final email = GoogleAuthService().lastEmail ?? '';
-      debugPrint('[LoginScreen] account not activated -> navigate EmailVerificationScreen for $email');
+      debugPrint(
+        '[LoginScreen] account not activated -> navigate EmailVerificationScreen for $email',
+      );
       Get.offAll(() => EmailVerificationScreen(email: email));
     } else {
       debugPrint('[LoginScreen] Google sign-in error: $error');
@@ -90,7 +98,7 @@ class LoginScreen extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: scheme.primary.withOpacity(0.1),
+                  color: scheme.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -111,7 +119,7 @@ class LoginScreen extends StatelessWidget {
               Text(
                 "سجل دخولك للمتابعة إلى حسابك",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withOpacity(0.6),
+                  color: scheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               const SizedBox(height: 40),
@@ -171,7 +179,7 @@ class LoginScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Divider(
-                      color: scheme.outline.withOpacity(0.4),
+                      color: scheme.outline.withValues(alpha: 0.4),
                       thickness: 1,
                     ),
                   ),
@@ -180,14 +188,14 @@ class LoginScreen extends StatelessWidget {
                     child: Text(
                       "أو",
                       style: TextStyle(
-                        color: scheme.onSurface.withOpacity(0.6),
+                        color: scheme.onSurface.withValues(alpha: 0.6),
                         fontSize: 12,
                       ),
                     ),
                   ),
                   Expanded(
                     child: Divider(
-                      color: scheme.outline.withOpacity(0.4),
+                      color: scheme.outline.withValues(alpha: 0.4),
                       thickness: 1,
                     ),
                   ),
@@ -275,7 +283,7 @@ class LoginScreen extends StatelessWidget {
               Text(
                 "© ملهم - جميع الحقوق محفوظة",
                 style: TextStyle(
-                  color: scheme.onSurface.withOpacity(0.4),
+                  color: scheme.onSurface.withValues(alpha: 0.4),
                   fontSize: 11,
                 ),
               ),

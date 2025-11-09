@@ -1,6 +1,6 @@
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -344,7 +344,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _studyYear ?? _currentStudyYear(),
+                    initialValue: _studyYear ?? _currentStudyYear(),
                     decoration: InputDecoration(
                       labelText: 'السنة الدراسية',
                       labelStyle: TextStyle(color: textSecondary, fontSize: 12),

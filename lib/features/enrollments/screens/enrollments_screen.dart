@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/core/config/app_config.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
 
 class EnrollmentsScreen extends StatefulWidget {
   const EnrollmentsScreen({super.key});
@@ -279,19 +279,18 @@ class _EnrollmentsScreenState extends State<EnrollmentsScreen> {
                       ? Container(
                           width: 110,
                           height: 100,
-                          color: cs.surfaceVariant,
-                          child:
-                              Icon(Icons.school, color: cs.onSurfaceVariant),
+                          color: cs.surfaceContainerHighest,
+                          child: Icon(Icons.school, color: cs.onSurfaceVariant),
                         )
                       : Image.network(
                           imageUrl,
                           width: 110,
                           height: 100,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (_, _, _) => Container(
                             width: 110,
                             height: 100,
-                            color: cs.surfaceVariant,
+                            color: cs.surfaceContainerHighest,
                             child: Icon(
                               Icons.school,
                               color: cs.onSurfaceVariant,
@@ -362,15 +361,15 @@ class _EnrollmentsScreenState extends State<EnrollmentsScreen> {
         fg = cs.onPrimaryContainer;
         break;
       case 'pending':
-        bg = Colors.amber.withOpacity(0.2);
+        bg = Colors.amber.withValues(alpha: 0.2);
         fg = Colors.amber.shade800;
         break;
       case 'rejected':
-        bg = Colors.red.withOpacity(0.2);
+        bg = Colors.red.withValues(alpha: 0.2);
         fg = Colors.red.shade700;
         break;
       default:
-        bg = cs.surfaceVariant;
+        bg = cs.surfaceContainerHighest;
         fg = cs.onSurfaceVariant;
     }
     return Container(

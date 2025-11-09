@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/services/permission_service.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-import 'package:dirasiq/features/enrollments/screens/course_attendance_screen.dart';
-import 'package:dirasiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
-import 'package:dirasiq/features/assignments/screens/student_assignments_screen.dart';
-import 'package:dirasiq/features/exams/screens/student_exams_screen.dart';
-import 'package:dirasiq/features/exams/screens/student_exam_grades_screen.dart';
-import 'package:dirasiq/features/evaluations/screens/student_evaluations_screen.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/services/permission_service.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/features/enrollments/screens/course_attendance_screen.dart';
+import 'package:mulhimiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
+import 'package:mulhimiq/features/assignments/screens/student_assignments_screen.dart';
+import 'package:mulhimiq/features/exams/screens/student_exams_screen.dart';
+import 'package:mulhimiq/features/exams/screens/student_exam_grades_screen.dart';
+import 'package:mulhimiq/features/evaluations/screens/student_evaluations_screen.dart';
 
 class EnrollmentActionsScreen extends StatefulWidget {
   final String courseId;
@@ -140,10 +140,10 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: cs.surfaceContainerHighest,
-          border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: cs.shadow.withOpacity(0.05),
+              color: cs.shadow.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -155,7 +155,7 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: item.color.withOpacity(0.2),
+              backgroundColor: item.color.withValues(alpha: 0.2),
               child: Icon(item.icon, color: item.color, size: 22),
             ),
             const SizedBox(height: 8),
@@ -267,7 +267,7 @@ class _EnrollmentActionsScreenState extends State<EnrollmentActionsScreen> {
       return;
     }
 
-    final teacherId = await Navigator.pushNamed(context, '/qr-scan') as String?;
+    final teacherId = await Get.toNamed<String?>('/qr-scan');
     if (teacherId == null || teacherId.isEmpty) return;
 
     setState(() => _busy = true);

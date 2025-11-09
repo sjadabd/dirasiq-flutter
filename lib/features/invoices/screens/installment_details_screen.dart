@@ -1,6 +1,6 @@
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -454,7 +454,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            ..._partials.map((p) => _partialTile(p)).toList(),
+            ..._partials.map((p) => _partialTile(p)),
           ],
         ),
       ),
@@ -489,7 +489,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            ..._discounts.map((d) => _discountTile(d)).toList(),
+            ..._discounts.map((d) => _discountTile(d)),
           ],
         ),
       ),

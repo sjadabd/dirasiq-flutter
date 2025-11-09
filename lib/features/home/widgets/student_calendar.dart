@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
 
 class StudentCalendar extends StatefulWidget {
   const StudentCalendar({super.key});

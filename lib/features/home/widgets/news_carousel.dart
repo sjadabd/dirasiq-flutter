@@ -1,7 +1,7 @@
-import 'package:dirasiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:flutter/material.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
 
 class NewsCarousel extends StatefulWidget {
   final int refreshToken; // تغيير خارجي لإعادة التحميل
@@ -471,12 +471,8 @@ class _NewsCarouselState extends State<NewsCarousel>
                               color:
                                   Theme.of(context).brightness ==
                                       Brightness.dark
-                                  ? Colors.white.withOpacity(
-                                      0.25,
-                                    ) // في الوضع الليلي
-                                  : Colors.black.withOpacity(
-                                      0.15,
-                                    ), // في الوضع النهاري
+                                  ? Colors.white.withValues(alpha: 0.25)
+                                  : Colors.black.withValues(alpha: 0.15),
                               width: 1.5,
                             ),
                             boxShadow: [

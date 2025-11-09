@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:get/get.dart';
-import 'package:dirasiq/core/config/app_config.dart';
-import 'package:dirasiq/core/services/auth_service.dart';
-import 'package:dirasiq/features/auth/screens/login_screen.dart';
-import 'package:dirasiq/features/search/screens/student_unified_search_screen.dart';
-import 'package:dirasiq/shared/controllers/global_controller.dart';
-import 'package:dirasiq/shared/controllers/theme_controller.dart';
-import 'package:dirasiq/core/services/permission_service.dart';
-import 'package:dirasiq/core/services/notification_service.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/services/auth_service.dart';
+import 'package:mulhimiq/features/auth/screens/login_screen.dart';
+import 'package:mulhimiq/features/search/screens/student_unified_search_screen.dart';
+import 'package:mulhimiq/shared/controllers/global_controller.dart';
+import 'package:mulhimiq/shared/controllers/theme_controller.dart';
+import 'package:mulhimiq/core/services/permission_service.dart';
+import 'package:mulhimiq/core/services/notification_service.dart';
 
 class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -76,11 +76,7 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
 
             const SizedBox(width: 10),
             // شعار التطبيق صغير في الشريط
-            Image.asset(
-              'assets/logo.png',
-              width: 28,
-              height: 28,
-            ),
+            Image.asset('assets/logo.png', width: 28, height: 28),
             const SizedBox(width: 10),
 
             // ✅ حقل البحث
@@ -140,27 +136,35 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
                       color: cs.onSurface,
                     ),
                     onPressed: () async {
-                      final granted = await PermissionService.requestNotificationPermission();
+                      final granted =
+                          await PermissionService.requestNotificationPermission();
                       if (granted) {
-                        await NotificationService.instance.requestPermissionIfNeeded();
+                        await NotificationService.instance
+                            .requestPermissionIfNeeded();
+                        if (!context.mounted) return;
                         await Navigator.pushNamed(context, '/notifications');
                         controller.loadUnread();
                         return;
                       }
 
+                      if (!context.mounted) return;
                       final scheme = Theme.of(context).colorScheme;
                       if (Platform.isAndroid) {
                         Get.snackbar(
                           'تفعيل الإشعارات',
                           'للتمكن من استقبال التحديثات، فعّل إذن الإشعارات من الإعدادات.',
                           snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: Theme.of(context).brightness == Brightness.dark
-                              ? scheme.surface.withOpacity(0.95)
+                          backgroundColor:
+                              Theme.of(context).brightness == Brightness.dark
+                              ? scheme.surface.withValues(alpha: 0.95)
                               : scheme.surface,
                           colorText: scheme.onSurface,
                           margin: const EdgeInsets.all(12),
                           borderRadius: 12,
-                          icon: Icon(Icons.notifications_active_outlined, color: scheme.primary),
+                          icon: Icon(
+                            Icons.notifications_active_outlined,
+                            color: scheme.primary,
+                          ),
                           duration: const Duration(seconds: 7),
                         );
                       }
@@ -211,7 +215,7 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
     final initials = _userInitials(user);
     return CircleAvatar(
       radius: 18,
-      backgroundColor: cs.primary.withOpacity(0.15),
+      backgroundColor: cs.primary.withValues(alpha: 0.15),
       child: Text(
         initials,
         style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),

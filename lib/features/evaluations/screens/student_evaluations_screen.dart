@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
-import 'package:dirasiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
 
 class StudentEvaluationsScreen extends StatefulWidget {
   final String? initialEvaluationId;
@@ -19,7 +19,7 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
   String? _error;
   List<Map<String, dynamic>> _items = [];
   int _page = 1;
-  int _limit = 10;
+  final int _limit = 10;
   bool _hasMore = true;
 
   DateTime? _from;
@@ -200,7 +200,7 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
       builder: (_) => Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [surfaceColor, surfaceColor.withOpacity(0.98)],
+            colors: [surfaceColor, surfaceColor.withValues(alpha: 0.98)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -269,12 +269,12 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.white.withOpacity(0.05)
+                      ? Colors.white.withValues(alpha: 0.05)
                       : Colors.grey[100],
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isDark
-                        ? Colors.white.withOpacity(0.1)
+                        ? Colors.white.withValues(alpha: 0.1)
                         : Colors.grey[300]!,
                     width: 0.5,
                   ),
@@ -334,10 +334,10 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.1),
+                    color: AppColors.info.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: AppColors.info.withOpacity(0.3),
+                      color: AppColors.info.withValues(alpha: 0.3),
                       width: 0.5,
                     ),
                   ),
@@ -360,10 +360,10 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.warning.withOpacity(0.1),
+                    color: AppColors.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: AppColors.warning.withOpacity(0.3),
+                      color: AppColors.warning.withValues(alpha: 0.3),
                       width: 0.5,
                     ),
                   ),
@@ -458,9 +458,12 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+              border: Border.all(
+                color: color.withValues(alpha: 0.3),
+                width: 0.5,
+              ),
             ),
             child: Text(
               val,
@@ -611,7 +614,7 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: _items.length + (_hasMore ? 1 : 0),
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (index == _items.length) {
           _fetch();
@@ -638,10 +641,13 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: sciColor.withOpacity(0.2), width: 0.5),
+            border: Border.all(
+              color: sciColor.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: sciColor.withOpacity(0.05),
+                color: sciColor.withValues(alpha: 0.05),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -662,7 +668,7 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: sciColor.withOpacity(0.15),
+                            color: sciColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
@@ -737,10 +743,10 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.warning.withOpacity(0.1),
+                          color: AppColors.warning.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: AppColors.warning.withOpacity(0.3),
+                            color: AppColors.warning.withValues(alpha: 0.3),
                             width: 0.5,
                           ),
                         ),
@@ -787,9 +793,9 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
 
 class CourseWeeklyScheduleScreen extends StatefulWidget {
   final String courseId;
@@ -66,7 +66,7 @@ class _CourseWeeklyScheduleScreenState
         : 'جدول الأسبوع';
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: GlobalAppBar(title: title, centerTitle: true),
       body: RefreshIndicator(onRefresh: _fetch, child: _buildBody(context)),
     );
@@ -138,7 +138,7 @@ class _CourseWeeklyScheduleScreenState
             border: Border.all(color: borderColor, width: 1), // ✅ البوردر
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -156,10 +156,10 @@ class _CourseWeeklyScheduleScreenState
                 width: 55,
                 height: 55,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                errorBuilder: (_, _, _) => Container(
                   width: 55,
                   height: 55,
-                  color: colorScheme.primary.withOpacity(0.1),
+                  color: colorScheme.primary.withValues(alpha: 0.1),
                   child: const Icon(Icons.book, color: Colors.teal),
                 ),
               ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:dirasiq/core/services/auth_service.dart';
+import 'package:mulhimiq/core/services/auth_service.dart';
 import 'login_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
@@ -39,6 +39,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         MaterialPageRoute(builder: (_) => LoginScreen()),
       );
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error)));
@@ -51,10 +52,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     setState(() => _loading = false);
 
     if (error == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("تم إرسال رمز جديد إلى بريدك الإلكتروني")),
       );
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error)));
@@ -67,7 +70,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: scheme.background,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
         centerTitle: true,
         title: const Text("التحقق من البريد الإلكتروني"),
@@ -120,7 +123,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     Text(
                       "لقد أرسلنا رمز تحقق إلى عنوان البريد الإلكتروني:",
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface.withOpacity(0.7),
+                        color: scheme.onSurface.withValues(alpha: 0.7),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -150,11 +153,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       decoration: InputDecoration(
                         labelText: "رمز التحقق",
                         labelStyle: TextStyle(
-                          color: scheme.onSurface.withOpacity(0.6),
+                          color: scheme.onSurface.withValues(alpha: 0.6),
                         ),
                         filled: true,
                         fillColor: isDark
-                            ? scheme.surfaceVariant.withOpacity(0.3)
+                            ? scheme.surfaceContainerHighest.withValues(
+                                alpha: 0.3,
+                              )
                             : scheme.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -223,7 +228,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     Text(
                       "تأكد من فحص مجلد البريد غير الهام (Spam)",
                       style: TextStyle(
-                        color: scheme.onSurface.withOpacity(0.5),
+                        color: scheme.onSurface.withValues(alpha: 0.5),
                         fontSize: 12,
                       ),
                       textAlign: TextAlign.center,

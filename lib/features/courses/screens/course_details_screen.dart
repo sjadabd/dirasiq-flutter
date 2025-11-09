@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:dirasiq/core/services/api_service.dart';
-import 'package:dirasiq/core/config/app_config.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:get/get.dart';
-import 'package:dirasiq/features/teachers/screens/teacher_details_screen.dart';
+import 'package:mulhimiq/features/teachers/screens/teacher_details_screen.dart';
 
 class CourseDetailsScreen extends StatefulWidget {
   final String courseId;
@@ -139,7 +139,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
 
             // ✅ اجعل الخلفية ديناميكية حسب الوضع
             backgroundColor: isDark
-                ? Colors.black.withOpacity(0.85)
+                ? Colors.black.withValues(alpha: 0.85)
                 : theme
                       .colorScheme
                       .surfaceContainerHighest, // لون ناعم متناسق في النهار
@@ -166,7 +166,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                         color: isDark ? Colors.white : Colors.black,
                         shadows: [
                           Shadow(
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.black.withValues(alpha: 0.6),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -186,7 +186,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.7),
+                              Colors.black.withValues(alpha: 0.7),
                             ],
                           ),
                         ),
@@ -309,7 +309,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     return Image.network(
       url,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
+      errorBuilder: (_, _, _) => Container(
         color: Colors.grey[300],
         child: const Icon(Icons.school_rounded, size: 60, color: Colors.white),
       ),
@@ -320,7 +320,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: (color ?? theme.colorScheme.primary).withOpacity(0.1),
+        color: (color ?? theme.colorScheme.primary).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -351,7 +351,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
           children: [
             CircleAvatar(
               radius: 30,
-              backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
               child: Icon(
                 Icons.person_rounded,
                 color: theme.colorScheme.primary,
@@ -511,6 +511,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       );
       Navigator.pushNamed(context, '/bookings');
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("حدث خطأ: $e"),

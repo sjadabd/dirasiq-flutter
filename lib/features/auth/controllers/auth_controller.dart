@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:dirasiq/core/services/auth_service.dart';
-import 'package:dirasiq/features/auth/screens/email_verification_screen.dart';
+import 'package:mulhimiq/core/services/auth_service.dart';
+import 'package:mulhimiq/features/auth/screens/email_verification_screen.dart';
 
 class AuthController extends GetxController {
   final AuthService _authService = AuthService();

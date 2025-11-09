@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:dirasiq/shared/themes/app_colors.dart';
+import 'package:mulhimiq/shared/themes/app_colors.dart';
 
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
@@ -30,10 +30,10 @@ class _QrScanScreenState extends State<QrScanScreen> {
     final raw = codes.first.rawValue ?? codes.first.displayValue;
     if (raw == null || raw.isEmpty) return;
 
-    // توقع: dirasiq://attend?teacher=<id>
+    // توقع: mulhimiq://attend?teacher=<id>
     try {
       final uri = Uri.tryParse(raw);
-      if (uri != null && uri.scheme == 'dirasiq' && uri.host == 'attend') {
+      if (uri != null && uri.scheme == 'mulhimiq' && uri.host == 'attend') {
         final teacherId = uri.queryParameters['teacher'];
         if (teacherId != null && teacherId.isNotEmpty) {
           _handled = true;
@@ -73,10 +73,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          ),
+          MobileScanner(controller: _controller, onDetect: _onDetect),
           // إطار إرشادي بسيط
           Align(
             alignment: Alignment.center,

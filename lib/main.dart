@@ -6,7 +6,7 @@ import 'core/config/initial_bindings.dart';
 import 'core/services/notification_service.dart';
 import 'shared/themes/app_colors.dart';
 import 'shared/controllers/theme_controller.dart';
-// import 'package:onesignal_flutter/onesignal_flutter.dart'; // handled inside NotificationService
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 // ✅ الشاشات
 import 'features/splash/splash_screen.dart';
@@ -33,12 +33,12 @@ import 'features/teachers/screens/teacher_details_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ تهيئة الإشعارات من خلال الخدمة المركزية فقط
+  OneSignal.initialize("b136e33d-56f0-4fc4-ad08-8c8a534ca447");
 
-  // ✅ 2. تهيئة نظام الإشعارات المحلي إن وُجد
+  await OneSignal.Notifications.requestPermission(true);
+
   await NotificationService.instance.init();
 
-  // ✅ 3. الثيم العام
   Get.put(ThemeController(), permanent: true);
 
   runApp(const MyApp());

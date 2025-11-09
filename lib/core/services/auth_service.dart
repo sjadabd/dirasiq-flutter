@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
-import 'package:dirasiq/core/services/notification_service.dart';
+import 'package:mulhimiq/core/services/notification_service.dart';
 
 class AuthService {
   final ApiService _apiService = ApiService();
@@ -203,7 +203,7 @@ class AuthService {
     await prefs.remove("token");
     await prefs.remove("user");
     // فك الارتباط من OneSignal
-    await NotificationService.instance.logoutOneSignal();
+    await NotificationService.instance.logoutUser();
   }
 
   /// ✅ جلب بيانات المستخدم من التخزين
