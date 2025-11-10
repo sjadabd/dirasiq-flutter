@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "765386230641-t85vg52g6ol2b56sohlvjttuhtsa0ael.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mulhimiq.app",
+            "certificate_hash": "d7b7c83643e230c1b96afab4cdd9fbb93d0d9053"
+          }
+        },
+        {
           "client_id": "765386230641-1be5i4mejr0mql13ib6bk27dj0uq7n8f.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -37,6 +45,13 @@
             {
               "client_id": "765386230641-1be5i4mejr0mql13ib6bk27dj0uq7n8f.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "765386230641-a2iko4308ouljpb9kk0ut0shpl9vvqm0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mulhimiq.app"
+              }
             }
           ]
         }
