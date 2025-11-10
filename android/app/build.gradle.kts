@@ -1,17 +1,17 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services") // ✅ Firebase
+    id("com.google.gms.google-services") // Firebase
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.mulhimiq.app"
-    compileSdk = 36
+    compileSdk = 36 // Compile against 36 to satisfy plugin/AAR requirements
 
     defaultConfig {
         applicationId = "com.mulhimiq.app"
-        minSdk = flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion // ✅ لازم على الأقل 21 لدعم OneSignal
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -19,8 +19,10 @@ android {
 
     buildTypes {
         getByName("release") {
+            // ✅ لا نستخدم R8 أو shrink الآن حتى نتأكد كل شيء يعمل
             isMinifyEnabled = false
             isShrinkResources = false
+            // ⚠️ لاحقاً سنعيد تفعيلهم
         }
     }
 
@@ -39,6 +41,7 @@ flutter {
 }
 
 dependencies {
+    // ✅ Firebase BOM لضمان التوافق بين الإصدارات
     implementation(platform("com.google.firebase:firebase-bom:34.5.0"))
 
     implementation("com.google.firebase:firebase-analytics")

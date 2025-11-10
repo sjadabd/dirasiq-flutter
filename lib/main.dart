@@ -33,11 +33,10 @@ import 'features/teachers/screens/teacher_details_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  OneSignal.initialize("b136e33d-56f0-4fc4-ad08-8c8a534ca447");
-
-  await OneSignal.Notifications.requestPermission(true);
-
   await NotificationService.instance.init();
+
+  final id = OneSignal.User.pushSubscription.id;
+  print("PLAYER ID => $id");
 
   Get.put(ThemeController(), permanent: true);
 
