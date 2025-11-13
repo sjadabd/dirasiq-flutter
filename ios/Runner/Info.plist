@@ -2,87 +2,111 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Mulhim IQ</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>Mulhim IQ</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0.1</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>7</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
 
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+    <key>CFBundleDisplayName</key>
+    <string>Mulhim IQ</string>
 
-	<key>NSCameraUsageDescription</key>
-	<string>نحتاج إلى استخدام الكاميرا لمسح رمز QR لتسجيل حضورك.</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
 
-	<key>UIStatusBarHidden</key>
-	<false/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.236714696249-vsm8los0ghf62s5q8j04tba7gq0v2o7i</string>
-			</array>
-		</dict>
-	</array>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
 
-	<key>FirebaseAppDelegateProxyEnabled</key>
-	<false/>
+    <key>CFBundleName</key>
+    <string>Mulhim IQ</string>
 
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
 
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.1</string>
+
+    <key>CFBundleSignature</key>
+    <string>????</string>
+
+    <key>CFBundleVersion</key>
+    <string>7</string>
+
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+
+    <key>UIMainStoryboardFile</key>
+    <string>Main</string>
+
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+
+    <!-- Camera Permission -->
+    <key>NSCameraUsageDescription</key>
+    <string>نحتاج إلى استخدام الكاميرا لمسح رمز QR لتسجيل حضورك.</string>
+
+    <!-- Photo Permission -->
     <key>NSPhotoLibraryUsageDescription</key>
     <string>This app requires access to your photo library to allow image selection and upload.</string>
 
+    <!-- Location Permissions -->
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>This app uses your location to provide location-based features and improve user experience.</string>
+    <string>This app uses your location to provide location-based features.</string>
 
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>This app requires access to your location even in the background to enable continuous location-based services.</string>
+    <string>This app requires access to your location even in the background to enable continuous services.</string>
+
+    <!-- OneSignal - Background Notifications -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
+    </array>
+
+    <!-- Google Sign-In URL Scheme -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.googleusercontent.apps.765386230641-a2iko4308ouljpb9kk0ut0shpl9vvqm0</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Firebase Required -->
+    <key>FirebaseAppDelegateProxyEnabled</key>
+    <true/>
+
+    <!-- Apple Store Encryption -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+
+    <!-- App Tracking Transparency (Required for Push Notifications sometimes) -->
+    <key>NSUserTrackingUsageDescription</key>
+    <string>We use this identifier to provide personalized app content and notifications.</string>
 
 </dict>
 </plist>

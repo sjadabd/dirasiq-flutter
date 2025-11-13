@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:get/get.dart';
 import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:mulhimiq/core/services/auth_service.dart';
@@ -8,7 +7,6 @@ import 'package:mulhimiq/features/auth/screens/login_screen.dart';
 import 'package:mulhimiq/features/search/screens/student_unified_search_screen.dart';
 import 'package:mulhimiq/shared/controllers/global_controller.dart';
 import 'package:mulhimiq/shared/controllers/theme_controller.dart';
-import 'package:mulhimiq/core/services/permission_service.dart';
 import 'package:mulhimiq/core/services/notification_service.dart';
 
 class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -136,38 +134,12 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
                       color: cs.onSurface,
                     ),
                     onPressed: () async {
-                      final granted =
-                          await PermissionService.requestNotificationPermission();
-                      if (granted) {
+                      await Get.toNamed('/notifications');
+                      controller.loadUnread();
+                      try {
                         await NotificationService.instance
                             .requestPermissionIfNeeded();
-                        if (!context.mounted) return;
-                        await Navigator.pushNamed(context, '/notifications');
-                        controller.loadUnread();
-                        return;
-                      }
-
-                      if (!context.mounted) return;
-                      final scheme = Theme.of(context).colorScheme;
-                      if (Platform.isAndroid) {
-                        Get.snackbar(
-                          'تفعيل الإشعارات',
-                          'للتمكن من استقبال التحديثات، فعّل إذن الإشعارات من الإعدادات.',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor:
-                              Theme.of(context).brightness == Brightness.dark
-                              ? scheme.surface.withValues(alpha: 0.95)
-                              : scheme.surface,
-                          colorText: scheme.onSurface,
-                          margin: const EdgeInsets.all(12),
-                          borderRadius: 12,
-                          icon: Icon(
-                            Icons.notifications_active_outlined,
-                            color: scheme.primary,
-                          ),
-                          duration: const Duration(seconds: 7),
-                        );
-                      }
+                      } catch (_) {}
                     },
                   ),
                   if (count > 0)
