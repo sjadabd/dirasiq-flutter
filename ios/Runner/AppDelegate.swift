@@ -3,6 +3,7 @@ import Flutter
 import OneSignalFramework
 import GoogleSignIn
 import FirebaseCore
+import FirebaseAuth   // ← مهم جداً لمنع الكراش
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -12,10 +13,10 @@ import FirebaseCore
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
-    // Initialize Firebase
+    // تهيئة Firebase
     FirebaseApp.configure()
 
-    // تسجيل الـ plugins
+    // تسجيل الـ Plugins
     GeneratedPluginRegistrant.register(with: self)
 
     // تهيئة OneSignal
@@ -24,19 +25,19 @@ import FirebaseCore
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // معالجة الروابط الخاصة بـ Google Sign-In
+  // معالجة الروابط الخاصة بتسجيل دخول Google
   override func application(
     _ app: UIApplication,
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
 
-    // 1️⃣ ضروري لـ Google Sign-In
+    // 1️⃣ الدخول عبر Google
     if GIDSignIn.sharedInstance.handle(url) {
         return true
     }
 
-    // 2️⃣ ضروري لـ Firebase Authentication (يربط Google Sign-In مع Firebase)
+    // 2️⃣ دعم Firebase Auth للروابط
     if Auth.auth().canHandle(url) {
         return true
     }
