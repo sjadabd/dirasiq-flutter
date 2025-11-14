@@ -96,6 +96,12 @@
         </dict>
     </array>
 
+    <key>GIDClientID</key>
+    <string>765386230641-a2iko4308ouljpb9kk0ut0shpl9vvqm0.apps.googleusercontent.com</string>
+
+    <key>GIDServerClientID</key>
+    <string>765386230641-bl1vn9b2o3o5eghkj1b0jl31ri1b4gr2.apps.googleusercontent.com</string>
+
     <!-- Firebase Required -->
     <key>FirebaseAppDelegateProxyEnabled</key>
     <true/>
