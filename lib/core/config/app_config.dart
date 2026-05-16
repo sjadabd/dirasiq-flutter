@@ -1,7 +1,9 @@
 /// Centralized application configuration
 class AppConfig {
   // 🌐 Base server origin (use this for images/assets and non-API endpoints)
-  static const String serverBaseUrl = "https://api.mulhimiq.com";
+  // Production: "https://api.mulhimiq.com"
+  // Local dev — Android emulator uses 10.0.2.2 to reach the host loopback:
+  static const String serverBaseUrl = "http://10.0.2.2:3000";
 
   // 📡 API base (compose from serverBaseUrl to keep them in sync)
   static const String apiBaseUrl = "$serverBaseUrl/api";
