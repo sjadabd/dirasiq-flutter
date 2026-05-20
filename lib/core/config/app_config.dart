@@ -8,6 +8,10 @@ class AppConfig {
   // 📡 API base (compose from serverBaseUrl to keep them in sync)
   static const String apiBaseUrl = "$serverBaseUrl/api";
 
+  // 💬 Chat service (separate Node process on a different port; same JWT).
+  // Production: "https://chat.mulhimiq.com" (or wherever the chat host lands).
+  static const String chatBaseUrl = "http://10.0.2.2:3001";
+
   // 🔔 OneSignal configuration (unchanged)
   static const String oneSignalAppId = "b136e33d-56f0-4fc4-ad08-8c8a534ca447";
 }

@@ -76,13 +76,25 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       body: SafeArea(
         top: true,
         bottom: true,
-        child: isLoading
-            ? _buildLoading()
-            : error != null
-            ? _buildError(theme)
-            : course == null
-            ? _buildEmpty(theme)
-            : _buildContent(theme, isDark),
+        child: RefreshIndicator(
+          onRefresh: _fetchCourseDetails,
+          child: isLoading
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [const SizedBox(height: 200), _buildLoading()],
+                )
+              : error != null
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [const SizedBox(height: 80), _buildError(theme)],
+                )
+              : course == null
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [const SizedBox(height: 80), _buildEmpty(theme)],
+                )
+              : _buildContent(theme, isDark),
+        ),
       ),
       bottomNavigationBar: course == null
           ? null
@@ -130,7 +142,7 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
     return NotificationListener<ScrollNotification>(
       onNotification: (_) => true,
       child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         slivers: [
           SliverAppBar(
             expandedHeight: 340,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mulhimiq/core/services/auth_service.dart';
+import 'package:mulhimiq/core/services/role_router.dart';
 import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
@@ -34,21 +35,18 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    // استخدام مفتاح جديد كلياً لإجبار عرض التعريف مرة واحدة لكل المستخدمين
-    const String onboardingSeenKey = 'has_seen_onboarding_2025_v1';
-    final bool hasSeenOnboarding = prefs.getBool(onboardingSeenKey) ?? false;
+    // New 2026 onboarding key. The old v1 flag is also honored — anyone who
+    // saw v1 doesn't get v2 either (we set both flags when v2 finishes).
+    const String onboardingSeenKey = 'has_seen_onboarding_2026_v2';
+    final bool hasSeenOnboarding = prefs.getBool(onboardingSeenKey) == true
+        || prefs.getBool('has_seen_onboarding_2025_v1') == true;
     final loggedIn = await _authService.isLoggedIn();
 
     if (loggedIn) {
-      final complete = await _authService.isProfileComplete();
-      if (!mounted) {
-        return;
-      }
-      if (complete) {
-        Navigator.pushReplacementNamed(context, "/home");
-      } else {
-        Navigator.pushReplacementNamed(context, "/complete-profile");
-      }
+      // RoleRouter inspects the stored user.userType and dispatches to
+      // /home (student) or /teacher/home (teacher), respecting the
+      // student profile-completion gate.
+      await RoleRouter.routeAfterAuth();
       return;
     }
 

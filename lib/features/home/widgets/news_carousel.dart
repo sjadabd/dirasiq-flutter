@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:mulhimiq/shared/themes/app_colors.dart';
@@ -20,6 +22,7 @@ class _NewsCarouselState extends State<NewsCarousel>
   int _currentIndex = 0;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  Timer? _autoSlideTimer;
 
   @override
   void initState() {
@@ -47,22 +50,22 @@ class _NewsCarouselState extends State<NewsCarousel>
 
   @override
   void dispose() {
+    _autoSlideTimer?.cancel();
     _pageController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
   void _startAutoSlide() {
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && _newsList.isNotEmpty) {
-        final nextIndex = (_currentIndex + 1) % _newsList.length;
-        _pageController.animateToPage(
-          nextIndex,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOutCubic,
-        );
-        _startAutoSlide();
-      }
+    _autoSlideTimer?.cancel();
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || _newsList.isEmpty || !_pageController.hasClients) return;
+      final nextIndex = (_currentIndex + 1) % _newsList.length;
+      _pageController.animateToPage(
+        nextIndex,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOutCubic,
+      );
     });
   }
 
@@ -338,99 +341,65 @@ class _NewsCarouselState extends State<NewsCarousel>
     final cs = Theme.of(context).colorScheme;
     if (_isLoading) {
       return Container(
-        height: 130,
-        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: cs.surface,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          SizedBox(
+            width: 18, height: 18,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
+              strokeWidth: 2,
             ),
-          ],
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
-                strokeWidth: 3,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "جاري تحميل الأخبار...",
-                style: TextStyle(
-                  color: cs.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
           ),
-        ),
+          const SizedBox(width: 12),
+          Text("جارٍ تحميل الإعلانات…",
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
+        ]),
       );
     }
 
     if (_error != null || _newsList.isEmpty) {
       return Container(
-        height: 130,
-        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: cs.surface,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+        ),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  Icons.newspaper_outlined,
-                  size: 48,
-                  color: cs.onSurface,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  _error ?? "لا توجد أخبار متاحة حالياً",
-                  style: TextStyle(
-                    color: cs.onSurface,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+            child: Icon(Icons.campaign_outlined, size: 22, color: cs.primary),
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _error != null
+                  ? "تعذّر تحميل الإعلانات حالياً"
+                  : "لا توجد إعلانات متاحة حالياً",
+              style: TextStyle(color: cs.onSurface, fontSize: 13, fontWeight: FontWeight.w500),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ]),
       );
     }
 
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: Container(
-        height: 100,
-        margin: const EdgeInsets.all(16),
+      child: SizedBox(
+        height: 130,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

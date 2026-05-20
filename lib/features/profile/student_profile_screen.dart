@@ -106,11 +106,14 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
     );
   }
 
-  // ✅ تصحيح مكان الـ dispose
   @override
   void dispose() {
     _fadeController.dispose();
     _slideController.dispose();
+    _nameController.dispose();
+    _studentPhoneController.dispose();
+    _parentPhoneController.dispose();
+    _schoolNameController.dispose();
     super.dispose();
   }
 

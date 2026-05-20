@@ -7,7 +7,6 @@ import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
 
 class AssignmentDetailsScreen extends StatefulWidget {
   final String assignmentId;
@@ -24,61 +23,11 @@ class _AssignmentDetailsScreenState extends State<AssignmentDetailsScreen> {
   Map<String, dynamic>? mySubmission;
   bool _loading = true;
   String? _error;
-  Timer? _notifTimer;
-  bool _gradedNotified = false;
-  final bool _enableAutoRefresh = false;
 
   @override
   void initState() {
     super.initState();
     _fetch();
-    if (_enableAutoRefresh) {
-      _notifTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-        _checkGradedNotice();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _notifTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _checkGradedNotice() async {
-    final status = (mySubmission?['status']?.toString() ?? '').toLowerCase();
-    if (status == 'graded' || _gradedNotified) return;
-    try {
-      final res = await _api.fetchMyNotifications(
-        page: 1,
-        limit: 10,
-        type: 'homework',
-      );
-      final data = Map<String, dynamic>.from(res);
-      final list = List<Map<String, dynamic>>.from(
-        (data['items'] ?? data['notifications'] ?? data['data'] ?? []) as List,
-      );
-      final aid = widget.assignmentId;
-      bool hit = false;
-      for (final n in list) {
-        final title = (n['title'] ?? '').toString();
-        final msg = (n['message'] ?? '').toString();
-        final ndata = n['data'] is Map<String, dynamic>
-            ? n['data'] as Map<String, dynamic>
-            : <String, dynamic>{};
-        final nid = (ndata['assignmentId'] ?? ndata['assignment_id'] ?? '')
-            .toString();
-        if ((title.contains('نتيجة واجبك') || msg.contains('نتيجة واجبك')) &&
-            nid == aid) {
-          hit = true;
-          break;
-        }
-      }
-      if (hit) {
-        _gradedNotified = true;
-        await _fetch();
-      }
-    } catch (_) {}
   }
 
   Future<void> _openViewSubmission() async {

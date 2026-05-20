@@ -5,6 +5,7 @@ import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
 import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/widgets/status_views.dart';
 
 class EnrollmentsScreen extends StatefulWidget {
   const EnrollmentsScreen({super.key});
@@ -128,8 +129,8 @@ class _EnrollmentsScreenState extends State<EnrollmentsScreen> {
   Widget _buildLoading() => ListView(
     physics: _refreshPhysics(context),
     children: const [
-      SizedBox(height: 200),
-      Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      SizedBox(height: 120),
+      StatusView.loading(message: 'جارٍ تحميل دوراتك…'),
       SizedBox(height: 600),
     ],
   );
@@ -137,73 +138,24 @@ class _EnrollmentsScreenState extends State<EnrollmentsScreen> {
   Widget _buildError(ThemeData theme) => ListView(
     physics: _refreshPhysics(context),
     children: [
-      Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const SizedBox(height: 200),
-            Icon(Icons.error_outline, color: theme.colorScheme.error, size: 60),
-            const SizedBox(height: 12),
-            Text(
-              'حدث خطأ أثناء تحميل الدورات المسجّلة',
-              style: TextStyle(
-                color: theme.colorScheme.error,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة'),
-              onPressed: () => _fetch(refresh: true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 600),
-          ],
-        ),
+      const SizedBox(height: 120),
+      StatusView.error(
+        message: 'تعذّر تحميل دوراتك. تحقّق من الإنترنت وحاول مجدّداً.',
+        onAction: () => _fetch(refresh: true),
       ),
+      const SizedBox(height: 600),
     ],
   );
 
   Widget _buildEmpty(ThemeData theme) => ListView(
     physics: _refreshPhysics(context),
-    children: [
-      const SizedBox(height: 200),
-      Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.school_rounded,
-            color: theme.colorScheme.primary.withValues(alpha: 0.6),
-            size: 80,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'لا توجد دورات مسجّل بها',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'قم بالانضمام إلى دورة جديدة من صفحة الكورسات المقترحة',
-            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 600),
-        ],
+    children: const [
+      SizedBox(height: 120),
+      StatusView.empty(
+        icon: Icons.school_rounded,
+        message: 'لم تنضم لأي دورة بعد. تصفّح الكورسات المقترحة لتبدأ.',
       ),
+      SizedBox(height: 600),
     ],
   );
 

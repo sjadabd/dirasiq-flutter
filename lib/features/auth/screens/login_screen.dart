@@ -5,21 +5,31 @@ import '../controllers/auth_controller.dart';
 import '../widgets/auth_text_field.dart';
 import 'register_screen.dart';
 import '../../../core/services/google_auth_service.dart';
-import '../../../core/services/auth_service.dart';
+import '../../../core/services/role_router.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:mulhimiq/core/services/apple_auth_service.dart';
-import '../../profile/complete_profile_screen.dart';
 import 'forgot_password_screen.dart';
 import 'email_verification_screen.dart';
 
-class LoginScreen extends StatelessWidget {
-  LoginScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final AuthController _controller = Get.find<AuthController>();
-  final AuthService _authService = AuthService();
   final AppleAuthService _appleAuthService = AppleAuthService();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleGoogleLogin(BuildContext context) async {
     debugPrint('[LoginScreen] Google login button pressed');
@@ -33,20 +43,10 @@ class LoginScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     if (error == null) {
-      debugPrint(
-        '[LoginScreen] Google sign-in success, checking profile completeness',
-      );
-      final complete = await _authService.isProfileComplete();
-
-      if (complete) {
-        debugPrint('[LoginScreen] profile complete -> navigate /home');
-        Get.offAllNamed('/home');
-      } else {
-        debugPrint(
-          '[LoginScreen] profile incomplete -> navigate CompleteProfileScreen',
-        );
-        Get.offAll(() => const CompleteProfileScreen());
-      }
+      debugPrint('[LoginScreen] Google sign-in success — dispatching via RoleRouter');
+      // RoleRouter inspects user.userType (student/teacher) and respects the
+      // student profile-completion gate; teachers skip that gate.
+      await RoleRouter.routeAfterAuth();
     } else if (error == "EMAIL_VERIFICATION_REQUIRED") {
       final email = GoogleAuthService().lastEmail ?? '';
       debugPrint(
@@ -65,13 +65,7 @@ class LoginScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     if (error == null) {
-      final complete = await _authService.isProfileComplete();
-
-      if (complete) {
-        Get.offAllNamed('/home');
-      } else {
-        Get.offAll(() => const CompleteProfileScreen());
-      }
+      await RoleRouter.routeAfterAuth();
     } else {
       Get.snackbar('خطأ', error, snackPosition: SnackPosition.BOTTOM);
     }

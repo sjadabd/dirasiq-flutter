@@ -29,6 +29,9 @@ import 'features/invoices/screens/student_invoices_screen.dart';
 import 'features/invoices/screens/invoice_details_screen.dart';
 import 'features/teachers/screens/suggested_teachers_screen.dart';
 import 'features/teachers/screens/teacher_details_screen.dart';
+import 'features/teacher/shared/teacher_routes.dart';
+import 'features/teacher/shared/teacher_workspace.dart';
+import 'features/student/chat/screens/student_conversations_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -183,6 +186,17 @@ class MyApp extends StatelessWidget {
           GetPage(name: "/onboarding", page: () => const OnboardingScreen()),
           GetPage(name: "/login", page: () => LoginScreen()),
           GetPage(name: "/home", page: () => const RootShell()),
+          // Teacher entry route. RoleRouter dispatches here on userType=teacher.
+          // The workspace owns a single Scaffold and swaps pages via an
+          // IndexedStack — so the per-page Get routes are intentionally gone
+          // (they'd unmount pages on each tap and break state preservation).
+          GetPage(
+            name: TeacherRoutes.home,
+            page: () => const TeacherWorkspace(),
+            // 300ms fade — feels like a premium SaaS dashboard, not a re-route.
+            transition: Transition.fadeIn,
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
           GetPage(
             name: "/complete-profile",
             page: () => const CompleteProfileScreen(),
@@ -265,6 +279,13 @@ class MyApp extends StatelessWidget {
               final id = Get.arguments as String;
               return BookingDetailsScreen(bookingId: id);
             },
+          ),
+          // Phase 7 — student chat list. The per-conversation screen is
+          // pushed imperatively via Get.to() from the list, not registered
+          // as a named route (it needs a conversationId + myUserId).
+          GetPage(
+            name: "/chat/conversations",
+            page: () => const StudentConversationsScreen(),
           ),
         ],
       ),

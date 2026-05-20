@@ -42,6 +42,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _fetchGrades();
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _studentPhoneController.dispose();
+    _parentPhoneController.dispose();
+    _schoolNameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchGrades() async {
     try {
       final grades = await _apiService.fetchGrades();

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mulhimiq/features/home/screens/home_screen.dart';
+// v2 home — "My Teachers" focused. Keeps the old HomeScreen import out of the
+// way (we don't reference it anymore but the file still exists for safety).
+import 'package:mulhimiq/features/home/screens/student_my_teachers_home.dart';
 import 'package:mulhimiq/features/courses/screens/suggested_courses_screen.dart';
 import 'package:mulhimiq/features/bookings/screens/bookings_list_screen.dart';
 import 'package:mulhimiq/features/enrollments/screens/enrollments_screen.dart';
@@ -24,7 +26,7 @@ class _RootShellState extends State<RootShell> {
   void initState() {
     super.initState();
     _pages = [
-      const HomeScreen(),
+      const StudentMyTeachersHome(),
       const SuggestedCoursesScreen(),
       const EnrollmentsScreen(),
       const StudentInvoicesScreen(),

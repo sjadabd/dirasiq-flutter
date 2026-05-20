@@ -1,6 +1,7 @@
 import 'package:mulhimiq/core/services/api_service.dart';
 import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/widgets/status_views.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -194,15 +195,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                 _chartsSection(paidStatus),
                 const SizedBox(height: 10),
                 _loading
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                            strokeWidth: 2.5,
-                          ),
-                        ),
-                      )
+                    ? const StatusView.loading(message: 'جارٍ تحميل فواتيرك…')
                     : _invoices.isEmpty
                     ? _empty()
                     : _list(),
@@ -484,28 +477,28 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
       children: [
         card(
           Icons.receipt_long_rounded,
-          'إجمالي الفواتير',
+          'قيمة الكورسات',
           totalDue,
           AppColors.primary,
           AppColors.primary.withValues(alpha: 0.1),
         ),
         card(
           Icons.local_offer_rounded,
-          'الخصومات',
+          'تخفيضات لك',
           totalDisc,
           AppColors.warning,
           AppColors.warning.withValues(alpha: 0.1),
         ),
         card(
           Icons.payments_rounded,
-          'المدفوع',
+          'دفعتم حتى الآن',
           totalPaid,
           AppColors.success,
           AppColors.success.withValues(alpha: 0.1),
         ),
         card(
           Icons.account_balance_wallet_rounded,
-          'المتبقي',
+          'المتبقّي للدفع',
           totalRemain,
           AppColors.error,
           AppColors.error.withValues(alpha: 0.1),
@@ -898,7 +891,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                   child: Column(
                     children: [
                       _detailRow(
-                        'المبلغ المستحق',
+                        'قيمة الكورس',
                         _currency.format(due),
                         isDark
                             ? AppColors.darkTextPrimary
@@ -907,21 +900,21 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
                       ),
                       const SizedBox(height: 6),
                       _detailRow(
-                        'الخصم',
+                        'تخفيض لك',
                         _currency.format(discount),
                         AppColors.warning,
                         false,
                       ),
                       const SizedBox(height: 6),
                       _detailRow(
-                        'المدفوع',
+                        'دفعتم حتى الآن',
                         _currency.format(paid),
                         AppColors.success,
                         false,
                       ),
                       const SizedBox(height: 6),
                       _detailRow(
-                        'المتبقي',
+                        'المتبقّي للدفع',
                         _currency.format(remain),
                         AppColors.error,
                         true,
@@ -1104,49 +1097,8 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
     }
   }
 
-  Widget _empty() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
-    final subtitleColor = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.textSecondary;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.receipt_long_rounded,
-                size: 48,
-                color: AppColors.primary.withValues(alpha: 0.5),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'لا توجد فواتير',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: titleColor,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'لا توجد فواتير للعرض حالياً',
-              style: TextStyle(fontSize: 12, color: subtitleColor),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _empty() => const StatusView.empty(
+        icon: Icons.receipt_long_rounded,
+        message: 'لا توجد فواتير في هذه التصفية حالياً.',
+      );
 }

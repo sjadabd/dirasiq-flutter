@@ -35,6 +35,12 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
     _loadIntro();
   }
 
+  /// Pull-to-refresh entry point — re-invokes BOTH endpoints in parallel so
+  /// every section on this screen reflects the latest server state.
+  Future<void> _refreshAll() async {
+    await Future.wait<void>([_load(), _loadIntro()]);
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -172,11 +178,23 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
     final name = (_teacher?['name'] ?? _teacher?['full_name'] ?? '').toString();
     return Scaffold(
       appBar: AppBar(title: Text(name.isEmpty ? 'تفاصيل المعلم' : name)),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : (_error != null
-                ? _buildError(cs)
+      body: RefreshIndicator(
+        onRefresh: _refreshAll,
+        child: _loading
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 200),
+                  Center(child: CircularProgressIndicator()),
+                ],
+              )
+            : (_error != null
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [SizedBox(height: 80), _buildError(cs)],
+                  )
                 : SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -233,6 +251,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                       ],
                     ),
                   )),
+      ),
     );
   }
 

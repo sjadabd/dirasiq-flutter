@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
 import 'package:mulhimiq/core/services/auth_service.dart';
 import 'package:mulhimiq/core/services/notification_events.dart';
+import 'package:mulhimiq/features/teacher/chat/services/chat_unread_service.dart';
 import 'package:app_badge_plus/app_badge_plus.dart';
 
 /// 🧩 المتحكم العام لتطبيق mulhimiq
@@ -37,6 +38,7 @@ class GlobalController extends GetxController {
       return;
     }
     await loadUnread();
+    _startChatUnread();
 
     // ✅ استمع لأي إشعار جديد
     _notifSub = NotificationEvents.instance.onNewNotification.listen((_) {
@@ -84,7 +86,28 @@ class GlobalController extends GetxController {
       user.value = null;
       unreadCount.value = 0;
       _removeBadge();
+      // Drop chat session state — sockets disconnect, counters zero.
+      try {
+        ChatUnreadService.instance.reset();
+      } catch (_) {
+        // Service may not be registered yet (cold logout edge case).
+      }
     } catch (_) {}
+  }
+
+  /// Boots the chat-unread counter for the current user. Idempotent — the
+  /// service short-circuits if already running with the same id.
+  void _startChatUnread() {
+    final u = user.value;
+    if (u == null) return;
+    final uid = (u['id'] ?? u['_id'])?.toString();
+    if (uid == null || uid.isEmpty) return;
+    try {
+      // Fire-and-forget; the service handles its own errors.
+      ChatUnreadService.instance.start(uid);
+    } catch (_) {
+      // Service not registered (cold-start edge case) — try again next tick.
+    }
   }
 
   @override

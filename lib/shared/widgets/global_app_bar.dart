@@ -5,6 +5,7 @@ import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:mulhimiq/core/services/auth_service.dart';
 import 'package:mulhimiq/features/auth/screens/login_screen.dart';
 import 'package:mulhimiq/features/search/screens/student_unified_search_screen.dart';
+import 'package:mulhimiq/features/teacher/chat/services/chat_unread_service.dart';
 import 'package:mulhimiq/shared/controllers/global_controller.dart';
 import 'package:mulhimiq/shared/controllers/theme_controller.dart';
 import 'package:mulhimiq/core/services/notification_service.dart';
@@ -108,6 +109,9 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
 
             const SizedBox(width: 10),
+
+            // ✅ المحادثات مع شارة العدد غير المقروء
+            _ChatIconWithBadge(controller: controller),
 
             // ✅ تبديل الوضع الليلي والنهاري
             IconButton(
@@ -281,5 +285,78 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
     final first = parts.first.substring(0, 1);
     final second = parts.length > 1 ? parts[1].substring(0, 1) : '';
     return (first + second).toUpperCase();
+  }
+}
+
+// Chat icon + reactive unread badge. Kept as its own widget so the `Obx`
+// rebuilds only this small subtree when the counter ticks — the rest of the
+// AppBar stays static.
+//
+// Doubles as a fallback bootstrap for `ChatUnreadService.start(userId)` —
+// the service is also booted from `GlobalController._initialize`, but a
+// mid-session login (logout → login without app restart) doesn't re-run
+// that path. Bootstrapping here on every build is idempotent (the service
+// short-circuits when already running for the same user) so the badge is
+// guaranteed live by the time the AppBar is on screen.
+class _ChatIconWithBadge extends StatelessWidget {
+  const _ChatIconWithBadge({required this.controller});
+  final GlobalController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    // Fallback bootstrap — read the userId from the GlobalController's
+    // cached user map (already loaded from SharedPreferences).
+    final u = controller.user.value;
+    final uid = (u?['id'] ?? u?['_id'])?.toString();
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        ChatUnreadService.instance.start(uid);
+      } catch (_) {
+        // Service not registered (extremely early in the boot graph) —
+        // GlobalController._initialize will pick it up.
+      }
+    }
+    return Obx(() {
+      int count = 0;
+      try {
+        count = ChatUnreadService.instance.total.value;
+      } catch (_) {
+        // Service not registered yet — render the icon without a badge.
+      }
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            tooltip: 'المحادثات',
+            icon: Icon(Icons.forum_outlined, color: cs.onSurface),
+            onPressed: () => Get.toNamed('/chat/conversations'),
+          ),
+          if (count > 0)
+            Positioned(
+              top: 6,
+              right: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
   }
 }

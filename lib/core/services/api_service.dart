@@ -135,6 +135,21 @@ class ApiService {
     }
   }
 
+  /// Aggregate for the student↔teacher workspace screen.
+  /// One round-trip: teacher profile + shared courses + assignments + exams +
+  /// invoices + totals + alerts. Backend enforces ownership (404 if the
+  /// student has no active booking with the teacher).
+  Future<Map<String, dynamic>> fetchTeacherAggregate(String teacherId) async {
+    final response = await _dio.get('/student/teachers/$teacherId/aggregate');
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      final data = response.data['data'];
+      return data is Map<String, dynamic>
+          ? Map<String, dynamic>.from(data)
+          : <String, dynamic>{};
+    }
+    throw Exception(response.data['message'] ?? 'فشل تحميل بيانات الأستاذ');
+  }
+
   /// ✅ جلب المعلمين المقترحين للطالب مع دعم البحث والترقيم
   Future<Map<String, dynamic>> fetchSuggestedTeachers({
     int page = 1,
@@ -515,8 +530,16 @@ class ApiService {
       );
 
       if (response.statusCode == 200 && response.data["success"] == true) {
-        final newsList = response.data["data"] as List; // ✅ صح هنا
-        return List<Map<String, dynamic>>.from(newsList);
+        // Phase 1.B-3 envelope: data can be either a direct list (legacy) or
+        // wrapped as { data: [...], page, limit, total }. Handle both so we
+        // survive the migration without a server-side change.
+        final raw = response.data["data"];
+        final List newsList = raw is List
+            ? raw
+            : (raw is Map && raw["data"] is List ? raw["data"] as List : const []);
+        return List<Map<String, dynamic>>.from(
+          newsList.whereType<Map>().map((m) => Map<String, dynamic>.from(m)),
+        );
       } else {
         throw Exception(response.data["message"] ?? "فشل تحميل الأخبار");
       }

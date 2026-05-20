@@ -547,7 +547,12 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
               ],
             ),
           ),
-          Expanded(child: _buildBody(isDark)),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => _fetch(refresh: true),
+              child: _buildBody(isDark),
+            ),
+          ),
         ],
       ),
     );
@@ -555,11 +560,19 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
 
   Widget _buildBody(bool isDark) {
     if (_loading && _items.isEmpty) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      // Wrap in scrollable so RefreshIndicator can detect the pull.
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 200),
+          Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ],
+      );
     }
 
     if (_error != null) {
       return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
           const SizedBox(height: 40),
@@ -590,6 +603,7 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
 
     if (_items.isEmpty) {
       return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
           const SizedBox(height: 40),
@@ -612,6 +626,7 @@ class _StudentEvaluationsScreenState extends State<StudentEvaluationsScreen> {
     }
 
     return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(12),
       itemCount: _items.length + (_hasMore ? 1 : 0),
       separatorBuilder: (_, _) => const SizedBox(height: 8),

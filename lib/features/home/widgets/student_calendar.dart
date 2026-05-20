@@ -4,7 +4,10 @@ import 'package:intl/intl.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
 
 class StudentCalendar extends StatefulWidget {
-  const StudentCalendar({super.key});
+  /// Bump this from the parent (e.g. on pull-to-refresh) to force the
+  /// calendar to refetch its weekly schedule. Same pattern as NewsCarousel.
+  final int refreshToken;
+  const StudentCalendar({super.key, this.refreshToken = 0});
 
   @override
   State<StudentCalendar> createState() => _StudentCalendarState();
@@ -20,6 +23,14 @@ class _StudentCalendarState extends State<StudentCalendar> {
   void initState() {
     super.initState();
     _loadSchedule();
+  }
+
+  @override
+  void didUpdateWidget(covariant StudentCalendar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshToken != oldWidget.refreshToken) {
+      _loadSchedule();
+    }
   }
 
   /// تحميل البيانات من API
