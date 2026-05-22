@@ -43,10 +43,12 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
 
-        // اختيارياً نستخدم نفس التوقيع في debug لضمان توافق الاختبارات
-        getByName("debug") {
-            signingConfig = signingConfigs.getByName("release")
-        }
+        // debug variant uses the Android Studio debug keystore by default.
+        // The previous override (signingConfig = release) caused the APK
+        // to be signed with upload-keystore.jks, whose SHA-1 is not in
+        // google-services.json — triggering ApiException: 10 on Google
+        // Sign-In. Keeping the default debug signing matches the SHA-1
+        // (E0:75:13:0E:...) that Firebase already knows about.
     }
 
     compileOptions {
