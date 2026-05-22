@@ -271,6 +271,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
 
+              const SizedBox(height: 12),
+
+              // 🔹 Join-as-Teacher entry — teachers can't self-register, they
+              // must submit an application that an admin then approves.
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () => Get.toNamed('/join-as-teacher'),
+                  icon: const Icon(Icons.school_outlined, size: 20),
+                  label: const Text(
+                    'انضم كأستاذ (تقديم طلب)',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: scheme.primary,
+                    side: BorderSide(color: scheme.primary.withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 40),
 
               // 🔹 Small Footer

@@ -11,6 +11,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 // ✅ الشاشات
 import 'features/splash/splash_screen.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'features/teacher_application/screens/join_as_teacher_screen.dart';
 import 'features/profile/complete_profile_screen.dart';
 import 'features/profile/student_profile_screen.dart';
 import 'features/notifications/notifications_screen.dart';
@@ -185,6 +186,14 @@ class MyApp extends StatelessWidget {
           GetPage(name: "/splash", page: () => const SplashScreen()),
           GetPage(name: "/onboarding", page: () => const OnboardingScreen()),
           GetPage(name: "/login", page: () => LoginScreen()),
+          // Teacher Onboarding (Phase 6). Public — does not require auth.
+          // Routes the prospective teacher through the application form,
+          // then back to /login once the super-admin approves them.
+          GetPage(
+            name: "/join-as-teacher",
+            page: () => const JoinAsTeacherScreen(),
+            transition: Transition.fadeIn,
+          ),
           GetPage(name: "/home", page: () => const RootShell()),
           // Teacher entry route. RoleRouter dispatches here on userType=teacher.
           // The workspace owns a single Scaffold and swaps pages via an

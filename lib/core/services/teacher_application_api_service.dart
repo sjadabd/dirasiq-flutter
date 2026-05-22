@@ -1,0 +1,169 @@
+// Teacher-application API client (Phase 6).
+//
+// Independent from `api_service.dart` because:
+//   - This flow is unauthenticated (no Bearer token) — using the main Dio
+//     would attach the wrong (or no) Authorization header.
+//   - The upload endpoint takes an X-Upload-Token header, which we issue
+//     from the create response and pass back here per file.
+//
+// Endpoints:
+//   POST /api/teacher-applications                  → submit (no auth)
+//   POST /api/teacher-applications/:id/files        → upload one file
+//                                                     (X-Upload-Token)
+
+import 'dart:io';
+
+import 'package:dio/dio.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
+
+class TeacherApplicationApiException implements Exception {
+  TeacherApplicationApiException(this.message, {this.statusCode, this.code, this.fields});
+  final String message;
+  final int? statusCode;
+  final String? code;
+  final List<String>? fields;
+  @override
+  String toString() => 'TeacherApplicationApiException($statusCode $code): $message';
+}
+
+class TeacherApplicationApiService {
+  TeacherApplicationApiService()
+      : _dio = Dio(
+          BaseOptions(
+            baseUrl: AppConfig.apiBaseUrl,
+            connectTimeout: const Duration(seconds: 20),
+            receiveTimeout: const Duration(seconds: 30),
+            sendTimeout: const Duration(seconds: 120), // file uploads
+            headers: {
+              'Accept': 'application/json',
+            },
+          ),
+        );
+
+  final Dio _dio;
+
+  /// Submit a new application. Returns the created id + the upload token
+  /// the caller will use to attach files in the same session.
+  Future<TeacherApplicationSubmitResult> submit(
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final res = await _dio.post(
+        '/teacher-applications',
+        data: payload,
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      final data = (res.data is Map ? (res.data['data'] as Map?) : null) ?? const {};
+      return TeacherApplicationSubmitResult(
+        applicationId: data['id'] as String? ?? '',
+        applicationStatus: data['applicationStatus'] as String? ?? 'pending',
+        uploadToken: data['uploadToken'] as String? ?? '',
+        uploadTokenExpiresInSeconds:
+            (data['uploadTokenExpiresInSeconds'] as num?)?.toInt() ?? 1800,
+      );
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
+  /// Upload one file. `onProgress` reports 0.0…1.0.
+  /// `kind` must be one of: profile_image | certificate_image |
+  /// national_id_image | optional_attachment | intro_video.
+  Future<Map<String, dynamic>> uploadFile({
+    required String applicationId,
+    required String uploadToken,
+    required String kind,
+    required File file,
+    required String declaredMimeType,
+    void Function(double progress)? onProgress,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'kind': kind,
+        'file': await MultipartFile.fromFile(
+          file.path,
+          filename: file.uri.pathSegments.isNotEmpty
+              ? file.uri.pathSegments.last
+              : 'upload',
+          contentType: _parseMime(declaredMimeType),
+        ),
+      });
+
+      final res = await _dio.post(
+        '/teacher-applications/$applicationId/files',
+        data: formData,
+        options: Options(
+          headers: {
+            'X-Upload-Token': uploadToken,
+          },
+        ),
+        onSendProgress: (sent, total) {
+          if (total > 0 && onProgress != null) {
+            onProgress(sent / total);
+          }
+        },
+      );
+      final data = (res.data is Map ? (res.data['data'] as Map?) : null) ?? const {};
+      return Map<String, dynamic>.from(data);
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
+  // --- internals -------------------------------------------------------------
+
+  TeacherApplicationApiException _from(DioException e) {
+    final body = e.response?.data;
+    final status = e.response?.statusCode;
+    if (body is Map) {
+      final message = body['message']?.toString() ?? e.message ?? 'خطأ في الاتصال';
+      String? code;
+      List<String>? fields;
+      final errs = body['errors'];
+      if (errs is List && errs.isNotEmpty) {
+        final first = errs.first;
+        if (first is Map) {
+          code = first['code']?.toString();
+        }
+        fields = errs
+            .whereType<Map>()
+            .map((m) => m['field']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+      return TeacherApplicationApiException(
+        message,
+        statusCode: status,
+        code: code,
+        fields: fields,
+      );
+    }
+    return TeacherApplicationApiException(
+      e.message ?? 'تعذر إتمام الطلب — تحقق من الاتصال',
+      statusCode: status,
+    );
+  }
+
+  // Parse "image/jpeg" / "application/pdf" into Dio's MediaType so the
+  // multipart Content-Type header reaches the backend untouched. Falls back
+  // to application/octet-stream — the server's magic-byte check has the
+  // final word anyway.
+  DioMediaType _parseMime(String mime) {
+    final parts = mime.split('/');
+    if (parts.length != 2) return DioMediaType('application', 'octet-stream');
+    return DioMediaType(parts[0], parts[1]);
+  }
+}
+
+class TeacherApplicationSubmitResult {
+  const TeacherApplicationSubmitResult({
+    required this.applicationId,
+    required this.applicationStatus,
+    required this.uploadToken,
+    required this.uploadTokenExpiresInSeconds,
+  });
+  final String applicationId;
+  final String applicationStatus;
+  final String uploadToken;
+  final int uploadTokenExpiresInSeconds;
+}
