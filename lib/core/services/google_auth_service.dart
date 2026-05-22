@@ -87,4 +87,39 @@ class GoogleAuthService {
   }
 
   Future<void> signOut() => _googleSignIn.signOut();
+
+  /// Sign in with Google and return ONLY the identity assertion
+  /// (`idToken` + `email`) without calling the backend.
+  ///
+  /// Used by flows that want to attach a Google-verified email to an
+  /// out-of-band action — e.g. the teacher-application submit, which
+  /// POSTs `/api/teacher-applications` with `authProvider: 'google'` and
+  /// the returned `idToken` as `googleToken`. The backend re-verifies
+  /// the token against Google before persisting the application.
+  ///
+  /// Returns null if the user cancelled. Throws on Google sign-in errors.
+  Future<GoogleIdentityAssertion?> getIdTokenAndEmail() async {
+    await _googleSignIn.signOut();
+    try {
+      await _googleSignIn.disconnect();
+    } catch (_) {}
+
+    final account = await _googleSignIn.signIn();
+    if (account == null) return null;
+
+    final auth = await account.authentication;
+    final idToken = auth.idToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('تعذر الحصول على رمز تعريف Google.');
+    }
+
+    _lastEmail = account.email;
+    return GoogleIdentityAssertion(idToken: idToken, email: account.email);
+  }
+}
+
+class GoogleIdentityAssertion {
+  const GoogleIdentityAssertion({required this.idToken, required this.email});
+  final String idToken;
+  final String email;
 }

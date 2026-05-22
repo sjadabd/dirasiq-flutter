@@ -66,6 +66,106 @@ class TeacherApplicationApiService {
     }
   }
 
+  /// Phase 8 — verify the 6-digit OTP that was emailed after an
+  /// `authProvider: 'email'` submission. On success the application moves
+  /// from "awaiting verification" to "pending" and the super-admin alert
+  /// fires server-side.
+  Future<Map<String, dynamic>> verifyEmailOtp({
+    required String applicationId,
+    required String code,
+  }) async {
+    try {
+      final res = await _dio.post(
+        '/teacher-applications/$applicationId/verify-email',
+        data: {'code': code},
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      final data = (res.data is Map ? (res.data['data'] as Map?) : null) ?? const {};
+      return Map<String, dynamic>.from(data);
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
+  /// Phase 8 — re-issue a fresh OTP for an email-path application that
+  /// hasn't been verified yet.
+  Future<void> resendVerificationCode({
+    required String applicationId,
+  }) async {
+    try {
+      await _dio.post(
+        '/teacher-applications/$applicationId/resend-verification',
+        data: const <String, dynamic>{},
+        options: Options(contentType: Headers.jsonContentType),
+      );
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
+  /// Phase 8.12 — request an OTP to retrieve the current status of an
+  /// existing application. Always succeeds (anti-enumeration). The email is
+  /// only sent server-side if a row matches.
+  Future<void> requestStatusOtp({required String email}) async {
+    try {
+      await _dio.post(
+        '/teacher-applications/status/request',
+        data: {'email': email.trim()},
+        options: Options(contentType: Headers.jsonContentType),
+      );
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
+  /// Phase 8.12 — verify the status-check OTP and return the application's
+  /// current status. Throws on wrong/expired/locked code.
+  Future<TeacherApplicationStatusResult> verifyStatusOtp({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final res = await _dio.post(
+        '/teacher-applications/status/verify',
+        data: {'email': email.trim(), 'code': code},
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      final data = (res.data is Map ? (res.data['data'] as Map?) : null) ?? const {};
+      return TeacherApplicationStatusResult.fromMap(Map<String, dynamic>.from(data));
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
+  /// Phase 8.12 — pull the public subjects catalog for the form dropdown.
+  Future<List<String>> getSubjects() async {
+    try {
+      final res = await _dio.get('/public/subjects');
+      final data = res.data is Map ? res.data['data'] : null;
+      if (data is List) {
+        return data.whereType<String>().toList(growable: false);
+      }
+      return const [];
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
+  /// Phase 8.12 — pull the public teaching-stages catalog for the form
+  /// dropdown. Same response shape as getSubjects().
+  Future<List<String>> getTeachingStages() async {
+    try {
+      final res = await _dio.get('/public/teaching-stages');
+      final data = res.data is Map ? res.data['data'] : null;
+      if (data is List) {
+        return data.whereType<String>().toList(growable: false);
+      }
+      return const [];
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
   /// Upload one file. `onProgress` reports 0.0…1.0.
   /// `kind` must be one of: profile_image | certificate_image |
   /// national_id_image | optional_attachment | intro_video.
@@ -166,4 +266,41 @@ class TeacherApplicationSubmitResult {
   final String applicationStatus;
   final String uploadToken;
   final int uploadTokenExpiresInSeconds;
+}
+
+/// Server response for POST /api/teacher-applications/status/verify.
+/// Mirrors the shape returned by TeacherApplicationService.verifyStatusCheck.
+class TeacherApplicationStatusResult {
+  const TeacherApplicationStatusResult({
+    required this.applicationId,
+    required this.status,
+    required this.createdAt,
+    this.rejectionReason,
+    this.adminNotes,
+    this.rejectedAt,
+    this.needsMoreInfoAt,
+  });
+
+  final String applicationId;
+
+  /// One of: 'pending' | 'approved' | 'rejected' | 'needs_more_info'.
+  final String status;
+
+  final String createdAt;
+  final String? rejectionReason;
+  final String? adminNotes;
+  final String? rejectedAt;
+  final String? needsMoreInfoAt;
+
+  factory TeacherApplicationStatusResult.fromMap(Map<String, dynamic> m) {
+    return TeacherApplicationStatusResult(
+      applicationId: m['applicationId']?.toString() ?? '',
+      status: m['status']?.toString() ?? 'pending',
+      createdAt: m['createdAt']?.toString() ?? '',
+      rejectionReason: m['rejectionReason']?.toString(),
+      adminNotes: m['adminNotes']?.toString(),
+      rejectedAt: m['rejectedAt']?.toString(),
+      needsMoreInfoAt: m['needsMoreInfoAt']?.toString(),
+    );
+  }
 }

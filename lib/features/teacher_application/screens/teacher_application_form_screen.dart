@@ -25,10 +25,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:mulhimiq/core/services/google_auth_service.dart';
 import 'package:mulhimiq/core/services/notification_service.dart';
 import 'package:mulhimiq/core/services/teacher_application_api_service.dart';
 
+import 'teacher_application_otp_screen.dart';
 import 'teacher_application_success_screen.dart';
+
+const String _kOtherOption = 'أخرى';
 
 class TeacherApplicationFormScreen extends StatefulWidget {
   const TeacherApplicationFormScreen({super.key});
@@ -58,8 +62,30 @@ class _TeacherApplicationFormScreenState
   final _city = TextEditingController();
   final _area = TextEditingController();
 
-  final _subject = TextEditingController();
-  final _teachingStage = TextEditingController();
+  // Phase 8 — dual auth path. Defaults to 'email' for back-compat; the user
+  // can switch to 'google' on the first step.
+  String _authProvider = 'email';
+  String? _googleToken;       // captured after Google sign-in (one-shot)
+  String? _googleEmail;       // read-only email pulled from the Google account
+  bool _googleSigningIn = false;
+  String? _googleError;
+
+  // Phase 8 — public catalog dropdowns (subject + teaching stage). Loaded on
+  // initState; while loading the dropdowns show a disabled placeholder and
+  // the form's first two steps are non-blocking.
+  List<String> _subjectsCatalog = const [];
+  List<String> _stagesCatalog = const [];
+  bool _catalogLoading = true;
+  String? _catalogError;
+
+  // Selection state for the catalog dropdowns.
+  String? _selectedSubject;
+  String? _selectedStage;
+
+  // Free-text fallbacks used when the user picks "أخرى" (other).
+  final _customSubject = TextEditingController();
+  final _customStage = TextEditingController();
+
   final _yearsExp = TextEditingController(text: '0');
   final _currentWorkplace = TextEditingController();
   bool _hasPhysical = false;
@@ -102,11 +128,18 @@ class _TeacherApplicationFormScreenState
   String? _submitError;
 
   @override
+  void initState() {
+    super.initState();
+    _loadCatalogs();
+  }
+
+  @override
   void dispose() {
     for (final c in [
       _firstName, _lastName, _phone, _email, _password,
       _city, _area,
-      _subject, _teachingStage, _yearsExp, _currentWorkplace, _estStudents,
+      _customSubject, _customStage,
+      _yearsExp, _currentWorkplace, _estStudents,
       _bio, _facebook, _instagram, _telegram, _tiktok, _youtube,
     ]) {
       c.dispose();
@@ -114,14 +147,84 @@ class _TeacherApplicationFormScreenState
     super.dispose();
   }
 
+  // -- catalog loading --------------------------------------------------------
+
+  Future<void> _loadCatalogs() async {
+    try {
+      final results = await Future.wait([
+        _api.getSubjects(),
+        _api.getTeachingStages(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _subjectsCatalog = results[0];
+        _stagesCatalog = results[1];
+        _catalogLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      // Form is still usable — user can pick "أخرى" and type freely.
+      setState(() {
+        _catalogLoading = false;
+        _catalogError = 'تعذر تحميل قوائم المواد والمراحل — يمكنك إدخالها يدوياً.';
+      });
+    }
+  }
+
+  // -- Google identity assertion (Phase 8 dual-auth) --------------------------
+
+  Future<void> _signInWithGoogle() async {
+    if (_googleSigningIn) return;
+    setState(() {
+      _googleSigningIn = true;
+      _googleError = null;
+    });
+    try {
+      final assertion = await GoogleAuthService().getIdTokenAndEmail();
+      if (!mounted) return;
+      if (assertion == null) {
+        // User cancelled — quiet no-op.
+        return;
+      }
+      setState(() {
+        _googleToken = assertion.idToken;
+        _googleEmail = assertion.email;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _googleError = 'تعذر تسجيل الدخول عبر Google: $e');
+    } finally {
+      if (mounted) setState(() => _googleSigningIn = false);
+    }
+  }
+
   // -- step navigation --------------------------------------------------------
 
   void _next() {
     final formOk = _stepKeys[_currentStep].currentState?.validate() ?? true;
     if (!formOk) return;
-    if (_currentStep == 0 && _birthDate == null) {
-      _showSnack('يرجى اختيار تاريخ الميلاد');
-      return;
+    if (_currentStep == 0) {
+      if (_birthDate == null) {
+        _showSnack('يرجى اختيار تاريخ الميلاد');
+        return;
+      }
+      if (_authProvider == 'google' &&
+          (_googleToken == null || (_googleEmail ?? '').isEmpty)) {
+        _showSnack('يرجى تسجيل الدخول عبر Google قبل المتابعة');
+        return;
+      }
+    }
+    if (_currentStep == 1) {
+      if (_selectedSubject == _kOtherOption &&
+          _customSubject.text.trim().isEmpty) {
+        _showSnack('يرجى تحديد المادة');
+        return;
+      }
+      if (_selectedStage == _kOtherOption &&
+          _customStage.text.trim().isEmpty) {
+        _showSnack('يرجى تحديد المرحلة');
+        return;
+      }
     }
     if (_currentStep < 3) {
       setState(() => _currentStep++);
@@ -151,19 +254,37 @@ class _TeacherApplicationFormScreenState
         playerId = null;
       }
 
-      // 2) submit the form
+      // 2) compose payload. Phase 8: branch on _authProvider — the email
+      //    path sends email+password, the google path sends a googleToken
+      //    instead (server verifies + extracts the email from the token).
+      final subjectFinal = _selectedSubject == _kOtherOption
+          ? _customSubject.text.trim()
+          : (_selectedSubject ?? '').trim();
+      final stageFinal = _selectedStage == _kOtherOption
+          ? _customStage.text.trim()
+          : (_selectedStage ?? '').trim();
+      final emailForReceipts = _authProvider == 'google'
+          ? (_googleEmail ?? '').trim()
+          : _email.text.trim();
+
       final payload = <String, dynamic>{
+        'authProvider': _authProvider,
         'firstName': _firstName.text.trim(),
         'lastName': _lastName.text.trim(),
         'phone': _phone.text.trim(),
-        'email': _email.text.trim(),
-        'password': _password.text,
+        if (_authProvider == 'email') ...{
+          'email': _email.text.trim(),
+          'password': _password.text,
+        },
+        if (_authProvider == 'google') 'googleToken': _googleToken!,
         'gender': _gender,
         'birthDate': _birthDate!.toIso8601String().split('T').first,
         'city': _city.text.trim(),
         'area': _area.text.trim(),
-        'subject': _subject.text.trim(),
-        'teachingStage': _teachingStage.text.trim(),
+        'subject': subjectFinal,
+        'teachingStage': stageFinal,
+        if (_selectedStage == _kOtherOption)
+          'customTeachingStage': _customStage.text.trim(),
         'yearsOfExperience': int.tryParse(_yearsExp.text.trim()) ?? 0,
         'currentWorkplace': _currentWorkplace.text.trim(),
         'hasPhysicalCourses': _hasPhysical,
@@ -206,9 +327,21 @@ class _TeacherApplicationFormScreenState
       }
 
       if (!mounted) return;
-      Get.off(() => TeacherApplicationSuccessScreen(
-            email: _email.text.trim(),
-          ));
+
+      // 4) Branch the post-submit destination:
+      //    - email path: row exists but email is unverified + super-admin
+      //      not yet notified. Push the OTP screen which on verify fires
+      //      onSubmitted server-side and lands on the success screen.
+      //    - google path: server already fired onSubmitted (email is
+      //      Google-verified). Go straight to success.
+      if (_authProvider == 'email') {
+        Get.off(() => TeacherApplicationOtpScreen(
+              applicationId: created.applicationId,
+              email: emailForReceipts,
+            ));
+      } else {
+        Get.off(() => TeacherApplicationSuccessScreen(email: emailForReceipts));
+      }
     } on TeacherApplicationApiException catch (e) {
       if (!mounted) return;
       setState(() => _submitError = e.message);
@@ -379,14 +512,19 @@ class _TeacherApplicationFormScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _authMethodToggle(),
+              const SizedBox(height: 8),
               Row(children: [
                 Expanded(child: _tf(_firstName, 'الاسم الأول', isRequired: true)),
                 const SizedBox(width: 8),
                 Expanded(child: _tf(_lastName, 'الاسم الأخير', isRequired: true)),
               ]),
               _tf(_phone, 'رقم الهاتف (10–15 رقم)', isRequired: true, keyboard: TextInputType.phone),
-              _tf(_email, 'البريد الإلكتروني', isRequired: true, keyboard: TextInputType.emailAddress),
-              _tf(_password, 'كلمة المرور (6 أحرف على الأقل)', isRequired: true, obscure: true, minLen: 6),
+              if (_authProvider == 'email') ...[
+                _tf(_email, 'البريد الإلكتروني', isRequired: true, keyboard: TextInputType.emailAddress),
+                _tf(_password, 'كلمة المرور (6 أحرف على الأقل)', isRequired: true, obscure: true, minLen: 6),
+              ] else
+                _googleIdentityRow(),
               _genderDropdown(),
               _datePickerField(),
               Row(children: [
@@ -407,8 +545,36 @@ class _TeacherApplicationFormScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _tf(_subject, 'المادة التي تُدرّسها', isRequired: true),
-              _tf(_teachingStage, 'المرحلة الدراسية', isRequired: true),
+              if (_catalogError != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _catalogError!,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFFB45309)),
+                  ),
+                ),
+              _catalogDropdown(
+                label: 'المادة التي تُدرّسها',
+                value: _selectedSubject,
+                items: _subjectsCatalog,
+                onChanged: (v) => setState(() {
+                  _selectedSubject = v;
+                  if (v != _kOtherOption) _customSubject.clear();
+                }),
+              ),
+              if (_selectedSubject == _kOtherOption)
+                _tf(_customSubject, 'حدّد المادة', isRequired: true),
+              _catalogDropdown(
+                label: 'المرحلة الدراسية',
+                value: _selectedStage,
+                items: _stagesCatalog,
+                onChanged: (v) => setState(() {
+                  _selectedStage = v;
+                  if (v != _kOtherOption) _customStage.clear();
+                }),
+              ),
+              if (_selectedStage == _kOtherOption)
+                _tf(_customStage, 'حدّد المرحلة', isRequired: true),
               Row(children: [
                 Expanded(child: _tf(_yearsExp, 'سنوات الخبرة', isRequired: true, keyboard: TextInputType.number)),
                 const SizedBox(width: 8),
@@ -591,6 +757,162 @@ class _TeacherApplicationFormScreenState
           }
           return null;
         },
+      ),
+    );
+  }
+
+  Widget _authMethodToggle() {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('طريقة التسجيل',
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface.withValues(alpha: 0.8))),
+          const SizedBox(height: 6),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'email',
+                label: Text('البريد الإلكتروني'),
+                icon: Icon(Icons.email_outlined, size: 18),
+              ),
+              ButtonSegment(
+                value: 'google',
+                label: Text('Google'),
+                icon: Icon(Icons.account_circle_outlined, size: 18),
+              ),
+            ],
+            selected: {_authProvider},
+            onSelectionChanged: (s) {
+              setState(() {
+                _authProvider = s.first;
+                if (_authProvider == 'email') {
+                  // Clear Google state so a re-selection re-prompts the user.
+                  _googleToken = null;
+                  _googleEmail = null;
+                  _googleError = null;
+                }
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _googleIdentityRow() {
+    final scheme = Theme.of(context).colorScheme;
+    final connected = _googleToken != null && (_googleEmail?.isNotEmpty ?? false);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(
+              color: connected ? scheme.primary : scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: connected ? scheme.primary.withValues(alpha: 0.04) : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              Icon(
+                connected ? Icons.check_circle : Icons.account_circle_outlined,
+                color: connected ? scheme.primary : scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  connected
+                      ? 'تم ربط حساب Google: $_googleEmail'
+                      : 'سجّل الدخول عبر Google لتأكيد بريدك الإلكتروني',
+                  style: TextStyle(
+                      fontWeight:
+                          connected ? FontWeight.w600 : FontWeight.normal),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _googleSigningIn ? null : _signInWithGoogle,
+                icon: _googleSigningIn
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.login, size: 16),
+                label: Text(connected ? 'تغيير' : 'دخول'),
+              ),
+            ]),
+            if (_googleError != null) ...[
+              const SizedBox(height: 6),
+              Text(_googleError!,
+                  style: TextStyle(color: scheme.error, fontSize: 12)),
+            ],
+            if (!connected)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'لن نرى كلمة مرور حساب Google الخاص بك. نحتاج فقط إلى تأكيد عنوان بريدك.',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onSurface.withValues(alpha: 0.6)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _catalogDropdown({
+    required String label,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    if (_catalogLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+            isDense: true,
+          ),
+          child: Row(children: const [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 8),
+            Text('جارٍ التحميل…'),
+          ]),
+        ),
+      );
+    }
+    final entries = [...items, _kOtherOption];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: DropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: [
+          for (final e in entries)
+            DropdownMenuItem(value: e, child: Text(e)),
+        ],
+        onChanged: onChanged,
+        validator: (v) => (v == null || v.isEmpty) ? 'هذا الحقل مطلوب' : null,
       ),
     );
   }

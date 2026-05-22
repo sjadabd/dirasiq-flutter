@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'check_application_status_screen.dart';
 import 'teacher_application_form_screen.dart';
 
 class JoinAsTeacherScreen extends StatelessWidget {
@@ -93,6 +94,18 @@ class JoinAsTeacherScreen extends StatelessWidget {
                   ),
                   onPressed: () => Get.to(() => const TeacherApplicationFormScreen()),
                 ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.search_outlined, size: 18),
+                label: const Text('سبق وقدّمت — تحقّق من حالة طلبي'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () =>
+                    Get.to(() => const CheckApplicationStatusScreen()),
               ),
               const SizedBox(height: 12),
               Text(
