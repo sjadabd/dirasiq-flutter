@@ -357,4 +357,206 @@ class TeacherApiService {
     final res = await _dio.get('/teacher/reports/financial', queryParameters: qp);
     return Map<String, dynamic>.from(res.data ?? {});
   }
+
+  // ===========================================================================
+  // Phase 10.1.B — Video Courses (teacher-owned VOD)
+  // ===========================================================================
+
+  Future<Map<String, dynamic>> fetchMyVideoCourses({
+    int page = 1,
+    int limit = 20,
+    String? status,
+  }) async {
+    final qp = <String, dynamic>{'page': page, 'limit': limit};
+    if (status != null && status.isNotEmpty && status != 'all') qp['status'] = status;
+    final res = await _dio.get('/teacher/video-courses', queryParameters: qp);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchMyVideoCourse(String id) async {
+    final res = await _dio.get('/teacher/video-courses/$id');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchMyVideoCourseLessons(String id) async {
+    final res = await _dio.get('/teacher/video-courses/$id/lessons');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> createVideoCourse(Map<String, dynamic> payload) async {
+    final res = await _dio.post('/teacher/video-courses', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> updateVideoCourse(String id, Map<String, dynamic> payload) async {
+    final res = await _dio.patch('/teacher/video-courses/$id', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<void> deleteVideoCourse(String id) async {
+    await _dio.delete('/teacher/video-courses/$id');
+  }
+
+  /// Upload a cover image (multipart). Cap: 5 MB; backend re-validates via
+  /// magic-byte detection.
+  Future<Map<String, dynamic>> uploadVideoCourseCoverImage(
+    String id,
+    String filePath, {
+    ProgressCallback? onSendProgress,
+  }) async {
+    final fd = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    final res = await _dio.post(
+      '/teacher/video-courses/$id/cover-image',
+      data: fd,
+      onSendProgress: onSendProgress,
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Create a lesson on a course. Backend mints a Bunny videoId + returns
+  /// the upload contract { url, method, headers } that the client uses
+  /// for the direct-PUT call (see [putToBunny]).
+  Future<Map<String, dynamic>> createVideoLesson({
+    required String courseId,
+    required String title,
+    String? description,
+    int? displayOrder,
+  }) async {
+    final body = <String, dynamic>{'title': title};
+    if (description != null && description.isNotEmpty) body['description'] = description;
+    if (displayOrder != null) body['displayOrder'] = displayOrder;
+    final res = await _dio.post('/teacher/video-courses/$courseId/lessons', data: body);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> updateVideoLesson({
+    required String courseId,
+    required String lessonId,
+    String? title,
+    String? description,
+    int? displayOrder,
+  }) async {
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (description != null) body['description'] = description;
+    if (displayOrder != null) body['displayOrder'] = displayOrder;
+    final res = await _dio.patch(
+      '/teacher/video-courses/$courseId/lessons/$lessonId',
+      data: body,
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<void> deleteVideoLesson({
+    required String courseId,
+    required String lessonId,
+  }) async {
+    await _dio.delete('/teacher/video-courses/$courseId/lessons/$lessonId');
+  }
+
+  Future<Map<String, dynamic>> reorderVideoLessons({
+    required String courseId,
+    required List<String> lessonIds,
+  }) async {
+    final res = await _dio.post(
+      '/teacher/video-courses/$courseId/lessons/reorder',
+      data: {'lessonIds': lessonIds},
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> syncVideoLesson({
+    required String courseId,
+    required String lessonId,
+  }) async {
+    final res = await _dio.post(
+      '/teacher/video-courses/$courseId/lessons/$lessonId/sync',
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Stream a video file directly to Bunny Stream using the contract the
+  /// backend returned from [createVideoLesson]. Reports 0..100 via the
+  /// optional [onProgress] callback.
+  ///
+  /// The dio instance's `baseUrl` is bypassed because the contract URL is
+  /// already absolute (https://video.bunnycdn.com/...).
+  Future<void> putToBunny({
+    required Map<String, dynamic> uploadContract,
+    required String filePath,
+    void Function(int progress0to100)? onProgress,
+  }) async {
+    final url = uploadContract['url']?.toString() ?? '';
+    if (url.isEmpty) {
+      throw Exception('upload contract is missing url');
+    }
+    final headers = <String, dynamic>{};
+    final hdrs = uploadContract['headers'];
+    if (hdrs is Map) {
+      for (final entry in hdrs.entries) {
+        headers[entry.key.toString()] = entry.value;
+      }
+    }
+    // Use a one-shot Dio so the global Authorization interceptor doesn't
+    // attach our JWT to Bunny (which would 401 us).
+    final raw = Dio(BaseOptions(
+      headers: headers,
+      receiveTimeout: const Duration(minutes: 60),
+      sendTimeout: const Duration(minutes: 60),
+      followRedirects: true,
+    ));
+    final file = await MultipartFile.fromFile(filePath);
+    // Bunny expects the raw bytes — NOT multipart. Use a FileStream.
+    final stream = (await MultipartFile.fromFile(filePath)).finalize();
+    final length = file.length;
+    await raw.put(
+      url,
+      data: stream,
+      options: Options(
+        headers: {
+          ...headers,
+          Headers.contentLengthHeader: length,
+        },
+      ),
+      onSendProgress: (sent, total) {
+        if (total > 0 && onProgress != null) {
+          onProgress(((sent / total) * 100).clamp(0, 99).toInt());
+        }
+      },
+    );
+    onProgress?.call(100);
+  }
+
+  // ---- Teacher catalog dropdowns (subjects + grades) ----------------------
+  // These already exist as side methods elsewhere in the app, but we expose
+  // narrow wrappers here so the video-courses UI doesn't reach into other
+  // services. Both endpoints are auth-gated to the calling teacher.
+
+  Future<List<Map<String, dynamic>>> fetchMySubjectsCatalog() async {
+    final res = await _dio.get('/teacher/subjects/all');
+    final body = Map<String, dynamic>.from(res.data ?? {});
+    final data = body['data'];
+    if (data is List) {
+      return data.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+    }
+    return const [];
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMyGradesCatalog() async {
+    final res = await _dio.get('/grades/my-grades');
+    final body = Map<String, dynamic>.from(res.data ?? {});
+    final data = body['data'];
+    if (data is List) {
+      return data.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+    }
+    if (data is Map && data['grades'] is List) {
+      return (data['grades'] as List)
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+    }
+    return const [];
+  }
 }
