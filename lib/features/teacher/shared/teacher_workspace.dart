@@ -13,6 +13,7 @@ import '../reports/teacher_reports_screen.dart';
 import '../reservation_payments/teacher_reservation_payments_screen.dart';
 import '../sessions/teacher_sessions_screen.dart';
 import '../subjects/teacher_subjects_screen.dart';
+import '../video_courses/teacher_video_courses_screen.dart';
 import '../wallet/teacher_wallet_screen.dart';
 import 'teacher_app_bar.dart';
 
@@ -77,26 +78,28 @@ class TeacherWorkspaceState extends State<TeacherWorkspace> {
   static const int walletIdx              = 5;
   static const int subjectsIdx            = 6;
   static const int coursesIdx             = 7;
-  static const int sessionsIdx            = 8;
-  static const int bookingsIdx            = 9;
-  static const int notificationsIdx       = 10;
-  static const int profileIdx             = 11;
-  static const int chatsIdx               = 12;
+  static const int videoCoursesIdx        = 8;
+  static const int sessionsIdx            = 9;
+  static const int bookingsIdx            = 10;
+  static const int notificationsIdx       = 11;
+  static const int profileIdx             = 12;
+  static const int chatsIdx               = 13;
 
   late final List<Widget> _pages = const [
-    TeacherHomeScreen(),                // 0
-    TeacherReservationPaymentsScreen(), // 1
-    TeacherInvoicesScreen(),            // 2
-    TeacherExpensesScreen(),            // 3
-    TeacherReportsScreen(),             // 4
-    TeacherWalletScreen(),              // 5
-    TeacherSubjectsScreen(),            // 6
-    TeacherCoursesScreen(),             // 7
-    TeacherSessionsScreen(),            // 8
-    TeacherBookingsScreen(),            // 9
-    TeacherNotificationsScreen(),       // 10
-    TeacherProfileScreen(),             // 11
-    TeacherConversationsScreen(),       // 12 — chat (Phase 6)
+    TeacherHomeScreen(),                  // 0
+    TeacherReservationPaymentsScreen(),   // 1
+    TeacherInvoicesScreen(),              // 2
+    TeacherExpensesScreen(),              // 3
+    TeacherReportsScreen(),               // 4
+    TeacherWalletScreen(),                // 5
+    TeacherSubjectsScreen(),              // 6
+    TeacherCoursesScreen(),               // 7 — live/classroom courses
+    TeacherVideoCoursesScreen(),          // 8 — pre-recorded VOD (Phase 10.1.B)
+    TeacherSessionsScreen(),              // 9
+    TeacherBookingsScreen(),              // 10
+    TeacherNotificationsScreen(),         // 11
+    TeacherProfileScreen(),               // 12
+    TeacherConversationsScreen(),         // 13 — chat (Phase 6)
   ];
 
   // -- State ------------------------------------------------------------------

@@ -88,6 +88,7 @@ class TeacherDrawer extends StatelessWidget {
           const _Section('المحتوى'),
           _Item(active: active, index: TeacherWorkspaceState.subjectsIdx,            icon: Icons.menu_book_outlined,             label: 'المواد',              onTap: _go),
           _Item(active: active, index: TeacherWorkspaceState.coursesIdx,             icon: Icons.school_outlined,                label: 'الكورسات',            onTap: _go),
+          _Item(active: active, index: TeacherWorkspaceState.videoCoursesIdx,        icon: Icons.video_library_outlined,         label: 'الدورات المرئية',    onTap: _go),
           _Item(active: active, index: TeacherWorkspaceState.sessionsIdx,            icon: Icons.calendar_today_outlined,        label: 'الجدول الأسبوعي',     onTap: _go),
 
           const _Section('الطلاب'),

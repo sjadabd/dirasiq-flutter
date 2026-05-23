@@ -15,6 +15,7 @@ class TeacherRoutes {
   static const wallet             = '/teacher/wallet';
   static const subjects           = '/teacher/subjects';
   static const courses            = '/teacher/courses';
+  static const videoCourses       = '/teacher/video-courses';
   static const sessions           = '/teacher/sessions';
   static const bookings           = '/teacher/bookings';
   static const notifications      = '/teacher/notifications';
@@ -24,6 +25,6 @@ class TeacherRoutes {
   /// one of "our" pages — for the drawer highlight).
   static const all = <String>[
     home, reservationPayments, invoices, expenses, reports, wallet,
-    subjects, courses, sessions, bookings, notifications, profile,
+    subjects, courses, videoCourses, sessions, bookings, notifications, profile,
   ];
 }
