@@ -536,26 +536,43 @@ class TeacherApiService {
 
   Future<List<Map<String, dynamic>>> fetchMySubjectsCatalog() async {
     final res = await _dio.get('/teacher/subjects/all');
-    final body = Map<String, dynamic>.from(res.data ?? {});
-    final data = body['data'];
-    if (data is List) {
-      return data.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
-    }
-    return const [];
+    return _extractList(res.data, const ['subjects', 'items', 'data']);
   }
 
   Future<List<Map<String, dynamic>>> fetchMyGradesCatalog() async {
     final res = await _dio.get('/grades/my-grades');
-    final body = Map<String, dynamic>.from(res.data ?? {});
-    final data = body['data'];
-    if (data is List) {
-      return data.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+    return _extractList(res.data, const ['grades', 'items', 'data']);
+  }
+
+  /// Defensive list-extractor for backend responses that don't share a single
+  /// envelope. Tries:
+  ///   1. `value` is a List directly.
+  ///   2. `value.data` is a List.
+  ///   3. `value.data[key]` is a List for each key in [keys].
+  ///   4. `value[key]` is a List for each key in [keys].
+  /// Returns an empty list (never null) so callers can iterate safely.
+  List<Map<String, dynamic>> _extractList(dynamic value, List<String> keys) {
+    List<Map<String, dynamic>> normalize(dynamic v) {
+      if (v is List) {
+        return v.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+      }
+      return const [];
     }
-    if (data is Map && data['grades'] is List) {
-      return (data['grades'] as List)
-          .whereType<Map>()
-          .map((m) => Map<String, dynamic>.from(m))
-          .toList();
+
+    if (value is List) return normalize(value);
+    if (value is Map) {
+      final m = Map<String, dynamic>.from(value);
+      final data = m['data'];
+      if (data is List) return normalize(data);
+      if (data is Map) {
+        final dataMap = Map<String, dynamic>.from(data);
+        for (final k in keys) {
+          if (dataMap[k] is List) return normalize(dataMap[k]);
+        }
+      }
+      for (final k in keys) {
+        if (m[k] is List) return normalize(m[k]);
+      }
     }
     return const [];
   }

@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/services/teacher_api_service.dart';
-import '../../../core/utils/content_url.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import 'teacher_video_course_detail_screen.dart';
 
 class TeacherVideoCoursesScreen extends StatefulWidget {
@@ -100,7 +100,7 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               scrollDirection: Axis.horizontal,
               itemCount: _statuses.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              separatorBuilder: (_, _) => const SizedBox(width: 6),
               itemBuilder: (_, i) {
                 final s = _statuses[i];
                 final selected = _status == s['value'];
@@ -213,13 +213,14 @@ class _CourseCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  cover.isNotEmpty
-                      ? Image.network(
-                          resolveContentUrl(cover),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _coverFallback(scheme),
-                        )
-                      : _coverFallback(scheme),
+                  // AppNetworkImage handles empty / loading / failed states
+                  // with a light placeholder — avoids the black-frame bug
+                  // that came from the previous theme-derived fallback.
+                  AppNetworkImage(
+                    url: cover,
+                    fit: BoxFit.cover,
+                    fallbackIcon: Icons.movie_outlined,
+                  ),
                   Positioned(
                     top: 6, right: 6,
                     child: Container(
@@ -282,10 +283,6 @@ class _CourseCard extends StatelessWidget {
     );
   }
 
-  Widget _coverFallback(ColorScheme scheme) => Container(
-        color: scheme.surfaceContainerHighest,
-        child: Icon(Icons.movie_outlined, color: scheme.outline, size: 36),
-      );
 }
 
 // ---------------------------------------------------------------------------
@@ -381,9 +378,18 @@ class _VideoCourseFormDialogState extends State<_VideoCourseFormDialog> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final hint = _loadingCatalogs
-        ? ''
-        : _subjects.isEmpty && _grades.isEmpty
+    // While catalogs are still loading, hide the form entirely so the user
+    // doesn't see disabled empty dropdowns + then a sudden reveal.
+    if (_loadingCatalogs) {
+      return const AlertDialog(
+        title: Text('إنشاء دورة مرئية جديدة'),
+        content: SizedBox(
+          height: 120,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+    final hint = _subjects.isEmpty && _grades.isEmpty
             ? 'لم تضِف بعد مواد أو مراحل. أضِفها من قسم المواد والمراحل قبل إنشاء دورة.'
             : _subjects.isEmpty
                 ? 'أضِف مادة على الأقل قبل إنشاء دورة.'
