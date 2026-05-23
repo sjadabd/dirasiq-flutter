@@ -18,6 +18,8 @@ import 'features/notifications/notifications_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/courses/screens/suggested_courses_screen.dart';
 import 'features/courses/screens/course_details_screen.dart';
+import 'features/student/video_courses/student_video_courses_screen.dart';
+import 'features/student/video_courses/student_video_course_detail_screen.dart';
 import 'features/root/root_shell.dart';
 import 'features/bookings/screens/bookings_list_screen.dart';
 import 'features/bookings/screens/booking_details_screen.dart';
@@ -262,6 +264,18 @@ class MyApp extends StatelessWidget {
           GetPage(
             name: "/suggested-courses",
             page: () => const SuggestedCoursesScreen(),
+          ),
+          // Phase 10.1 — Student-side VOD video courses
+          GetPage(
+            name: "/student/video-courses",
+            page: () => const StudentVideoCoursesScreen(),
+          ),
+          GetPage(
+            name: "/student/video-course-details",
+            page: () {
+              final id = Get.arguments as String;
+              return StudentVideoCourseDetailScreen(courseId: id);
+            },
           ),
           GetPage(
             name: "/course-details",

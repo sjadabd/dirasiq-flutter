@@ -1125,4 +1125,48 @@ class ApiService {
       throw Exception("❌ خطأ أثناء تحميل تفاصيل القسط: $e");
     }
   }
+
+  // ===========================================================================
+  // Phase 10.1 — Video courses (student-facing, public/student endpoints)
+  // ===========================================================================
+
+  /// Browse approved + public video courses. Optionally filter by subject /
+  /// teachingStage. Backend hard-codes the approved+public visibility
+  /// filter regardless of query so anonymous + authenticated callers see
+  /// the same catalog.
+  Future<Map<String, dynamic>> fetchPublicVideoCourses({
+    int page = 1,
+    int limit = 20,
+    String? subject,
+    String? teachingStage,
+  }) async {
+    final qp = <String, dynamic>{'page': page, 'limit': limit};
+    if (subject != null && subject.isNotEmpty) qp['subject'] = subject;
+    if (teachingStage != null && teachingStage.isNotEmpty) qp['teachingStage'] = teachingStage;
+    final res = await _dio.get('/student/video-courses', queryParameters: qp);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Course detail + ready lessons (only ones with bunnyStatus='ready'
+  /// surface — backend filters before returning).
+  Future<Map<String, dynamic>> fetchPublicVideoCourse(String id) async {
+    final res = await _dio.get('/student/video-courses/$id');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Mint a short-lived signed playback URL for a specific lesson. Server
+  /// throws 402 BUSINESS_RULE for paid courses (Phase 10.1 ships free only).
+  /// Returns `{url, expiresAt}`.
+  Future<Map<String, dynamic>> fetchVideoLessonPlaybackUrl({
+    required String courseId,
+    required String lessonId,
+  }) async {
+    final res = await _dio.get(
+      '/student/video-courses/$courseId/lessons/$lessonId/playback-url',
+    );
+    final body = Map<String, dynamic>.from(res.data ?? {});
+    final data = body['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return body;
+  }
 }

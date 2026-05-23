@@ -258,6 +258,11 @@ class _StudentMyTeachersHomeState extends State<StudentMyTeachersHome> {
             // ─── Progress + attendance card (below أساتذتي) ─────────────
             _ProgressAttendanceCard(name: _name, progress: progress, attendance: attendance),
 
+            const SizedBox(height: 16),
+
+            // ─── Video courses CTA (Phase 10.1) ─────────────────────────
+            _VideoCoursesPromo(onTap: () => Get.toNamed('/student/video-courses')),
+
             const SizedBox(height: 24),
 
             // ─── Suggested teachers ─────────────────────────────────────
@@ -821,6 +826,64 @@ class _EmptyMyTeachers extends StatelessWidget {
         Text('تصفّح المعلمين المقترحين بالأسفل واحجز كورسك الأول',
             textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
       ]),
+    );
+  }
+}
+
+/// Promo card on the student home — entry point into the Phase 10.1 VOD
+/// catalog. Compact, ribbon-style, gradient background so it stands out
+/// from the rest of the home without dominating it.
+class _VideoCoursesPromo extends StatelessWidget {
+  const _VideoCoursesPromo({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            colors: [
+              cs.primary.withValues(alpha: 0.92),
+              cs.primary,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Row(children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.play_circle_filled, color: Colors.white, size: 26),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('الدورات المرئية',
+                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                SizedBox(height: 2),
+                Text('شاهد دروسك متى وأينما شئت — بثّ HD على Bunny',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_left, color: Colors.white),
+        ]),
+      ),
     );
   }
 }
