@@ -454,19 +454,33 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
 
   void _snack(String text, {bool error = false}) {
     if (!mounted) return;
-    // Clear any in-flight snackbar BEFORE showing the new one. Two
-    // identical-text snackbars stacked together trip Flutter's Hero
-    // animation assertion: "multiple heroes that share the same tag"
-    // — every SnackBar uses its Text content as a Hero tag, so the
-    // realtime + manual paths firing the same string back-to-back
-    // would otherwise crash with "EXCEPTION CAUGHT BY SCHEDULER".
+    // Why the two-step (remove + post-frame show) dance:
+    //
+    // Material's SnackBar wraps its content in a Hero whose tag is
+    // derived from the Text widget. If we show two snackbars with the
+    // SAME content in quick succession, BOTH heroes briefly co-exist in
+    // the tree → "multiple heroes that share the same tag" assertion
+    // → red-screen exception during the scheduler frame.
+    //
+    // clearSnackBars() alone is not enough — it removes the snackbar
+    // from the queue but the Hero teardown happens in the NEXT frame.
+    // If we call showSnackBar() in the same tick, the old Hero is
+    // still mounted when the new one is being inserted.
+    //
+    // Pattern that survives rapid bursts (realtime events, double
+    // button taps): remove current (synchronous, no animation) +
+    // schedule the new snackbar via addPostFrameCallback so the
+    // teardown completes first.
     final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(SnackBar(
-      content: Text(text),
-      backgroundColor: error ? Colors.red.shade700 : null,
-      behavior: SnackBarBehavior.floating,
-    ));
+    messenger.removeCurrentSnackBar();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(text),
+        backgroundColor: error ? Colors.red.shade700 : null,
+        behavior: SnackBarBehavior.floating,
+      ));
+    });
   }
 
   String _formatDate(String? iso) {

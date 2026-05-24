@@ -59,12 +59,21 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
           : null;
       if (course == null) return;
       _fetch();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(approved
-            ? 'تمت الموافقة على دورة "${course['title'] ?? ''}"'
-            : 'تم رفض دورة "${course['title'] ?? ''}"'),
-        backgroundColor: approved ? Colors.green : Colors.redAccent,
-      ));
+      // Two-step remove + post-frame show — clearSnackBars alone races
+      // with Material's Hero teardown when identical-text snackbars
+      // arrive back-to-back. See teacher_video_course_detail_screen
+      // _snack() for the full rationale.
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.removeCurrentSnackBar();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        messenger.showSnackBar(SnackBar(
+          content: Text(approved
+              ? 'تمت الموافقة على دورة "${course['title'] ?? ''}"'
+              : 'تم رفض دورة "${course['title'] ?? ''}"'),
+          backgroundColor: approved ? Colors.green : Colors.redAccent,
+        ));
+      });
     }
 
     final approveUnsub = RealtimeService.instance.subscribe(
