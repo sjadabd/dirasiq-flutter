@@ -8,10 +8,22 @@
 // OWN subjects + grades (per product constraint — no free-text). Catalogs
 // load synchronously inside the dialog; while loading the dialog shows a
 // spinner instead of empty disabled dropdowns to avoid confusing UX.
+//
+// Cover image is a 2-step server flow (the backend `cover-image` endpoint
+// is POST /:id/cover-image, so the row must exist first). The dialog hides
+// that: it creates/updates the course first, then if the user picked a
+// file it uploads it as a follow-up call before resolving. A failed cover
+// upload doesn't roll back the course — the user keeps the new course and
+// gets a snackbar-grade error on the next screen via the standard
+// change-cover button.
 
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/teacher_api_service.dart';
+import '../../../../core/utils/content_url.dart';
 
 class VideoCourseFormDialog extends StatefulWidget {
   const VideoCourseFormDialog({super.key, this.initial});
@@ -44,6 +56,21 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
 
   bool _submitting = false;
   String _error = '';
+
+  // ----- Cover image ------------------------------------------------------
+  // _coverFile is set when the user picks a NEW image. Existing courses
+  // (edit mode) carry their persisted cover under initial['coverImage'] —
+  // we render that as the fallback preview when no new file is picked.
+  File? _coverFile;
+  String _coverFileName = '';
+  bool _pickingCover = false;
+  String _coverPhase = ''; // status text shown during the upload step
+
+  String get _existingCoverUrl {
+    final raw = widget.initial?['coverImage']?.toString();
+    if (raw == null || raw.isEmpty) return '';
+    return resolveContentUrl(raw);
+  }
 
   @override
   void initState() {
@@ -126,6 +153,36 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
     return g['id']?.toString() ?? '';
   }
 
+  /// Pick a cover image. Guarded by [_pickingCover] against the same
+  /// PlatformException(already_active) race that bit the lesson upload
+  /// dialog when the user double-taps "browse" before the native picker
+  /// dialog mounts.
+  Future<void> _pickCover() async {
+    if (_pickingCover) return;
+    _pickingCover = true;
+    try {
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        allowMultiple: false,
+        withData: false,
+      );
+      if (res == null || res.files.isEmpty) return;
+      final path = res.files.single.path;
+      if (path == null) return;
+      if (!mounted) return;
+      setState(() {
+        _coverFile = File(path);
+        _coverFileName = res.files.single.name;
+        _error = '';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = 'تعذّر اختيار صورة الغلاف: $e');
+    } finally {
+      _pickingCover = false;
+    }
+  }
+
   Future<void> _submit() async {
     final title = _title.text.trim();
     if (title.isEmpty) { setState(() => _error = 'العنوان مطلوب'); return; }
@@ -133,7 +190,7 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
     if ((_selectedGradeId ?? '').isEmpty || _selectedGradeName.isEmpty) {
       setState(() => _error = 'يجب اختيار المرحلة'); return;
     }
-    setState(() { _submitting = true; _error = ''; });
+    setState(() { _submitting = true; _error = ''; _coverPhase = ''; });
     try {
       final payload = <String, dynamic>{
         'title': title,
@@ -147,22 +204,154 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
       if (_description.text.trim().isNotEmpty) {
         payload['description'] = _description.text.trim();
       }
+
+      String courseId;
       if (widget.isEdit) {
-        final id = widget.initial!['id'].toString();
-        await _api.updateVideoCourse(id, payload);
-        if (!mounted) return;
-        Navigator.of(context).pop(id);
+        courseId = widget.initial!['id'].toString();
+        await _api.updateVideoCourse(courseId, payload);
       } else {
         final res = await _api.createVideoCourse(payload);
         final id = res['data']?['course']?['id']?.toString();
-        if (!mounted) return;
-        Navigator.of(context).pop(id);
+        if (id == null || id.isEmpty) {
+          throw Exception('استجابة الخادم غير صالحة (لا يوجد معرّف الدورة)');
+        }
+        courseId = id;
       }
+
+      // Cover upload step. The course already exists at this point, so a
+      // failure here does NOT roll back — we leave the row in place and
+      // surface a non-fatal error so the user can retry from the detail
+      // screen via the standard change-cover button.
+      if (_coverFile != null) {
+        if (mounted) setState(() => _coverPhase = 'رفع صورة الغلاف…');
+        try {
+          await _api.uploadVideoCourseCoverImage(courseId, _coverFile!.path);
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _error = widget.isEdit
+                  ? 'تم حفظ التعديلات لكن تعذّر رفع الغلاف — جرّب من زر تغيير الغلاف.'
+                  : 'تم إنشاء الدورة لكن تعذّر رفع الغلاف — جرّب من زر تغيير الغلاف.';
+              _coverPhase = '';
+              _submitting = false;
+            });
+          }
+          // Still pop with the id so the caller refreshes / navigates.
+          if (mounted) Navigator.of(context).pop(courseId);
+          return;
+        }
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop(courseId);
     } catch (e) {
       if (mounted) setState(() => _error = widget.isEdit ? 'تعذّر حفظ التعديلات' : 'تعذّر إنشاء الدورة');
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) setState(() { _submitting = false; _coverPhase = ''; });
     }
+  }
+
+  /// Cover preview + browse + remove. Three states:
+  ///   - new file picked → show File preview + "تغيير" + "إزالة"
+  ///   - edit mode with existing remote cover → show network preview +
+  ///     "تغيير" (no remove — there's no API to clear it; the user can
+  ///     only replace)
+  ///   - empty → dotted placeholder + "تصفّح"
+  Widget _buildCoverField(ColorScheme scheme) {
+    final hasNew = _coverFile != null;
+    final existingUrl = _existingCoverUrl;
+    final hasExisting = existingUrl.isNotEmpty;
+    final disabled = _submitting;
+
+    Widget preview;
+    if (hasNew) {
+      preview = Image.file(_coverFile!, fit: BoxFit.cover, width: double.infinity, height: 120);
+    } else if (hasExisting) {
+      preview = Image.network(
+        existingUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: 120,
+        errorBuilder: (ctx, err, stack) => _coverPlaceholder(scheme, label: 'تعذّر تحميل المعاينة'),
+      );
+    } else {
+      preview = _coverPlaceholder(scheme);
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          preview,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            child: Row(
+              children: [
+                Icon(Icons.image_outlined, size: 16, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    hasNew
+                        ? _coverFileName
+                        : (hasExisting ? 'الغلاف الحالي' : 'صورة الغلاف (اختياري)'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  ),
+                ),
+                if (hasNew)
+                  TextButton(
+                    onPressed: disabled ? null : () => setState(() {
+                      _coverFile = null;
+                      _coverFileName = '';
+                    }),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(0, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Text('إزالة', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                  ),
+                TextButton.icon(
+                  onPressed: disabled ? null : _pickCover,
+                  icon: const Icon(Icons.folder_open, size: 14),
+                  label: Text(hasNew || hasExisting ? 'تغيير' : 'تصفّح', style: const TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _coverPlaceholder(ColorScheme scheme, {String? label}) {
+    return Container(
+      height: 120,
+      width: double.infinity,
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_photo_alternate_outlined, color: scheme.onSurfaceVariant, size: 28),
+            const SizedBox(height: 4),
+            Text(
+              label ?? 'لا توجد صورة — JPG / PNG / WEBP حتى 5MB',
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -222,6 +411,8 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
                 isDense: true,
               ),
             ),
+            const SizedBox(height: 12),
+            _buildCoverField(scheme),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               initialValue: _selectedSubject != null && _subjects.any((s) => _subjectValue(s) == _selectedSubject)
@@ -310,6 +501,18 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
                 style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
               ),
             ],
+            if (_coverPhase.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(children: [
+                  const SizedBox(
+                    width: 12, height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(_coverPhase, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                ]),
+              ),
             if (_error.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 10),

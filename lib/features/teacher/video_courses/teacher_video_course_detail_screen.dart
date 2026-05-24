@@ -481,18 +481,36 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
                     alignment: Alignment.center,
                     child: const CircularProgressIndicator(color: Colors.white),
                   ),
+                // Material + InkWell instead of ElevatedButton.icon here —
+                // ElevatedButton's internal _RenderInputPadding asserts a
+                // bounded width, but Positioned(bottom, right) inside an
+                // AspectRatio→Stack gives the child width=Infinity which
+                // crashes layout. Material+InkWell sizes intrinsically.
                 Positioned(
                   bottom: 8,
                   right: 8,
-                  child: ElevatedButton.icon(
-                    onPressed: _coverUploading ? null : _changeCover,
-                    icon: const Icon(Icons.image_outlined, size: 16),
-                    label: const Text('غيّر الغلاف', style: TextStyle(fontSize: 12)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: scheme.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      visualDensity: VisualDensity.compact,
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 2,
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: _coverUploading ? null : _changeCover,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.image_outlined, size: 16, color: scheme.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'غيّر الغلاف',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        ]),
+                      ),
                     ),
                   ),
                 ),

@@ -60,6 +60,22 @@ class _VideoLessonUploadDialogState extends State<VideoLessonUploadDialog> {
   int _progress = 0;
   String _phase = ''; // for status text shown beneath the progress bar
 
+  // Concurrency guards (defence against the common
+  // PlatformException(already_active) when the user double-taps "browse"
+  // before the native picker dialog mounts).
+  bool _picking = false;
+
+  bool _disposed = false;
+
+  /// Wrap setState so the long-running upload callbacks (which fire
+  /// hundreds of times during a multi-MB upload) don't throw
+  /// "setState() called after dispose()" when the user dismisses the
+  /// dialog while bytes are still streaming.
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted || _disposed) return;
+    setState(fn);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -69,12 +85,19 @@ class _VideoLessonUploadDialogState extends State<VideoLessonUploadDialog> {
 
   @override
   void dispose() {
+    _disposed = true;
     _title.dispose();
     _description.dispose();
     super.dispose();
   }
 
   Future<void> _pickFile() async {
+    // Guard: a double-tap on "browse" fires _pickFile twice. The native
+    // picker plugin then throws PlatformException(already_active) on the
+    // second call. Guard via _picking so we no-op until the first one
+    // resolves.
+    if (_picking) return;
+    _picking = true;
     try {
       final res = await FilePicker.platform.pickFiles(
         type: FileType.video,
@@ -86,23 +109,25 @@ class _VideoLessonUploadDialogState extends State<VideoLessonUploadDialog> {
       if (path == null) return;
       final f = File(path);
       final size = await f.length();
-      setState(() {
+      _safeSetState(() {
         _file = f;
         _fileName = res.files.single.name;
         _fileSizeBytes = size;
         _error = '';
       });
     } catch (e) {
-      setState(() => _error = 'تعذّر اختيار الملف: $e');
+      _safeSetState(() => _error = 'تعذّر اختيار الملف: $e');
+    } finally {
+      _picking = false;
     }
   }
 
   Future<void> _submit() async {
     final title = _title.text.trim();
-    if (title.isEmpty) { setState(() => _error = 'عنوان الدرس مطلوب'); return; }
-    if (_file == null) { setState(() => _error = 'يرجى اختيار ملف الفيديو'); return; }
+    if (title.isEmpty) { _safeSetState(() => _error = 'عنوان الدرس مطلوب'); return; }
+    if (_file == null) { _safeSetState(() => _error = 'يرجى اختيار ملف الفيديو'); return; }
 
-    setState(() {
+    _safeSetState(() {
       _submitting = true;
       _error = '';
       _progress = 0;
@@ -137,18 +162,15 @@ class _VideoLessonUploadDialogState extends State<VideoLessonUploadDialog> {
       }
 
       // 2) Stream the file directly to Bunny.
-      if (mounted) setState(() => _phase = 'رفع الفيديو إلى Bunny…');
+      _safeSetState(() => _phase = 'رفع الفيديو إلى Bunny…');
       await _api.putToBunny(
         uploadContract: upload,
         filePath: _file!.path,
-        onProgress: (p) {
-          if (!mounted) return;
-          setState(() => _progress = p);
-        },
+        onProgress: (p) => _safeSetState(() => _progress = p),
       );
 
       // 3) Ask backend to reconcile so the lesson card flips faster.
-      if (mounted) setState(() => _phase = 'تحديث حالة المعالجة…');
+      _safeSetState(() => _phase = 'تحديث حالة المعالجة…');
       try {
         await _api.syncVideoLesson(
           courseId: widget.courseId,
@@ -156,23 +178,21 @@ class _VideoLessonUploadDialogState extends State<VideoLessonUploadDialog> {
         );
       } catch (_) { /* webhook will eventually fix it */ }
 
-      if (!mounted) return;
-      setState(() {
+      if (_disposed || !mounted) return;
+      _safeSetState(() {
         _success = true;
         _submitting = false;
         _phase = 'تم الرفع بنجاح. سيكتمل التحويل خلال دقائق.';
       });
       Future.delayed(const Duration(milliseconds: 1500), () {
-        if (mounted) Navigator.of(context).pop(lessonId);
+        if (!_disposed && mounted) Navigator.of(context).pop(lessonId);
       });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _submitting = false;
-          _error = _humanizeError(e);
-          _phase = '';
-        });
-      }
+      _safeSetState(() {
+        _submitting = false;
+        _error = _humanizeError(e);
+        _phase = '';
+      });
     }
   }
 
@@ -252,7 +272,7 @@ class _VideoLessonUploadDialogState extends State<VideoLessonUploadDialog> {
                             style: const TextStyle(fontSize: 11, color: Colors.grey)),
                         if (!_submitting)
                           TextButton(
-                            onPressed: () => setState(() {
+                            onPressed: () => _safeSetState(() {
                               _file = null;
                               _fileName = '';
                               _fileSizeBytes = 0;
