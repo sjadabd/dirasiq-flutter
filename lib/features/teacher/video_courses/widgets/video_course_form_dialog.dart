@@ -92,7 +92,7 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
           // just show empty until user picks something
         }
         if (_selectedGradeId != null &&
-            !_grades.any((g) => g['id']?.toString() == _selectedGradeId)) {
+            !_grades.any((g) => _gradeUuid(g) == _selectedGradeId)) {
           // same — don't auto-clear so we don't surprise the teacher
         }
       });
@@ -107,6 +107,23 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
 
   String _gradeName(Map g) {
     return (g['name'] ?? g['gradeName'] ?? g['title'])?.toString() ?? '';
+  }
+
+  /// Extract the REAL grade UUID from a /grades/my-grades row.
+  ///
+  /// The endpoint returns junction-table rows shaped as:
+  ///   `{ id: <teacher_grades.id>, gradeId: <grades.id>, gradeName: ..., ... }`
+  /// We need the `gradeId` field — NOT `id` — because `id` is the junction
+  /// row's UUID which doesn't exist in the `grades` table. Sending it as
+  /// `gradeId` to /api/teacher/video-courses causes Postgres FK violations
+  /// → HTTP 500 (this was the bug fixed in this commit).
+  ///
+  /// Falls back to `id` only if `gradeId` is missing — happens when the
+  /// API ever changes to return raw grades.
+  String _gradeUuid(Map g) {
+    final viaGradeId = g['gradeId']?.toString();
+    if (viaGradeId != null && viaGradeId.isNotEmpty) return viaGradeId;
+    return g['id']?.toString() ?? '';
   }
 
   Future<void> _submit() async {
@@ -228,7 +245,7 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              initialValue: _selectedGradeId != null && _grades.any((g) => g['id']?.toString() == _selectedGradeId)
+              initialValue: _selectedGradeId != null && _grades.any((g) => _gradeUuid(g) == _selectedGradeId)
                   ? _selectedGradeId
                   : null,
               isExpanded: true,
@@ -239,15 +256,15 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
               ),
               items: _grades
                   .map((g) {
-                    final id = g['id']?.toString();
+                    final uuid = _gradeUuid(g);
                     final name = _gradeName(g);
-                    if (id == null || id.isEmpty || name.isEmpty) return null;
-                    return DropdownMenuItem<String>(value: id, child: Text(name));
+                    if (uuid.isEmpty || name.isEmpty) return null;
+                    return DropdownMenuItem<String>(value: uuid, child: Text(name));
                   })
                   .whereType<DropdownMenuItem<String>>()
                   .toList(),
               onChanged: _grades.isEmpty ? null : (v) {
-                final g = _grades.firstWhere((g) => g['id']?.toString() == v, orElse: () => {});
+                final g = _grades.firstWhere((g) => _gradeUuid(g) == v, orElse: () => {});
                 setState(() {
                   _selectedGradeId = v;
                   _selectedGradeName = _gradeName(g);
