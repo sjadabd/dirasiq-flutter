@@ -88,9 +88,33 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
             : null;
         if (lesson == null) return;
         if (lesson['courseId']?.toString() != widget.courseId) return;
-        // Refetch silently — no snackbar on every Bunny tick.
-        _fetchAll();
-        // But surface a single user-facing event when a lesson flips to
+
+        // Surgical update: patch the matching row in `_lessons` in place
+        // instead of refetching the whole course. _fetchAll() flips the
+        // page-level _loading flag, which makes the whole screen blink
+        // a spinner on every Bunny tick — bad UX for what should be a
+        // single-card status change.
+        //
+        // If the lesson isn't in our list (race: new lesson created on
+        // another device), fall through to a full fetch so we don't
+        // miss it.
+        final lessonId = lesson['id']?.toString();
+        if (lessonId != null && lessonId.isNotEmpty) {
+          final idx = _lessons.indexWhere((l) => l['id']?.toString() == lessonId);
+          if (idx >= 0) {
+            setState(() {
+              // Merge — keep fields we have that the payload doesn't ship
+              // (e.g. createdAt, displayOrder if absent from the event).
+              _lessons[idx] = { ..._lessons[idx], ...lesson };
+            });
+          } else {
+            // Unknown lesson id for this course → safer to refetch the
+            // list so we pick up the new row.
+            _fetchAll();
+          }
+        }
+
+        // Surface a single user-facing event when a lesson flips to
         // a terminal status so the teacher knows their open screen just
         // updated.
         final status = lesson['bunnyStatus']?.toString();
@@ -430,7 +454,15 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
 
   void _snack(String text, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    // Clear any in-flight snackbar BEFORE showing the new one. Two
+    // identical-text snackbars stacked together trip Flutter's Hero
+    // animation assertion: "multiple heroes that share the same tag"
+    // — every SnackBar uses its Text content as a Hero tag, so the
+    // realtime + manual paths firing the same string back-to-back
+    // would otherwise crash with "EXCEPTION CAUGHT BY SCHEDULER".
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(SnackBar(
       content: Text(text),
       backgroundColor: error ? Colors.red.shade700 : null,
       behavior: SnackBarBehavior.floating,
