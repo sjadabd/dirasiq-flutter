@@ -11,6 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import 'teacher_video_course_detail_screen.dart';
@@ -39,10 +40,48 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
   List<Map<String, dynamic>> _items = [];
   String _error = '';
 
+  // Unsubscribe handle for the realtime listeners.
+  void Function()? _unsubCourseStatus;
+
   @override
   void initState() {
     super.initState();
     _fetch();
+
+    // When the admin approves / rejects ANY of this teacher's courses, the
+    // list view should reflect it without a manual refresh. The detail
+    // screen also subscribes and matches by id; here we refetch the whole
+    // list because the row could move between status tabs.
+    void onCourseStatusChange(dynamic data, {required bool approved}) {
+      if (!mounted) return;
+      final course = (data is Map && data['course'] is Map)
+          ? Map<String, dynamic>.from(data['course'] as Map)
+          : null;
+      if (course == null) return;
+      _fetch();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(approved
+            ? 'تمت الموافقة على دورة "${course['title'] ?? ''}"'
+            : 'تم رفض دورة "${course['title'] ?? ''}"'),
+        backgroundColor: approved ? Colors.green : Colors.redAccent,
+      ));
+    }
+
+    final approveUnsub = RealtimeService.instance.subscribe(
+      'video-course:approved',
+      (d) => onCourseStatusChange(d, approved: true),
+    );
+    final rejectUnsub = RealtimeService.instance.subscribe(
+      'video-course:rejected',
+      (d) => onCourseStatusChange(d, approved: false),
+    );
+    _unsubCourseStatus = () { approveUnsub(); rejectUnsub(); };
+  }
+
+  @override
+  void dispose() {
+    _unsubCourseStatus?.call();
+    super.dispose();
   }
 
   Future<void> _fetch() async {

@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/config/initial_bindings.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/realtime_service.dart';
 import 'shared/themes/app_colors.dart';
 import 'shared/controllers/theme_controller.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
@@ -45,6 +48,11 @@ Future<void> main() async {
   print("PLAYER ID => $id");
 
   Get.put(ThemeController(), permanent: true);
+
+  // Open the realtime socket if the user is already authenticated
+  // (warm app start). The login flow opens it again on a fresh login.
+  // No-op when no token is in SharedPreferences yet (caller-safe).
+  unawaited(RealtimeService.instance.connect());
 
   runApp(const MyApp());
 }

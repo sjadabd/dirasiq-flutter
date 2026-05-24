@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'package:mulhimiq/core/services/notification_service.dart';
+import 'package:mulhimiq/core/services/realtime_service.dart';
 
 class AuthService {
   final ApiService _apiService = ApiService();
@@ -145,6 +147,12 @@ class AuthService {
         await prefs.setString("token", token);
         await prefs.setString("user", jsonEncode(user));
 
+        // Open the realtime socket so admin / teacher events
+        // (video-course:approved, video-lesson:status_changed, etc.)
+        // arrive without a poll. Fire-and-forget — a failed connect
+        // never blocks the login flow (the socket auto-retries).
+        unawaited(RealtimeService.instance.connect());
+
         return null;
       }
 
@@ -204,6 +212,9 @@ class AuthService {
     await prefs.remove("user");
     // فك الارتباط من OneSignal
     await NotificationService.instance.logoutUser();
+    // Drop realtime room joins so the next user doesn't inherit ours.
+    RealtimeService.instance.clearListeners();
+    RealtimeService.instance.disconnect();
   }
 
   /// ✅ جلب بيانات المستخدم من التخزين

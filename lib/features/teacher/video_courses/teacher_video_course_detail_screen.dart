@@ -14,6 +14,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import 'widgets/hls_video_player_screen.dart';
@@ -40,6 +41,11 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
   bool _reorderMode = false;
   bool _reorderBusy = false;
 
+  // Unsubscribe handles for realtime listeners — invoked in dispose() so
+  // we don't leak callbacks after the screen pops.
+  void Function()? _unsubLessonStatus;
+  void Function()? _unsubCourseStatus;
+
   // Status chip mappings (matches the dashboard for consistency).
   static const _courseStatusMeta = <String, Map<String, dynamic>>{
     'pending_review': {'label': 'بانتظار المراجعة', 'color': Colors.orange,    'icon': Icons.access_time},
@@ -59,6 +65,69 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
   void initState() {
     super.initState();
     _fetchAll();
+    _attachRealtime();
+  }
+
+  @override
+  void dispose() {
+    _unsubLessonStatus?.call();
+    _unsubCourseStatus?.call();
+    super.dispose();
+  }
+
+  /// Subscribe to the realtime events that affect THIS course's view. The
+  /// callbacks filter by id so events for other courses don't trigger a
+  /// refetch here.
+  void _attachRealtime() {
+    _unsubLessonStatus = RealtimeService.instance.subscribe(
+      'video-lesson:status_changed',
+      (data) {
+        if (!mounted) return;
+        final lesson = (data is Map && data['lesson'] is Map)
+            ? Map<String, dynamic>.from(data['lesson'] as Map)
+            : null;
+        if (lesson == null) return;
+        if (lesson['courseId']?.toString() != widget.courseId) return;
+        // Refetch silently — no snackbar on every Bunny tick.
+        _fetchAll();
+        // But surface a single user-facing event when a lesson flips to
+        // a terminal status so the teacher knows their open screen just
+        // updated.
+        final status = lesson['bunnyStatus']?.toString();
+        if (status == 'ready') {
+          _snack('تم تجهيز فيديو الدرس "${lesson['title'] ?? ''}"');
+        } else if (status == 'failed') {
+          _snack(
+            'فشل معالجة فيديو الدرس "${lesson['title'] ?? ''}"',
+            error: true,
+          );
+        }
+      },
+    );
+
+    void onCourseStatus(dynamic data, {required bool approved}) {
+      if (!mounted) return;
+      final course = (data is Map && data['course'] is Map)
+          ? Map<String, dynamic>.from(data['course'] as Map)
+          : null;
+      if (course == null) return;
+      if (course['id']?.toString() != widget.courseId) return;
+      _fetchAll();
+      _snack(
+        approved ? 'تمت الموافقة على الدورة من قبل الإدارة' : 'تم رفض الدورة من قبل الإدارة',
+        error: !approved,
+      );
+    }
+
+    final approveUnsub = RealtimeService.instance.subscribe(
+      'video-course:approved',
+      (d) => onCourseStatus(d, approved: true),
+    );
+    final rejectUnsub = RealtimeService.instance.subscribe(
+      'video-course:rejected',
+      (d) => onCourseStatus(d, approved: false),
+    );
+    _unsubCourseStatus = () { approveUnsub(); rejectUnsub(); };
   }
 
   Future<void> _fetchAll() async {
