@@ -263,14 +263,21 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
     final hasExisting = existingUrl.isNotEmpty;
     final disabled = _submitting;
 
+    // NOTE: width must NOT be `double.infinity` on any child here.
+    // AlertDialog wraps its content area in IntrinsicWidth to size itself,
+    // and IntrinsicWidth asserts that every descendant's intrinsic width is
+    // finite. `Image(width: double.infinity)` returns infinity → assertion
+    // fails ("input.isFinite"). The fix is to let the OUTER stretch (the
+    // dialog content Column has `crossAxisAlignment: stretch`) plus the
+    // Container's `clipBehavior` give us the visible width, while the
+    // children stay intrinsic-width-friendly (finite or zero).
     Widget preview;
     if (hasNew) {
-      preview = Image.file(_coverFile!, fit: BoxFit.cover, width: double.infinity, height: 120);
+      preview = Image.file(_coverFile!, fit: BoxFit.cover, height: 120);
     } else if (hasExisting) {
       preview = Image.network(
         existingUrl,
         fit: BoxFit.cover,
-        width: double.infinity,
         height: 120,
         errorBuilder: (ctx, err, stack) => _coverPlaceholder(scheme, label: 'تعذّر تحميل المعاينة'),
       );
@@ -286,6 +293,7 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           preview,
           Padding(
@@ -334,9 +342,11 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
   }
 
   Widget _coverPlaceholder(ColorScheme scheme, {String? label}) {
+    // Same constraint as the Image branches: NO `width: double.infinity`
+    // anywhere — the outer stretch + clipBehavior handles the visible
+    // width; this child only needs to declare a finite height.
     return Container(
       height: 120,
-      width: double.infinity,
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
       child: Center(
         child: Column(
