@@ -54,7 +54,32 @@ Future<void> main() async {
   // No-op when no token is in SharedPreferences yet (caller-safe).
   unawaited(RealtimeService.instance.connect());
 
+  // App-lifecycle observer that re-opens the realtime socket whenever
+  // the user brings the app back to the foreground. Android can
+  // suspend the network stack when the app is backgrounded for a few
+  // minutes, killing the WebSocket — `connect()` is idempotent so this
+  // is safe to call on every resume.
+  WidgetsBinding.instance.addObserver(_RealtimeLifecycleHook());
+
   runApp(const MyApp());
+}
+
+/// Re-opens the realtime socket whenever the app comes back to the
+/// foreground. Without this, Android's network suspension while
+/// backgrounded silently kills the WebSocket and the user's first sign
+/// that anything is wrong is "the lesson card never updates".
+///
+/// The observer lives for the lifetime of the process — registered in
+/// `main()` and never removed, by design.
+class _RealtimeLifecycleHook extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // ignore: avoid_print
+      print('[realtime] app resumed → ensuring socket is connected');
+      unawaited(RealtimeService.instance.connect());
+    }
+  }
 }
 
 class MyApp extends StatelessWidget {

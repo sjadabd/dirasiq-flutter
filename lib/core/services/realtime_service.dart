@@ -51,33 +51,58 @@ class RealtimeService {
   /// no JWT is stored yet (caller is responsible for retrying after login).
   Future<void> connect() async {
     if (_socket != null && _socket!.connected) return;
+    // If there's a stale disconnected socket lying around, dispose it
+    // before creating a fresh one — otherwise the new connect call
+    // wouldn't take effect (and we'd quietly stay disconnected).
+    if (_socket != null) {
+      try { _socket!.dispose(); } catch (_) {}
+      _socket = null;
+    }
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
+    // ignore: avoid_print
+    print('[realtime] connect() called — token present: ${token != null && token.isNotEmpty}');
     if (token == null || token.isEmpty) return;
 
     // The main API exposes Socket.IO at the default path on its
     // serverBaseUrl host (NOT the chat host). Same JWT, same auth path —
     // see dirasiq_api/src/services/realtime.service.ts attach() handler.
+    //
+    // setReconnectionAttempts(-1) = unlimited. socket_io_client defaults
+    // to Infinity for this but Dart's binding sometimes maps a missing
+    // value to 0 — be explicit. Without this, a long-lived disconnect
+    // (server restart, network blip after 60 quick retries) parks the
+    // socket forever and the realtime UI silently dies.
     final socket = io.io(
       AppConfig.serverBaseUrl,
       io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
           .setAuth({'token': token})
-          .setReconnectionAttempts(60)
+          .setReconnectionAttempts(1 << 30)
           .setReconnectionDelay(2000)
+          .setReconnectionDelayMax(30000)
+          .enableForceNew()
           .build(),
     );
 
     socket
       ..onConnect((_) {
+        // ignore: avoid_print
+        print('[realtime] ✅ socket connected to ${AppConfig.serverBaseUrl}');
         _connected.add(null);
       })
-      ..onConnectError((_) {
-        // Auth or transport failure — onConnect will retry per the
-        // reconnection settings above.
+      ..onConnectError((err) {
+        // ignore: avoid_print
+        print('[realtime] ❌ connect_error: $err');
+      })
+      ..onDisconnect((reason) {
+        // ignore: avoid_print
+        print('[realtime] socket disconnected: $reason');
       })
       ..onAny((event, data) {
+        // ignore: avoid_print
+        print('[realtime] 📨 event="$event" listeners=${_listeners[event]?.length ?? 0}');
         final list = _listeners[event];
         if (list == null) return;
         // Iterate over a copy so subscribers that unsubscribe inside their
