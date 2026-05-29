@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/services/api_service.dart';
 import '../../../shared/widgets/global_app_bar.dart';
 import '../../../shared/widgets/status_views.dart';
+import '../../course_hub/screens/course_hub_screen.dart';
+import '../../course_hub/screens/teacher_courses_picker_screen.dart';
 import '../../teachers/screens/suggested_teachers_screen.dart';
 import '../../teachers/screens/teacher_details_screen.dart';
 import '../../teachers/screens/teacher_student_workspace_screen.dart';
@@ -165,13 +168,35 @@ class _StudentMyTeachersHomeState extends State<StudentMyTeachersHome> {
   }
 
   void _openTeacherWorkspace(_MyTeacher t) {
-    Get.to(() => TeacherStudentWorkspaceScreen(
-      teacherId: t.id,
-      teacherName: t.name,
-      courses: t.courses.map((c) => {
-        'id': c.id, 'name': c.name, 'bookingId': c.bookingId, 'status': c.status,
-      }).toList(),
-    ));
+    if (!AppConfig.useNewCourseHub) {
+      Get.to(() => TeacherStudentWorkspaceScreen(
+        teacherId: t.id,
+        teacherName: t.name,
+        courses: t.courses.map((c) => {
+          'id': c.id, 'name': c.name, 'bookingId': c.bookingId, 'status': c.status,
+        }).toList(),
+      ));
+      return;
+    }
+
+    // Phase 6 — feature flag is on. Single-course teachers go straight to
+    // the Course Hub; multi-course teachers go through the picker.
+    if (t.courses.length == 1) {
+      final c = t.courses.first;
+      Get.to(() => CourseHubScreen(
+        courseId: c.id,
+        courseName: c.name,
+        teacherId: t.id,
+      ));
+    } else {
+      Get.to(() => TeacherCoursesPickerScreen(
+        teacherId: t.id,
+        teacherName: t.name,
+        courses: t.courses.map((c) => {
+          'id': c.id, 'name': c.name, 'bookingId': c.bookingId, 'status': c.status,
+        }).toList(),
+      ));
+    }
   }
 
   @override

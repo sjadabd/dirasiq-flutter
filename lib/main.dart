@@ -28,6 +28,8 @@ import 'features/bookings/screens/bookings_list_screen.dart';
 import 'features/bookings/screens/booking_details_screen.dart';
 import 'features/enrollments/screens/enrollments_screen.dart';
 import 'features/enrollments/screens/enrollment_actions_screen.dart';
+import 'features/course_hub/screens/course_hub_screen.dart';
+import 'features/course_hub/screens/teacher_courses_picker_screen.dart';
 import 'features/qr/qr_scan_screen.dart';
 import 'features/enrollments/screens/course_weekly_schedule_screen.dart';
 import 'features/enrollments/screens/course_attendance_screen.dart';
@@ -262,6 +264,39 @@ class MyApp extends StatelessWidget {
                 courseId: args['courseId'] ?? '',
                 courseName: args['courseName'],
                 teacherId: args['teacherId'],
+              );
+            },
+          ),
+          // Phase 6 — Unified Course Hub. The legacy /enrollment-actions
+          // route above stays in place for back-compat with deep links;
+          // navigation entry points pick between the two via
+          // AppConfig.useNewCourseHub.
+          GetPage(
+            name: "/course-hub",
+            page: () {
+              final args = Get.arguments as Map<String, dynamic>? ?? {};
+              return CourseHubScreen(
+                courseId: (args['courseId'] ?? '').toString(),
+                courseName: args['courseName']?.toString(),
+                teacherId: args['teacherId']?.toString(),
+              );
+            },
+          ),
+          // Phase 6 — Teacher → Courses picker, used when a teacher card
+          // is tapped from "My Teachers" and the student shares MORE
+          // than one course with that teacher.
+          GetPage(
+            name: "/teacher-courses-picker",
+            page: () {
+              final args = Get.arguments as Map<String, dynamic>? ?? {};
+              final raw = args['courses'];
+              final courses = raw is List
+                  ? raw.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList()
+                  : <Map<String, dynamic>>[];
+              return TeacherCoursesPickerScreen(
+                teacherId: (args['teacherId'] ?? '').toString(),
+                teacherName: (args['teacherName'] ?? '').toString(),
+                courses: courses,
               );
             },
           ),

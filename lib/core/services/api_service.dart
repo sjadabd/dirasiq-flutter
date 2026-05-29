@@ -1154,6 +1154,26 @@ class ApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  /// Phase 2 marketplace — video courses pinned to a given LIVE course
+  /// (via video_course_target_courses) that the student can view. Used
+  /// by the Course Hub "Videos" section. Empty list when:
+  ///   - no video courses pin to this live course,
+  ///   - none of the pinned ones pass fn_student_can_view_video_course,
+  ///   - the student isn't enrolled in this live course (still
+  ///     returns the rows that match other access types, e.g. a
+  ///     public_free_by_grade video pinned to the course).
+  Future<Map<String, dynamic>> fetchVideoCoursesForCourse(
+    String courseId, {
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final res = await _dio.get(
+      '/student/courses/$courseId/video-courses',
+      queryParameters: {'page': page, 'limit': limit},
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   /// Mint a short-lived signed playback URL for a specific lesson. Server
   /// throws 402 BUSINESS_RULE for paid courses (Phase 10.1 ships free only).
   /// Returns `{url, expiresAt}`.

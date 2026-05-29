@@ -35,4 +35,24 @@ class AppConfig {
 
   /// OneSignal — public app id, identifies the project (not auth).
   static const String oneSignalAppId = 'b136e33d-56f0-4fc4-ad08-8c8a534ca447';
+
+  // -------- Feature flags --------------------------------------------------
+  //
+  // Phase 6 of the National Video Marketplace introduces a unified
+  // "Course Hub" screen that replaces the legacy EnrollmentActionsScreen
+  // grid for taps from "My Courses" and "My Teachers". The legacy screen
+  // and route stay in place; this flag picks which one navigation runs
+  // at the entry points.
+  //
+  // SHIPPING DEFAULT: false. Keeps the production app on the legacy
+  // 8-action grid until the Hub is validated end-to-end and the user
+  // explicitly opts the cohort in.
+  //
+  // TO ENABLE INTERNALLY:
+  //   Flip this flag to true in a debug build, hot-restart, and the
+  //   Hub becomes the destination for every "tap a course" path. The
+  //   legacy /enrollment-actions route still resolves (Phase 6 keeps
+  //   it for deep-links + back-compat) but nothing in the UI surfaces
+  //   it.
+  static const bool useNewCourseHub = false;
 }

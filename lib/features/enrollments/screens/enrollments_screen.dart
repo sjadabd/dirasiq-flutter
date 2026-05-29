@@ -194,8 +194,14 @@ class _EnrollmentsScreenState extends State<EnrollmentsScreen> {
             final courseId = course['id']?.toString();
             final courseName = course['name']?.toString();
             if (courseId != null && courseId.isNotEmpty) {
+              // Phase 6: route to the unified Course Hub when the
+              // feature flag is on; otherwise keep the legacy 8-action
+              // grid the production app has shipped for months.
+              final route = AppConfig.useNewCourseHub
+                  ? '/course-hub'
+                  : '/enrollment-actions';
               Get.toNamed(
-                '/enrollment-actions',
+                route,
                 arguments: {
                   'courseId': courseId,
                   'courseName': courseName,
