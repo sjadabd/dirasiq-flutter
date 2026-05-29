@@ -40,6 +40,25 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  // Teacher self-service: read + replace the grade set the teacher
+  // declared they teach for the currently-active academic year. Backed by
+  // /api/teacher/my-grades (GET to hydrate the profile screen's chips,
+  // PUT for a replace-set sync). The PUT body must carry the FULL desired
+  // gradeIds list — the server soft-deletes anything that fell out of
+  // the set and upserts the rest in one transaction.
+  Future<Map<String, dynamic>> fetchMyTeacherGrades() async {
+    final res = await _dio.get('/teacher/my-grades');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> syncMyTeacherGrades(List<String> gradeIds) async {
+    final res = await _dio.put(
+      '/teacher/my-grades',
+      data: {'gradeIds': gradeIds},
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   Future<Map<String, dynamic>> fetchWallet() async {
     final res = await _dio.get('/teacher/wallet');
     return Map<String, dynamic>.from(res.data ?? {});
@@ -267,6 +286,17 @@ class TeacherApiService {
 
   Future<Map<String, dynamic>> deleteCourse(String id) async {
     final res = await _dio.delete('/teacher/courses/$id');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Create a regular (non-video) teacher course. Wire-shape mirrors the
+  /// dashboard's AddCourse.vue payload — snake_case keys, study_year as
+  /// `YYYY-YYYY`, course_images as an array of data-URL base64 strings.
+  /// The backend Zod schema (`courseCreateSchema`) enforces every required
+  /// field; an empty body returns a 400 with `errors[].field` per missing
+  /// key, so the caller doesn't need to defensively pre-validate.
+  Future<Map<String, dynamic>> createCourse(Map<String, dynamic> payload) async {
+    final res = await _dio.post('/teacher/courses', data: payload);
     return Map<String, dynamic>.from(res.data ?? {});
   }
 

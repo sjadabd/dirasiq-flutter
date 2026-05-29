@@ -68,7 +68,14 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   Future<void> _bootstrap() async {
     setState(() => _loading = true);
     try {
-      await Future.wait([_loadUser(), _loadAcademicYears(), _loadGrades()]);
+      await _loadUser();
+      // Academic-years lookup feeds the study-year dropdown; grades catalog
+      // + the teacher's current set are independent — fetch in parallel.
+      await Future.wait([
+        _loadAcademicYears(),
+        _loadGradesCatalog(),
+        _loadMyGrades(),
+      ]);
       _hydrateForm();
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -94,23 +101,52 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     } catch (_) {}
   }
 
-  Future<void> _loadGrades() async {
+  // Full active grade catalog from the super-admin-managed `grades` table.
+  // This populates the chip set the teacher picks from. Auth-required —
+  // /grades/all returns [{id, name, ...}].
+  Future<void> _loadGradesCatalog() async {
     try {
-      // /grades/all-student is the public endpoint we already use elsewhere.
-      // It returns the same active grade list the teacher signed up with.
-      final tokenedApi = _api; // reuse Dio with auth
-      final res = await tokenedApi.fetchCourseNames(); // wrong endpoint; we want /grades/all
-      // fallback: try the auth-required grades endpoint via raw Dio.
-      // We use the same Dio under the hood — call /grades/all directly.
-      final res2 = await _api.fetchAcademicYears();
-      // The simplest path: derive grade list from user.teacherGrades (already loaded).
-      final list = (_user['teacherGrades'] is List) ? (_user['teacherGrades'] as List) : [];
-      _allGrades = list.whereType<Map>().map((g) => Map<String, dynamic>.from(g)).toList();
-      // Avoid 'unused' warnings (Dart treats locals as needed otherwise).
-      // ignore: unused_local_variable
-      final _ = [res, res2];
+      final res = await _api.fetchAllGrades();
+      final data = res['data'];
+      if (data is List) {
+        _allGrades = data
+            .whereType<Map>()
+            .map((g) => Map<String, dynamic>.from(g))
+            .toList();
+      } else {
+        _allGrades = [];
+      }
     } catch (_) {
       _allGrades = [];
+    }
+  }
+
+  // Current set the teacher already declared for the active academic year.
+  // Used to preselect chips. The server returns
+  //   { studyYear, grades: [{ id, gradeId, gradeName, ... }] }
+  // — we keep just the gradeIds for the FilterChip state.
+  Future<void> _loadMyGrades() async {
+    try {
+      final res = await _api.fetchMyTeacherGrades();
+      final data = res['data'] is Map ? Map<String, dynamic>.from(res['data']) : {};
+      final yr = data['studyYear']?.toString();
+      if (yr != null && yr.isNotEmpty) {
+        _activeStudyYear = yr;
+      }
+      final grades = (data['grades'] is List) ? data['grades'] as List : const [];
+      _selectedGradeIds = grades
+          .whereType<Map>()
+          .map((g) => (g['gradeId'] ?? g['id'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet();
+    } catch (_) {
+      // Fall back to whatever the cached user blob carries.
+      final list = (_user['teacherGrades'] is List) ? (_user['teacherGrades'] as List) : const [];
+      _selectedGradeIds = list
+          .whereType<Map>()
+          .map((g) => (g['gradeId'] ?? g['id'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet();
     }
   }
 
@@ -134,9 +170,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       if (first is Map) _studyYear = first['studyYear']?.toString();
     }
     _studyYear ??= _activeStudyYear ?? (_years.isNotEmpty ? _years.first : null);
-
-    // Preselect the grades currently associated with the teacher.
-    _selectedGradeIds = _allGrades.map((g) => (g['gradeId'] ?? g['id']).toString()).where((s) => s.isNotEmpty).toSet();
+    // _selectedGradeIds is populated by _loadMyGrades() against the live
+    // teacher_grades row set — never derive it from _allGrades (the catalog).
   }
 
   String? _required(String? v, String label) {
@@ -157,13 +192,15 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
 
     setState(() => _saving = true);
     try {
+      // updateProfile() owns the user-row columns (name/phone/bio/etc.).
+      // gradeIds are intentionally NOT in this payload — the backend's
+      // updateProfile silently drops them. Grades are synced separately
+      // through PUT /teacher/my-grades below.
       final payload = <String, dynamic>{
         'name': _name.text.trim(),
         'phone': _phone.text.trim(),
         'bio': _bio.text.trim(),
         'experienceYears': int.tryParse(_experienceYears.text.trim()) ?? 0,
-        'gradeIds': _selectedGradeIds.toList(),
-        'studyYear': _studyYear,
       };
       if (_address.text.trim().isNotEmpty) payload['address'] = _address.text.trim();
       if (_gender != null && _gender!.isNotEmpty) payload['gender'] = _gender;
@@ -172,14 +209,32 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       }
 
       final result = await _auth.updateProfile(payload);
-      if (result['success'] == true) {
-        Get.snackbar('تم', 'حُفظت التعديلات', snackPosition: SnackPosition.BOTTOM);
-        setState(() => _editing = false);
-        await _loadUser();
-        if (mounted) setState(() {});
-      } else {
+      if (result['success'] != true) {
         Get.snackbar('خطأ', result['message']?.toString() ?? 'تعذّر الحفظ', snackPosition: SnackPosition.BOTTOM);
+        return;
       }
+
+      // Replace-set sync of teacher_grades for the active study year. Any
+      // DioException is surfaced as a snackbar without rolling back the
+      // user-row update (the two writes are independent — the profile
+      // text fields were already saved successfully).
+      try {
+        await _api.syncMyTeacherGrades(_selectedGradeIds.toList());
+      } catch (e) {
+        Get.snackbar(
+          'تحذير',
+          'حُفظت البيانات لكن تعذّر تحديث المراحل الدراسية: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 5),
+        );
+        return;
+      }
+
+      Get.snackbar('تم', 'حُفظت التعديلات', snackPosition: SnackPosition.BOTTOM);
+      setState(() => _editing = false);
+      await _loadUser();
+      await _loadMyGrades();
+      if (mounted) setState(() {});
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -298,10 +353,12 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                       Wrap(
                         spacing: 8, runSpacing: 8,
                         children: _allGrades.isEmpty
-                            ? [Text('—', style: TextStyle(color: cs.onSurfaceVariant))]
+                            ? [Text('لا توجد مراحل متاحة حالياً', style: TextStyle(color: cs.onSurfaceVariant))]
                             : _allGrades.map((g) {
-                                final id = (g['gradeId'] ?? g['id']).toString();
-                                final name = (g['gradeName'] ?? g['name'] ?? '').toString();
+                                // /grades/all rows are {id, name, ...} — use id, not gradeId.
+                                final id = (g['id'] ?? g['gradeId'] ?? '').toString();
+                                final name = (g['name'] ?? g['gradeName'] ?? '').toString();
+                                if (id.isEmpty) return const SizedBox.shrink();
                                 final selected = _selectedGradeIds.contains(id);
                                 return FilterChip(
                                   label: Text(name),
