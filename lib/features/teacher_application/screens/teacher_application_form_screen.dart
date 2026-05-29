@@ -70,21 +70,20 @@ class _TeacherApplicationFormScreenState
   bool _googleSigningIn = false;
   String? _googleError;
 
-  // Phase 8 — public catalog dropdowns (subject + teaching stage). Loaded on
-  // initState; while loading the dropdowns show a disabled placeholder and
-  // the form's first two steps are non-blocking.
+  // Public catalogs — subject list (legacy free-text) + grades. Grades now
+  // come from the super-admin-managed `grades` table and replace the old
+  // free-text teachingStage dropdown.
   List<String> _subjectsCatalog = const [];
-  List<String> _stagesCatalog = const [];
+  List<TeacherApplicationGrade> _gradesCatalog = const [];
   bool _catalogLoading = true;
   String? _catalogError;
 
-  // Selection state for the catalog dropdowns.
+  // Selection state.
   String? _selectedSubject;
-  String? _selectedStage;
+  final Set<String> _selectedGradeIds = <String>{};
 
-  // Free-text fallbacks used when the user picks "أخرى" (other).
+  // Free-text fallback for subject when the user picks "أخرى".
   final _customSubject = TextEditingController();
-  final _customStage = TextEditingController();
 
   final _yearsExp = TextEditingController(text: '0');
   final _currentWorkplace = TextEditingController();
@@ -138,7 +137,7 @@ class _TeacherApplicationFormScreenState
     for (final c in [
       _firstName, _lastName, _phone, _email, _password,
       _city, _area,
-      _customSubject, _customStage,
+      _customSubject,
       _yearsExp, _currentWorkplace, _estStudents,
       _bio, _facebook, _instagram, _telegram, _tiktok, _youtube,
     ]) {
@@ -151,22 +150,20 @@ class _TeacherApplicationFormScreenState
 
   Future<void> _loadCatalogs() async {
     try {
-      final results = await Future.wait([
-        _api.getSubjects(),
-        _api.getTeachingStages(),
-      ]);
+      final subjects = await _api.getSubjects();
+      final grades = await _api.getActiveGrades();
       if (!mounted) return;
       setState(() {
-        _subjectsCatalog = results[0];
-        _stagesCatalog = results[1];
+        _subjectsCatalog = subjects;
+        _gradesCatalog = grades;
         _catalogLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      // Form is still usable — user can pick "أخرى" and type freely.
       setState(() {
         _catalogLoading = false;
-        _catalogError = 'تعذر تحميل قوائم المواد والمراحل — يمكنك إدخالها يدوياً.';
+        _catalogError =
+            'تعذر تحميل قوائم المواد والمراحل — أعد المحاولة لاحقاً.';
       });
     }
   }
@@ -220,9 +217,8 @@ class _TeacherApplicationFormScreenState
         _showSnack('يرجى تحديد المادة');
         return;
       }
-      if (_selectedStage == _kOtherOption &&
-          _customStage.text.trim().isEmpty) {
-        _showSnack('يرجى تحديد المرحلة');
+      if (_selectedGradeIds.isEmpty) {
+        _showSnack('يرجى اختيار مرحلة دراسية واحدة على الأقل');
         return;
       }
     }
@@ -260,9 +256,6 @@ class _TeacherApplicationFormScreenState
       final subjectFinal = _selectedSubject == _kOtherOption
           ? _customSubject.text.trim()
           : (_selectedSubject ?? '').trim();
-      final stageFinal = _selectedStage == _kOtherOption
-          ? _customStage.text.trim()
-          : (_selectedStage ?? '').trim();
       final emailForReceipts = _authProvider == 'google'
           ? (_googleEmail ?? '').trim()
           : _email.text.trim();
@@ -282,9 +275,7 @@ class _TeacherApplicationFormScreenState
         'city': _city.text.trim(),
         'area': _area.text.trim(),
         'subject': subjectFinal,
-        'teachingStage': stageFinal,
-        if (_selectedStage == _kOtherOption)
-          'customTeachingStage': _customStage.text.trim(),
+        'gradeIds': _selectedGradeIds.toList(growable: false),
         'yearsOfExperience': int.tryParse(_yearsExp.text.trim()) ?? 0,
         'currentWorkplace': _currentWorkplace.text.trim(),
         'hasPhysicalCourses': _hasPhysical,
@@ -564,17 +555,7 @@ class _TeacherApplicationFormScreenState
               ),
               if (_selectedSubject == _kOtherOption)
                 _tf(_customSubject, 'حدّد المادة', isRequired: true),
-              _catalogDropdown(
-                label: 'المرحلة الدراسية',
-                value: _selectedStage,
-                items: _stagesCatalog,
-                onChanged: (v) => setState(() {
-                  _selectedStage = v;
-                  if (v != _kOtherOption) _customStage.clear();
-                }),
-              ),
-              if (_selectedStage == _kOtherOption)
-                _tf(_customStage, 'حدّد المرحلة', isRequired: true),
+              _gradesMultiSelect(),
               Row(children: [
                 Expanded(child: _tf(_yearsExp, 'سنوات الخبرة', isRequired: true, keyboard: TextInputType.number)),
                 const SizedBox(width: 8),
@@ -865,6 +846,88 @@ class _TeacherApplicationFormScreenState
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Multi-select grade picker. Renders chips for every active grade pulled
+  // from the public catalog; tap toggles selection. At least one selection
+  // is required to advance past step 2 (validated in _next()).
+  Widget _gradesMultiSelect() {
+    final scheme = Theme.of(context).colorScheme;
+
+    if (_catalogLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: InputDecorator(
+          decoration: const InputDecoration(
+            labelText: 'المراحل الدراسية التي تُدرّسها',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          child: Row(children: const [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 8),
+            Text('جارٍ تحميل المراحل…'),
+          ]),
+        ),
+      );
+    }
+
+    if (_gradesCatalog.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Text(
+          'لا توجد مراحل متاحة حالياً — تواصل مع الدعم.',
+          style: TextStyle(color: scheme.error, fontSize: 13),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'المراحل الدراسية التي تُدرّسها *',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: scheme.onSurface.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'يمكنك اختيار أكثر من مرحلة',
+            style: TextStyle(
+              fontSize: 11,
+              color: scheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final g in _gradesCatalog)
+                FilterChip(
+                  label: Text(g.name),
+                  selected: _selectedGradeIds.contains(g.id),
+                  onSelected: (on) => setState(() {
+                    if (on) {
+                      _selectedGradeIds.add(g.id);
+                    } else {
+                      _selectedGradeIds.remove(g.id);
+                    }
+                  }),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

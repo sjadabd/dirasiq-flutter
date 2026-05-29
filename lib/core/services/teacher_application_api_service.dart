@@ -166,6 +166,28 @@ class TeacherApplicationApiService {
     }
   }
 
+  /// Active grades from the super-admin-managed `grades` table. The
+  /// teacher-application form picks one or more of these ids and submits
+  /// them as `gradeIds` — they replace the old free-text teachingStage.
+  Future<List<TeacherApplicationGrade>> getActiveGrades() async {
+    try {
+      final res = await _dio.get('/grades/all-student');
+      final data = res.data is Map ? res.data['data'] : null;
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((m) => TeacherApplicationGrade.fromMap(
+                  Map<String, dynamic>.from(m),
+                ))
+            .where((g) => g.id.isNotEmpty && g.name.isNotEmpty)
+            .toList(growable: false);
+      }
+      return const [];
+    } on DioException catch (e) {
+      throw _from(e);
+    }
+  }
+
   /// Upload one file. `onProgress` reports 0.0…1.0.
   /// `kind` must be one of: profile_image | certificate_image |
   /// national_id_image | optional_attachment | intro_video.
@@ -252,6 +274,20 @@ class TeacherApplicationApiService {
     final parts = mime.split('/');
     if (parts.length != 2) return DioMediaType('application', 'octet-stream');
     return DioMediaType(parts[0], parts[1]);
+  }
+}
+
+/// One row from GET /grades/all-student — the public grade catalog.
+class TeacherApplicationGrade {
+  const TeacherApplicationGrade({required this.id, required this.name});
+  final String id;
+  final String name;
+
+  factory TeacherApplicationGrade.fromMap(Map<String, dynamic> m) {
+    return TeacherApplicationGrade(
+      id: (m['id'] ?? m['_id'] ?? '').toString(),
+      name: (m['name'] ?? '').toString(),
+    );
   }
 }
 
