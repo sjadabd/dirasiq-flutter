@@ -293,10 +293,32 @@ class _TeacherApplicationFormScreenState
       final created = await _api.submit(payload);
 
       // 3) upload chosen files sequentially with progress
+      //
+      // The application row is already CREATED at this point — POST
+      // /api/teacher-applications has succeeded above. From here on out,
+      // ANY file-upload failure must be recorded per-file and the loop
+      // must keep going. Letting an exception escape would skip the OTP
+      // navigation below and leave the user staring at the form thinking
+      // their submission failed, when in fact the backend already has it
+      // (and a retry would be rejected by the unique email/phone index).
+      //
+      // The two failure modes worth distinguishing:
+      //   - TeacherApplicationApiException → server rejected the upload
+      //     (size, mime, kind, token, ...). Use the server's message.
+      //   - Any other Object → almost always a local I/O issue. The most
+      //     common one in the wild is `PathNotFoundException` thrown by
+      //     `MultipartFile.fromFile` when Android cleaned the file-picker
+      //     cache between pick + submit. We also pre-check `exists()` to
+      //     turn that race into a clean per-file error.
       for (final kind in _files.keys) {
         final f = _files[kind];
         if (f == null) continue;
         try {
+          if (!await f.file.exists()) {
+            throw const FileSystemException(
+              'انتهت صلاحية الملف المخبأ — يرجى إعادة اختياره',
+            );
+          }
           await _api.uploadFile(
             applicationId: created.applicationId,
             uploadToken: created.uploadToken,
@@ -310,10 +332,13 @@ class _TeacherApplicationFormScreenState
           );
           if (mounted) setState(() => _progress[kind] = 1);
         } on TeacherApplicationApiException catch (e) {
+          if (mounted) setState(() => _uploadError[kind] = e.message);
+        } on FileSystemException catch (e) {
           if (mounted) {
             setState(() => _uploadError[kind] = e.message);
           }
-          // keep going — other files can still upload, user can retry later
+        } catch (e) {
+          if (mounted) setState(() => _uploadError[kind] = 'فشل رفع الملف: $e');
         }
       }
 
