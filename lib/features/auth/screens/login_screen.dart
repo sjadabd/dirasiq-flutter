@@ -55,7 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
       Get.offAll(() => EmailVerificationScreen(email: email));
     } else {
       debugPrint('[LoginScreen] Google sign-in error: $error');
-      Get.snackbar('خطأ', error, snackPosition: SnackPosition.BOTTOM);
+      // Get.snackbar resolves through the global Overlay, which is briefly
+      // missing while SignInHubActivity tears down on a cancel/failure
+      // (see "No Overlay widget found" crash). ScaffoldMessenger uses the
+      // current ScaffoldMessengerState directly and is safe under that
+      // race — combined with the context.mounted guard above.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
+      );
     }
   }
 
@@ -67,7 +74,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (error == null) {
       await RoleRouter.routeAfterAuth();
     } else {
-      Get.snackbar('خطأ', error, snackPosition: SnackPosition.BOTTOM);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
+      );
     }
   }
 
