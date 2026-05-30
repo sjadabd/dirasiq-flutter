@@ -10,7 +10,9 @@ import 'package:get/get.dart';
 
 import '../../../core/services/api_service.dart';
 import '../../../shared/widgets/app_network_image.dart';
-import '../../teacher/video_courses/widgets/hls_video_player_screen.dart';
+import '../../../shared/widgets/unified_video_player/unified_video_player_screen.dart';
+import '../../video_marketplace/controllers/video_marketplace_controller.dart';
+import '../../video_marketplace/widgets/purchase_bottom_sheet.dart';
 
 class StudentVideoCourseDetailScreen extends StatefulWidget {
   const StudentVideoCourseDetailScreen({super.key, required this.courseId});
@@ -60,6 +62,15 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
     final lessonId = lesson['id']?.toString();
     if (lessonId == null) return;
 
+    // Phase 7 — block playback if the course is paid-and-unowned. The
+    // backend signed-URL endpoint also rejects (402), but bouncing here
+    // gives a clean UX before the round-trip.
+    if (_isPaidUnowned) {
+      _showSnack('عليك شراء الدورة أولاً.', error: true);
+      await _openPurchaseSheet();
+      return;
+    }
+
     setState(() => _busyLessonId = lessonId);
     String playbackUrl = lesson['bunnyPlaybackUrl']?.toString() ?? '';
     try {
@@ -89,12 +100,91 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
       _showSnack('رابط التشغيل غير متوفر', error: true);
       return;
     }
-    Get.to(() => HlsVideoPlayerScreen(
-          url: playbackUrl,
+    Get.to(() => UnifiedVideoPlayerScreen(
+          videoUrl: playbackUrl,
+          videoId: lessonId,
           title: lesson['title']?.toString() ?? 'درس',
           subtitle: _course?['title']?.toString(),
           thumbnailUrl: lesson['bunnyThumbnailUrl']?.toString(),
         ));
+  }
+
+  // ─── Phase 7 paid-gating helpers ──────────────────────────────────────────
+
+  bool get _isPaidUnowned {
+    final c = _course;
+    if (c == null) return false;
+    final isFree = c['isFree'] == true || c['is_free'] == true || c['price'] == 0;
+    if (isFree) return false;
+    final isOwned = c['isOwned'] == true ||
+        c['is_owned'] == true ||
+        c['hasAccess'] == true ||
+        c['has_access'] == true;
+    return !isOwned;
+  }
+
+  Widget _buildPurchaseCta(ColorScheme scheme) {
+    final price = _course?['price'];
+    final priceLabel = (price is num && price > 0) ? '${price.toInt()} د.ع' : '—';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [scheme.primary, scheme.primary.withValues(alpha: 0.75)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: [
+        const Icon(Icons.lock_outline, color: Colors.white, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('دورة مدفوعة',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800)),
+              Text('اشترِ الدورة للوصول إلى الدروس · $priceLabel',
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 11)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: _openPurchaseSheet,
+          icon: const Icon(Icons.shopping_bag_outlined, size: 16),
+          label: const Text('شراء'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: scheme.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _openPurchaseSheet() async {
+    if (_course == null) return;
+    final ctl = Get.isRegistered<VideoMarketplaceController>(tag: 'video-marketplace')
+        ? Get.find<VideoMarketplaceController>(tag: 'video-marketplace')
+        : Get.put(VideoMarketplaceController(), tag: 'video-marketplace-detail');
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => PurchaseBottomSheet(course: _course!, controller: ctl),
+    );
+    // Refresh course state — a just-completed purchase flips isOwned.
+    await _fetch();
   }
 
   String _humanizePlaybackError(Object e) {
@@ -242,6 +332,10 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
               c['description'].toString(),
               style: TextStyle(fontSize: 14, height: 1.6, color: scheme.onSurface.withValues(alpha: 0.85)),
             ),
+          ],
+          if (_isPaidUnowned) ...[
+            const SizedBox(height: 14),
+            _buildPurchaseCta(scheme),
           ],
           const SizedBox(height: 14),
           Row(children: [

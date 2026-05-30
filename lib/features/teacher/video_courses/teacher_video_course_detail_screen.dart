@@ -17,7 +17,7 @@ import 'package:get/get.dart';
 import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../../../shared/widgets/app_network_image.dart';
-import 'widgets/hls_video_player_screen.dart';
+import '../../../shared/widgets/unified_video_player/unified_video_player_screen.dart';
 import 'widgets/video_course_form_dialog.dart';
 import 'widgets/video_lesson_upload_dialog.dart';
 
@@ -418,8 +418,9 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
       _snack('رابط التشغيل غير متوفر.', error: true);
       return;
     }
-    Get.to(() => HlsVideoPlayerScreen(
-          url: url,
+    Get.to(() => UnifiedVideoPlayerScreen(
+          videoUrl: url,
+          videoId: (lesson['id'] ?? url).toString(),
           title: lesson['title']?.toString() ?? 'درس',
           subtitle: _course?['title']?.toString(),
           thumbnailUrl: lesson['bunnyThumbnailUrl']?.toString(),

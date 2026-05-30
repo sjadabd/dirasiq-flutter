@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
 import 'package:mulhimiq/core/config/app_config.dart';
+import 'package:mulhimiq/shared/widgets/unified_video_player/unified_video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
-import 'package:better_player_plus/better_player_plus.dart';
 
 class TeacherDetailsScreen extends StatefulWidget {
   final String teacherId;
@@ -26,7 +26,6 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
   Map<String, dynamic>? _introData; // response.data
   String?
   _contentBase; // response.content_url normalized without trailing slash
-  BetterPlayerController? _bpController;
 
   @override
   void initState() {
@@ -94,43 +93,12 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
     return '$base/$p';
   }
 
-  void _setupBetterPlayer({required String manifestUrl, String? thumbnail}) {
-    try {
-      final url = _absFromContent(manifestUrl);
-      final dataSource = BetterPlayerDataSource(
-        BetterPlayerDataSourceType.network,
-        url,
-        useAsmsSubtitles: true,
-        useAsmsTracks: true,
-        placeholder: (thumbnail != null && thumbnail.isNotEmpty)
-            ? Image.network(_absFromContent(thumbnail), fit: BoxFit.cover)
-            : null,
-      );
-      final config = BetterPlayerConfiguration(
-        autoPlay: false,
-        looping: false,
-        fit: BoxFit.cover,
-        handleLifecycle: true,
-        autoDetectFullscreenDeviceOrientation: true,
-        allowedScreenSleep: false,
-        controlsConfiguration: const BetterPlayerControlsConfiguration(
-          enableSkips: true,
-          enableQualities: true,
-          enableFullscreen: true,
-          showControlsOnInitialize: false,
-        ),
-      );
-      final controller = BetterPlayerController(config);
-      controller.setupDataSource(dataSource);
-      setState(() => _bpController = controller);
-    } catch (e) {
-      setState(() => _introError = 'تعذر تشغيل الفيديو: $e');
-    }
-  }
+  // Phase 7 — Intro video uses UnifiedVideoPlayer directly. The widget
+  // owns its own controller + disposal so we no longer need a setup
+  // helper or a dispose hook here.
 
   @override
   void dispose() {
-    _bpController?.dispose();
     super.dispose();
   }
 
@@ -319,12 +287,8 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
 
     final manifest = data['manifestUrl']?.toString() ?? '';
     final thumb = data['thumbnailUrl']?.toString() ?? '';
-    final controller = _bpController;
-
-    if (controller == null && manifest.isNotEmpty) {
-      // initialize once when data becomes ready
-      _setupBetterPlayer(manifestUrl: manifest, thumbnail: thumb);
-    }
+    final manifestAbs = manifest.isEmpty ? '' : _absFromContent(manifest);
+    final thumbAbs = thumb.isEmpty ? null : _absFromContent(thumb);
 
     return Container(
       decoration: BoxDecoration(
@@ -334,9 +298,14 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
       clipBehavior: Clip.antiAlias,
       child: AspectRatio(
         aspectRatio: 16 / 9,
-        child: (_bpController != null)
-            ? BetterPlayer(controller: _bpController!)
-            : Container(color: cs.surfaceContainerHighest),
+        child: manifestAbs.isEmpty
+            ? Container(color: cs.surfaceContainerHighest)
+            : UnifiedVideoPlayer(
+                videoUrl: manifestAbs,
+                videoId: 'teacher-intro:${widget.teacherId}',
+                thumbnailUrl: thumbAbs,
+                autoPlay: false,
+              ),
       ),
     );
   }
