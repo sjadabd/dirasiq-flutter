@@ -23,6 +23,7 @@ import 'features/courses/screens/suggested_courses_screen.dart';
 import 'features/courses/screens/course_details_screen.dart';
 import 'features/student/video_courses/student_video_courses_screen.dart';
 import 'features/student/video_courses/student_video_course_detail_screen.dart';
+import 'features/video_marketplace/screens/video_marketplace_screen.dart';
 import 'features/root/root_shell.dart';
 import 'features/bookings/screens/bookings_list_screen.dart';
 import 'features/bookings/screens/booking_details_screen.dart';
@@ -344,6 +345,11 @@ class MyApp extends StatelessWidget {
               final id = Get.arguments as String;
               return StudentVideoCourseDetailScreen(courseId: id);
             },
+          ),
+          // Phase 7 — National Video Marketplace
+          GetPage(
+            name: "/student/video-marketplace",
+            page: () => const VideoMarketplaceScreen(),
           ),
           GetPage(
             name: "/course-details",

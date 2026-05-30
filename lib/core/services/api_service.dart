@@ -1189,4 +1189,51 @@ class ApiService {
     if (data is Map) return Map<String, dynamic>.from(data);
     return body;
   }
+
+  // ===========================================================================
+  // Phase 7 — National Video Marketplace
+  // ===========================================================================
+
+  /// Curated marketplace surface with named sections (trending / popular /
+  /// newest / recommended). Optional filters narrow each section.
+  /// Returns the raw response so the controller can defensively unwrap.
+  Future<Map<String, dynamic>> fetchVideoMarketplace({
+    String? gradeId,
+    String? subject,
+    String? teacherId,
+    num? minPrice,
+    num? maxPrice,
+  }) async {
+    final qp = <String, dynamic>{};
+    if (gradeId != null && gradeId.isNotEmpty) qp['gradeId'] = gradeId;
+    if (subject != null && subject.isNotEmpty) qp['subject'] = subject;
+    if (teacherId != null && teacherId.isNotEmpty) qp['teacherId'] = teacherId;
+    if (minPrice != null) qp['minPrice'] = minPrice;
+    if (maxPrice != null) qp['maxPrice'] = maxPrice;
+    final res = await _dio.get('/student/video-marketplace', queryParameters: qp);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Student's owned video courses — free-by-grade, enrolled-free, and
+  /// marketplace-paid (completed purchase). Caller renders as the "My
+  /// Library" section.
+  Future<Map<String, dynamic>> fetchMyVideoLibrary({
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final res = await _dio.get(
+      '/student/video-courses/my-library',
+      queryParameters: {'page': page, 'limit': limit},
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Initiate purchase of a marketplace-paid video course. Server returns
+  /// a Wayl payment URL the caller redirects the student to. The webhook
+  /// flips the purchase to `paid` and the course appears in My Library on
+  /// next refresh.
+  Future<Map<String, dynamic>> purchaseVideoCourse(String videoCourseId) async {
+    final res = await _dio.post('/student/video-courses/$videoCourseId/purchase');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
 }
