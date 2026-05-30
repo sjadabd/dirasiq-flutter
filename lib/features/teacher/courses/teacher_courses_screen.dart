@@ -5,6 +5,7 @@ import '../../../core/services/teacher_api_service.dart';
 import '../shared/teacher_drawer.dart';
 import '../shared/teacher_bottom_nav.dart';
 import '../shared/teacher_helpers.dart';
+import 'widgets/teacher_course_form_dialog.dart';
 
 /// Teacher → "الكورسات" (show-course.vue) — visual card list.
 /// Create / edit of full courses with images stays in the dashboard.
@@ -66,6 +67,21 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
     } catch (_) { Get.snackbar('خطأ', 'تعذّر الاسترجاع', snackPosition: SnackPosition.BOTTOM); }
   }
 
+  Future<void> _openCreateDialog() async {
+    final id = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const TeacherCourseFormDialog(),
+    );
+    if (id != null && mounted) {
+      Get.snackbar('تم', 'تم إنشاء الكورس', snackPosition: SnackPosition.BOTTOM);
+      // Switch to the "active" filter so the freshly-created course is
+      // visible — newly inserted rows have deleted_at IS NULL.
+      setState(() => _deletedFilter = false);
+      await _fetch();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -73,6 +89,13 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
       appBar: AppBar(title: const Text('الكورسات'), actions: [IconButton(onPressed: _loading ? null : _fetch, icon: const Icon(Icons.refresh))]),
       drawer: const TeacherDrawer(),
       bottomNavigationBar: const TeacherBottomNav(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _loading ? null : _openCreateDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('إضافة كورس'),
+        backgroundColor: kNavy,
+        foregroundColor: Colors.white,
+      ),
       body: RefreshIndicator(onRefresh: _fetch, child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), children: [
         TeacherHero(title: 'كورساتي', subtitle: 'إجمالي: ${_items.length}', icon: Icons.school_outlined),
         const SizedBox(height: 16),
@@ -92,7 +115,7 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
         if (_loading)
           const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
         else if (_items.isEmpty)
-          const EmptyState(message: 'لا توجد كورسات. أنشئ الكورس الأول من لوحة التحكم.')
+          const EmptyState(message: 'لا توجد كورسات. اضغط زر "إضافة كورس" أدناه لإنشاء الكورس الأول.')
         else ..._items.map((c) {
           final isDeleted = c['deleted_at'] != null || c['is_deleted'] == true;
           return Container(
@@ -128,9 +151,7 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
             ]),
           );
         }),
-        const SizedBox(height: 8),
-        Text(' الإنشاء/التعديل مع الصور من لوحة التحكم', textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
+        const SizedBox(height: 64), // breathing room for FAB
       ])),
     );
   }
