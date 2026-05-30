@@ -46,7 +46,7 @@ class TeacherCoursesPickerScreen extends StatelessWidget {
             : ListView.separated(
                 padding: const EdgeInsets.all(12),
                 itemCount: courses.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {
                   final c = courses[i];
                   return _buildCourseCard(c, cs);

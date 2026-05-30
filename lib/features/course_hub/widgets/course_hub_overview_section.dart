@@ -71,7 +71,7 @@ class _CourseHubOverviewSectionState extends State<CourseHubOverviewSection> {
                   child: Image.network(
                     fullCover,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       color: cs.surfaceContainerLow,
                       child: Icon(Icons.image_not_supported_outlined,
                           color: cs.onSurfaceVariant),

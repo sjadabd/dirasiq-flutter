@@ -48,7 +48,7 @@ Future<void> main() async {
   await NotificationService.instance.init();
 
   final id = OneSignal.User.pushSubscription.id;
-  print("PLAYER ID => $id");
+  debugPrint("PLAYER ID => $id");
 
   Get.put(ThemeController(), permanent: true);
 

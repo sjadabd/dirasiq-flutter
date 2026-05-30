@@ -62,7 +62,7 @@ class _CourseHubVideosSectionState extends State<CourseHubVideosSection> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: _c.videos.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, i) => _buildVideoCard(_c.videos[i], cs),
           ),
         );
