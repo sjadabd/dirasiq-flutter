@@ -45,22 +45,26 @@ class _CourseHubScreenState extends State<CourseHubScreen> {
   @override
   void initState() {
     super.initState();
-    // Tag the GetX instance by courseId so re-entering the SAME hub
-    // (deep-link, back-from-detail, etc.) reuses the cached sections,
-    // while jumping to a DIFFERENT course gets a fresh controller.
+    // Untagged registration. Section widgets call Get.find<>() without
+    // a tag, so the lookup must match. Tagging by courseId was the
+    // original Phase 6 intent, but it surfaced a "controller not found"
+    // crash the moment the flag flipped — sections were never reached
+    // while the flag was off. Untagged is safe here because CourseHub
+    // is a single fullscreen route: only one instance can be live at a
+    // time. dispose() removes the binding on pop so a re-entry to a
+    // DIFFERENT course gets a fresh controller with the right courseId.
     _controller = Get.put(
       CourseHubController(
         courseId: widget.courseId,
         initialCourseName: widget.courseName,
         teacherId: widget.teacherId,
       ),
-      tag: widget.courseId,
     );
   }
 
   @override
   void dispose() {
-    Get.delete<CourseHubController>(tag: widget.courseId);
+    Get.delete<CourseHubController>();
     super.dispose();
   }
 
