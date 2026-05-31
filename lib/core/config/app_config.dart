@@ -44,15 +44,15 @@ class AppConfig {
   // and route stay in place; this flag picks which one navigation runs
   // at the entry points.
   //
-  // SHIPPING DEFAULT: false. Keeps the production app on the legacy
-  // 8-action grid until the Hub is validated end-to-end and the user
-  // explicitly opts the cohort in.
+  // Now the SHIPPING DEFAULT: true. The Course Hub is the unified
+  // course-detail surface — every "tap a course" path from My Courses,
+  // My Teachers (single-course), and the teacher-courses picker lands
+  // here. The legacy `/enrollment-actions` route still resolves so
+  // deep-links from old notifications keep working, but no UI navigates
+  // to it anymore.
   //
-  // TO ENABLE INTERNALLY:
-  //   Flip this flag to true in a debug build, hot-restart, and the
-  //   Hub becomes the destination for every "tap a course" path. The
-  //   legacy /enrollment-actions route still resolves (Phase 6 keeps
-  //   it for deep-links + back-compat) but nothing in the UI surfaces
-  //   it.
-  static const bool useNewCourseHub = false;
+  // To roll back: set this back to false and the legacy 8-action grid
+  // returns immediately on next cold start. No other code changes
+  // needed — every navigation site already branches on this flag.
+  static const bool useNewCourseHub = true;
 }

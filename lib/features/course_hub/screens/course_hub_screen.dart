@@ -17,6 +17,7 @@ import 'package:mulhimiq/features/course_hub/widgets/course_hub_announcements_se
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_attendance_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_billing_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_materials_section.dart';
+import 'package:mulhimiq/features/course_hub/widgets/course_hub_other_teacher_courses_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_overview_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_schedule_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_videos_section.dart';
@@ -85,6 +86,9 @@ class _CourseHubScreenState extends State<CourseHubScreen> {
               CourseHubMaterialsSection(),
               CourseHubVideosSection(),
               CourseHubBillingSection(),
+              // Discovery tail — same teacher's other catalog. Self-hides
+              // when empty so the hub stays clean for single-course teachers.
+              CourseHubOtherTeacherCoursesSection(),
             ],
           ),
         ),

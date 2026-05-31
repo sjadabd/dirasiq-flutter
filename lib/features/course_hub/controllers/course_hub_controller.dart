@@ -22,6 +22,10 @@ enum CourseHubSection {
   materials,
   videos,
   billing,
+  // "Other courses by this teacher" — discovery surface for live + video
+  // courses the same teacher offers that are NOT this course. Lets the
+  // student keep exploring the teacher's catalog without leaving the hub.
+  otherTeacherCourses,
 }
 
 class CourseHubController extends GetxController {
@@ -91,6 +95,17 @@ class CourseHubController extends GetxController {
   final invoicesLoading = false.obs;
   final invoicesError = ''.obs;
 
+  // Other teacher courses — the same teacher's OTHER live courses + the
+  // teacher's video catalog (free + paid), so the student can keep
+  // discovering without leaving the hub. Loaded only when teacherId was
+  // supplied at construction time (an enrolled row always carries it).
+  // Two reactive lists so the section widget can render two carousels
+  // without re-filtering on every rebuild.
+  final otherLiveCourses = <Map<String, dynamic>>[].obs;
+  final otherVideoCourses = <Map<String, dynamic>>[].obs;
+  final otherTeacherCoursesLoading = false.obs;
+  final otherTeacherCoursesError = ''.obs;
+
   // ---------------------------------------------------------------------------
   // Lazy loader — single entry point for every section.
   //
@@ -120,6 +135,12 @@ class CourseHubController extends GetxController {
       case CourseHubSection.billing:
         if (invoices.isNotEmpty || invoicesLoading.value) return;
         return _loadBilling();
+      case CourseHubSection.otherTeacherCourses:
+        if ((otherLiveCourses.isNotEmpty || otherVideoCourses.isNotEmpty) ||
+            otherTeacherCoursesLoading.value) {
+          return;
+        }
+        return _loadOtherTeacherCourses();
       case CourseHubSection.announcements:
       case CourseHubSection.materials:
         // Phase 6 does not own a per-course fetch for these — the
@@ -159,6 +180,11 @@ class CourseHubController extends GetxController {
     if (invoices.isNotEmpty) {
       invoices.clear();
       futures.add(_loadBilling());
+    }
+    if (otherLiveCourses.isNotEmpty || otherVideoCourses.isNotEmpty) {
+      otherLiveCourses.clear();
+      otherVideoCourses.clear();
+      futures.add(_loadOtherTeacherCourses());
     }
 
     await Future.wait(futures);
@@ -286,6 +312,69 @@ class CourseHubController extends GetxController {
       invoicesError.value = 'تعذّر تحميل الفواتير';
     } finally {
       invoicesLoading.value = false;
+    }
+  }
+
+  /// Loads the same teacher's OTHER live courses + their video catalog,
+  /// in parallel. Returns early if the teacherId wasn't supplied (we have
+  /// no way to ask "what else does this teacher offer?" without it).
+  ///
+  /// Defensive on both endpoints: if either one fails, we still populate
+  /// whatever came back successfully and only error out when both fail
+  /// — partial discovery is better than none.
+  Future<void> _loadOtherTeacherCourses() async {
+    final tid = teacherId;
+    if (tid == null || tid.isEmpty) {
+      // Nothing to discover without a teacher id. Mark "loaded" with
+      // empty lists so the section silently collapses.
+      otherTeacherCoursesLoading.value = false;
+      return;
+    }
+    otherTeacherCoursesLoading.value = true;
+    otherTeacherCoursesError.value = '';
+    try {
+      final results = await Future.wait([
+        _api
+            .fetchTeacherSubjectsCourses(tid)
+            .catchError((_) => <String, dynamic>{}),
+        _api
+            .fetchVideoMarketplace(teacherId: tid)
+            .catchError((_) => <String, dynamic>{}),
+      ]);
+
+      // Live courses — exclude THIS course so the hub never lists itself
+      // in its own "other courses" rail.
+      final liveRaw = results[0];
+      final liveList = (liveRaw['courses'] is List)
+          ? List<Map<String, dynamic>>.from(
+              (liveRaw['courses'] as List)
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e)),
+            )
+          : <Map<String, dynamic>>[];
+      otherLiveCourses.assignAll(
+        liveList.where((c) => (c['id'] ?? '').toString() != courseId),
+      );
+
+      // Video marketplace — the backend already returns the teacher's
+      // approved catalog with isFree / price flags. We render free + paid
+      // distinctly in the section widget.
+      final vodRaw = results[1];
+      final vodData = vodRaw['data'];
+      final vodList = (vodData is List)
+          ? List<Map<String, dynamic>>.from(
+              vodData
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e)),
+            )
+          : <Map<String, dynamic>>[];
+      otherVideoCourses.assignAll(vodList);
+    } catch (_) {
+      // Partial failure already swallowed by per-future catchError; this
+      // catch only fires on an unexpected throw (e.g. Future.wait itself).
+      otherTeacherCoursesError.value = 'تعذّر تحميل دورات الأستاذ الأخرى';
+    } finally {
+      otherTeacherCoursesLoading.value = false;
     }
   }
 
