@@ -13,10 +13,7 @@ import '../../course_hub/screens/course_hub_screen.dart';
 import '../../course_hub/screens/teacher_courses_picker_screen.dart';
 import '../../teachers/screens/suggested_teachers_screen.dart';
 import '../../teachers/screens/teacher_details_screen.dart';
-// TeacherStudentWorkspaceScreen is intentionally NOT imported anymore — the
-// unified-hub refactor routes to /teacher-details instead. The screen file
-// itself stays in the repo (deep-link safety + Phase 6 rollback path) and
-// any direct callers elsewhere continue to work.
+import '../../teachers/screens/teacher_student_workspace_screen.dart';
 import '../../courses/screens/suggested_courses_screen.dart';
 import '../../courses/screens/course_details_screen.dart';
 import '../widgets/news_carousel.dart';
@@ -171,17 +168,14 @@ class _StudentMyTeachersHomeState extends State<StudentMyTeachersHome> {
   }
 
   void _openTeacherWorkspace(_MyTeacher t) {
-    // Unified-hub default: tapping a teacher card now lands on the
-    // teacher hub page (/teacher-details) — the same destination My
-    // Courses lands on. The hub renders "دوراتي مع هذا الأستاذ" so the
-    // student sees their existing relationship immediately, plus the
-    // teacher's other available courses.
-    //
-    // The Phase 6 useNewCourseHub flag-on path is intentionally
-    // preserved below — that internal-only experiment is still gated
-    // and shipping false in production.
     if (!AppConfig.useNewCourseHub) {
-      Get.toNamed('/teacher-details', arguments: t.id);
+      Get.to(() => TeacherStudentWorkspaceScreen(
+        teacherId: t.id,
+        teacherName: t.name,
+        courses: t.courses.map((c) => {
+          'id': c.id, 'name': c.name, 'bookingId': c.bookingId, 'status': c.status,
+        }).toList(),
+      ));
       return;
     }
 

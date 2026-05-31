@@ -191,20 +191,23 @@ class _EnrollmentsScreenState extends State<EnrollmentsScreen> {
 
         return InkWell(
           onTap: () {
-            // Unified teacher-hub navigation. A My Courses tap now lands
-            // on the teacher's hub page (/teacher-details) where the
-            // student sees this course in "دوراتي مع هذا الأستاذ" and
-            // can keep going to enrollment-actions / course-hub from
-            // there. The legacy `/enrollment-actions` and `/course-hub`
-            // routes are intentionally kept alive — the hub itself
-            // routes to them when the student taps the owned card.
-            //
-            // Why not skip the hop? The product decision is that the
-            // student-teacher relationship is the source of truth, not
-            // the individual enrollment row.
-            final teacherId = (item['teacher']?['id'])?.toString();
-            if (teacherId != null && teacherId.isNotEmpty) {
-              Get.toNamed('/teacher-details', arguments: teacherId);
+            final courseId = course['id']?.toString();
+            final courseName = course['name']?.toString();
+            if (courseId != null && courseId.isNotEmpty) {
+              // Phase 6: route to the unified Course Hub when the
+              // feature flag is on; otherwise keep the legacy 8-action
+              // grid the production app has shipped for months.
+              final route = AppConfig.useNewCourseHub
+                  ? '/course-hub'
+                  : '/enrollment-actions';
+              Get.toNamed(
+                route,
+                arguments: {
+                  'courseId': courseId,
+                  'courseName': courseName,
+                  'teacherId': (item['teacher']?['id'])?.toString(),
+                },
+              );
             }
           },
           borderRadius: BorderRadius.circular(16),
