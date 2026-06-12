@@ -47,8 +47,21 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
   bool _isFree = true;
   String _visibility = 'private';
 
+  // Access model (backend: video_courses.access_type). 'enrolled_students_free'
+  // links the video course to in-person courses (video_course_target_courses)
+  // so their enrolled students get it free.
+  String _accessType = 'public_free_by_grade';
+  List<Map<String, dynamic>> _liveCourses = []; // teacher's in-person courses
+  final Set<String> _targetCourseIds = {}; // selected linked in-person courses
+
   bool _submitting = false;
   String _error = '';
+
+  static const _accessTypes = <(String, String)>[
+    ('public_free_by_grade', 'مجاني — لطلاب المرحلة'),
+    ('enrolled_students_free', 'مجاني — لطلاب كورس حضوري'),
+    ('marketplace_paid', 'مدفوع'),
+  ];
 
   File? _coverFile;
   String _coverFileName = '';
@@ -77,6 +90,10 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
           (p is num ? p.toInt() : int.tryParse(p?.toString() ?? '0') ?? 0)
               .toString();
       _visibility = (initial['visibility']?.toString() ?? 'private');
+      final at = initial['accessType']?.toString();
+      _accessType = _accessTypes.any((e) => e.$1 == at)
+          ? at!
+          : (_isFree ? 'public_free_by_grade' : 'marketplace_paid');
     }
     _loadCatalogs();
   }
@@ -94,16 +111,52 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
       final results = await Future.wait([
         _api.fetchMySubjectsCatalog(),
         _api.fetchMyGradesCatalog(),
+        _api.fetchCourseNames(), // teacher's in-person courses (id + course_name)
       ]);
+      final courses = _listOf(results[2] as Map<String, dynamic>);
+      // In edit mode, prefill the currently-linked in-person courses.
+      if (widget.isEdit) {
+        try {
+          final detail =
+              await _api.fetchMyVideoCourse(widget.initial!['id'].toString());
+          final data = (detail['data'] is Map)
+              ? Map<String, dynamic>.from(detail['data'])
+              : const {};
+          final tc = data['targetCourses'];
+          if (tc is List) {
+            for (final e in tc) {
+              if (e is Map) {
+                final id = (e['courseId'] ?? e['course_id'] ?? '').toString();
+                if (id.isNotEmpty) _targetCourseIds.add(id);
+              }
+            }
+          }
+        } catch (_) {/* non-fatal — teacher can re-select */}
+      }
       if (!mounted) return;
       setState(() {
-        _subjects = results[0];
-        _grades = results[1];
+        _subjects = results[0] as List<Map<String, dynamic>>;
+        _grades = results[1] as List<Map<String, dynamic>>;
+        _liveCourses = courses;
         _loadingCatalogs = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loadingCatalogs = false);
     }
+  }
+
+  List<Map<String, dynamic>> _listOf(Map<String, dynamic> res) {
+    final d = res['data'];
+    if (d is List) {
+      return d.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+    }
+    if (d is Map && d['items'] is List) {
+      return (d['items'] as List)
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+    }
+    return const [];
   }
 
   String _subjectValue(Map s) =>
@@ -160,20 +213,37 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
       setState(() => _error = 'يجب اختيار المرحلة');
       return;
     }
+    if (_accessType == 'enrolled_students_free' && _targetCourseIds.isEmpty) {
+      setState(() => _error = 'اختر كورساً حضورياً واحداً على الأقل للربط');
+      return;
+    }
+    final price = int.tryParse(_price.text.trim()) ?? 0;
+    if (_accessType == 'marketplace_paid' && price <= 0) {
+      setState(() => _error = 'أدخل سعراً أكبر من 0 للكورس المدفوع');
+      return;
+    }
     setState(() {
       _submitting = true;
       _error = '';
       _coverPhase = '';
     });
     try {
+      final paid = _accessType == 'marketplace_paid';
       final payload = <String, dynamic>{
         'title': title,
         'subject': _selectedSubject,
         'teachingStage': _selectedGradeName,
         'gradeId': _selectedGradeId,
-        'isFree': _isFree,
-        'price': _isFree ? 0 : (int.tryParse(_price.text.trim()) ?? 0),
         'visibility': _visibility,
+        'accessType': _accessType,
+        if (_accessType == 'public_free_by_grade' || paid)
+          'gradeTargetIds': [_selectedGradeId],
+        if (_accessType == 'enrolled_students_free')
+          'targetCourseIds': _targetCourseIds.toList(),
+        if (paid) 'priceIqd': price,
+        // legacy back-compat (service back-fills from accessType anyway):
+        'isFree': !paid,
+        'price': paid ? price : 0,
       };
       if (_description.text.trim().isNotEmpty) {
         payload['description'] = _description.text.trim();
@@ -435,26 +505,35 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
                     });
                   },
           ),
-          const SizedBox(height: MqSpacing.sm),
-          MqSurface(
-            tone: MqSurfaceTone.neutral,
-            padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm),
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              activeTrackColor: mq.accent,
-              title: Text('دورة مجانية', style: context.text.bodyMedium),
-              value: _isFree,
-              onChanged: (v) => setState(() => _isFree = v),
+          const SizedBox(height: MqSpacing.md),
+          DropdownButtonFormField<String>(
+            initialValue: _accessType,
+            isExpanded: true,
+            dropdownColor: mq.card,
+            decoration: const InputDecoration(
+              labelText: 'نوع الوصول',
+              prefixIcon: Icon(Icons.lock_open_outlined),
+              isDense: true,
             ),
+            items: _accessTypes
+                .map((e) => DropdownMenuItem(value: e.$1, child: Text(e.$2)))
+                .toList(),
+            onChanged: (v) => setState(() {
+              _accessType = v ?? 'public_free_by_grade';
+              _isFree = _accessType != 'marketplace_paid';
+            }),
           ),
-          if (!_isFree) ...[
+          if (_accessType == 'enrolled_students_free') ...[
+            const SizedBox(height: MqSpacing.md),
+            _liveCoursePicker(context),
+          ],
+          if (_accessType == 'marketplace_paid') ...[
             const SizedBox(height: MqSpacing.md),
             TextField(
               controller: _price,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'السعر (د.ع)',
+                labelText: 'السعر (د.ع) *',
                 prefixIcon: Icon(Icons.payments_outlined),
                 isDense: true,
               ),
@@ -512,6 +591,62 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _liveCoursePicker(BuildContext context) {
+    final mq = context.mq;
+    return Container(
+      padding: const EdgeInsets.all(MqSpacing.md),
+      decoration: BoxDecoration(
+        color: mq.fill,
+        borderRadius: MqRadius.brMd,
+        border: Border.all(color: mq.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.link_rounded, size: 16, color: mq.ink3),
+              const SizedBox(width: MqSpacing.xs),
+              Expanded(
+                child: Text(
+                  'الكورسات الحضورية المرتبطة (طلابها يحصلون عليها مجاناً)',
+                  style: context.text.labelMedium?.copyWith(color: mq.ink2),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: MqSpacing.sm),
+          if (_liveCourses.isEmpty)
+            Text('لا توجد كورسات حضورية. أنشئ كورساً أولاً.',
+                style: context.text.bodySmall?.copyWith(color: mq.ink3))
+          else
+            Wrap(
+              spacing: MqSpacing.sm,
+              runSpacing: MqSpacing.sm,
+              children: [
+                for (final c in _liveCourses)
+                  () {
+                    final id = (c['id'] ?? c['course_id'] ?? '').toString();
+                    final name =
+                        (c['course_name'] ?? c['name'] ?? '—').toString();
+                    if (id.isEmpty) return const SizedBox.shrink();
+                    return MqChip(
+                      label: name,
+                      selected: _targetCourseIds.contains(id),
+                      onTap: () => setState(() {
+                        if (!_targetCourseIds.remove(id)) {
+                          _targetCourseIds.add(id);
+                        }
+                      }),
+                    );
+                  }(),
+              ],
+            ),
         ],
       ),
     );
