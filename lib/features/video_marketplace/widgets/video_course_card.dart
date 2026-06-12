@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mulhimiq/core/config/app_config.dart';
+import 'package:mulhimiq/core/utils/money.dart';
 import 'package:mulhimiq/shared/design_system/design_system.dart';
 import 'package:mulhimiq/shared/widgets/app_network_image.dart';
 
@@ -173,7 +174,7 @@ class VideoCourseCard extends StatelessWidget {
     if (_isOwned) return const MqBadge(label: 'مملوكة', tone: MqBadgeTone.accent, solid: true);
     if (_isFree) return const MqBadge(label: 'مجاني', tone: MqBadgeTone.success, solid: true);
     final p = _price;
-    if (p != null && p > 0) return MqBadge(label: '${p.toInt()} د.ع', tone: MqBadgeTone.orange, solid: true);
+    if (p != null && p > 0) return MqBadge(label: '${fmtMoney(p)} د.ع', tone: MqBadgeTone.orange, solid: true);
     return const SizedBox.shrink();
   }
 }

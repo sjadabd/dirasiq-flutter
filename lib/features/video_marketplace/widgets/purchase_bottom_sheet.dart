@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:mulhimiq/core/utils/money.dart';
 import 'package:mulhimiq/shared/design_system/design_system.dart';
 import '../controllers/video_marketplace_controller.dart';
 
@@ -102,7 +103,7 @@ class PurchaseBottomSheet extends StatelessWidget {
                       MqSpacing.gapXs,
                       Text('السعر', style: context.text.titleSmall),
                       const Spacer(),
-                      Text('${_price.toInt()} د.ع',
+                      Text('${fmtMoney(_price)} د.ع',
                           style: context.text.titleMedium?.copyWith(color: m.accent, fontWeight: FontWeight.w800)),
                     ]),
                   ),

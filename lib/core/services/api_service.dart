@@ -1203,14 +1203,19 @@ class ApiService {
     String? teacherId,
     num? minPrice,
     num? maxPrice,
+    String? sort, // newest | popular | trending | price_asc | price_desc
   }) async {
     final qp = <String, dynamic>{};
     if (gradeId != null && gradeId.isNotEmpty) qp['gradeId'] = gradeId;
     if (subject != null && subject.isNotEmpty) qp['subject'] = subject;
     if (teacherId != null && teacherId.isNotEmpty) qp['teacherId'] = teacherId;
-    if (minPrice != null) qp['minPrice'] = minPrice;
-    if (maxPrice != null) qp['maxPrice'] = maxPrice;
-    final res = await _dio.get('/student/video-marketplace', queryParameters: qp);
+    // Backend marketplace storefront is GET /student/video-courses (there is no
+    // /student/video-marketplace route — calling it 404'd, so the recommended
+    // section was always empty). It accepts `priceMax` + `sort` (no minPrice),
+    // and returns a FLAT paginated list under `data`.
+    if (maxPrice != null) qp['priceMax'] = maxPrice;
+    if (sort != null && sort.isNotEmpty) qp['sort'] = sort;
+    final res = await _dio.get('/student/video-courses', queryParameters: qp);
     return Map<String, dynamic>.from(res.data ?? {});
   }
 

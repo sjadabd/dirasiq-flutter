@@ -88,6 +88,31 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  /// Request a payout. The super-admin reviews + executes it.
+  Future<Map<String, dynamic>> createWalletWithdrawal({
+    required int amount,
+    String? notes,
+    String? destination,
+  }) async {
+    final res = await _dio.post('/teacher/wallet/withdrawals', data: {
+      'amount': amount,
+      if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      if (destination != null && destination.trim().isNotEmpty)
+        'destination': destination.trim(),
+    });
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// The teacher's withdrawal history (pending / approved / paid / rejected).
+  Future<Map<String, dynamic>> fetchWalletWithdrawals({
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final res = await _dio.get('/teacher/wallet/withdrawals',
+        queryParameters: {'page': page, 'limit': limit});
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   // ===========================================================================
   // Reservation payments (course deposits)
   // ===========================================================================

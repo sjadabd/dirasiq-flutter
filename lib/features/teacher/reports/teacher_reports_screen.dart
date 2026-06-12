@@ -90,7 +90,6 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
           final summary = (_report['summary'] is Map)
               ? Map<String, dynamic>.from(_report['summary'])
               : const {};
-
           final paidIncome = _n(summary['totalPaidIncome']);
           final dueIncome = _n(summary['totalDueIncome']);
           final exp = _n(expenses['total']);
@@ -279,7 +278,7 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
         _profitRow(
           context,
           title: 'الأرباح المتوقّعة',
-          formula: 'الفواتير + العربون (بعد الخصم) − المصاريف',
+          formula: 'الفواتير + العربون − المصاريف',
           value: expected,
           income: due,
           exp: exp,
@@ -289,7 +288,7 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
         _profitRow(
           context,
           title: 'الأرباح الحقيقية',
-          formula: 'المحصّل من الفواتير والعربون − المصاريف',
+          formula: 'المحصّل (فواتير + عربون) − المصاريف',
           value: actual,
           income: paid,
           exp: exp,

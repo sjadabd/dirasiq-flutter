@@ -114,19 +114,24 @@ class VideoMarketplaceController extends GetxController {
     marketplaceError.value = '';
     try {
       final f = filters.value;
-      final res = await _api.fetchVideoMarketplace(
-        gradeId: f.gradeId,
-        subject: f.subject,
-        teacherId: f.teacherId,
-        minPrice: f.minPrice,
-        maxPrice: f.maxPrice,
-      );
-      final data = res['data'];
-      final body = (data is Map) ? Map<String, dynamic>.from(data) : <String, dynamic>{};
-      trending.assignAll(_extractList(body, ['trending', 'trendingCourses']));
-      popular.assignAll(_extractList(body, ['popular', 'popularCourses']));
-      newest.assignAll(_extractList(body, ['newest', 'newestCourses', 'latest']));
-      recommended.assignAll(_extractList(body, ['recommended', 'forYou']));
+      // The storefront (GET /student/video-courses) returns a FLAT list per
+      // call, ordered by `sort`. Fetch each section by its sort.
+      final results = await Future.wait([
+        _api.fetchVideoMarketplace(
+            gradeId: f.gradeId, subject: f.subject, teacherId: f.teacherId,
+            maxPrice: f.maxPrice, sort: 'trending'),
+        _api.fetchVideoMarketplace(
+            gradeId: f.gradeId, subject: f.subject, teacherId: f.teacherId,
+            maxPrice: f.maxPrice, sort: 'popular'),
+        _api.fetchVideoMarketplace(
+            gradeId: f.gradeId, subject: f.subject, teacherId: f.teacherId,
+            maxPrice: f.maxPrice, sort: 'newest'),
+      ]);
+      final newestList = _flatList(results[2]);
+      trending.assignAll(_flatList(results[0]));
+      popular.assignAll(_flatList(results[1]));
+      newest.assignAll(newestList);
+      recommended.assignAll(newestList);
     } catch (e) {
       marketplaceError.value = 'تعذّر تحميل المتجر';
       if (kDebugMode) {
@@ -222,6 +227,18 @@ class VideoMarketplaceController extends GetxController {
             .map((m) => Map<String, dynamic>.from(m))
             .toList();
       }
+    }
+    return const [];
+  }
+
+  /// The storefront returns the courses as a flat list under `data`.
+  List<Map<String, dynamic>> _flatList(Map<String, dynamic> res) {
+    final data = res['data'];
+    if (data is List) {
+      return data
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
     }
     return const [];
   }

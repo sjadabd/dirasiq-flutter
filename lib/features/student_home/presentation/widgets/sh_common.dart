@@ -211,9 +211,13 @@ String shDayName(int weekday) =>
     (weekday >= 0 && weekday <= 6) ? _dayNames[weekday] : '';
 
 /// Price + currency. Defaults to IQD ("د.ع") per the project currency standard.
+/// Amounts use thousands separators and no decimals (e.g. 100000 → "100,000").
 String shMoney(num? price, String? currency) {
   if (price == null) return '';
   final unit = (currency == null || currency.trim().isEmpty) ? 'د.ع' : currency.trim();
-  final n = price % 1 == 0 ? price.toInt().toString() : price.toStringAsFixed(2);
+  final n = price
+      .round()
+      .toString()
+      .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
   return '$n $unit';
 }

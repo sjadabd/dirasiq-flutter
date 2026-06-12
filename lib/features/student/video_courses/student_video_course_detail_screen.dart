@@ -335,7 +335,7 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
     final m = context.mq;
     final c = _course!;
     final price = c['price'];
-    final priceLabel = (price is num && price > 0) ? '${price.toInt()} د.ع' : '—';
+    final priceLabel = (price is num && price > 0) ? '${fmtMoney(price)} د.ع' : '—';
     return Padding(
       padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.md, MqSpacing.lg, MqSpacing.xs),
       child: Column(

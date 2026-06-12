@@ -229,9 +229,15 @@ class StudentHomeRepository {
   }
 
   List<VideoCourseItem> _parseMarketplaceRecommended(Object? raw) {
-    final body = _asMap(_unwrapData(raw));
+    final unwrapped = _unwrapData(raw);
+    // The marketplace storefront (GET /student/video-courses) returns a FLAT
+    // paginated list under `data`.
+    if (unwrapped is List) {
+      return _listOf(unwrapped).map(VideoCourseItem.fromJson).toList();
+    }
+    // Back-compat: a sectioned object {recommended, newest, trending, ...}.
+    final body = _asMap(unwrapped);
     if (body.isEmpty) return const [];
-    // Prefer the curated "recommended" section, fall back to newest/trending.
     for (final key in const ['recommended', 'forYou', 'newest', 'latest', 'trending', 'popular']) {
       if (body[key] is List && (body[key] as List).isNotEmpty) {
         return _listOf(body[key]).map(VideoCourseItem.fromJson).toList();
