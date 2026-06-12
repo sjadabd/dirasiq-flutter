@@ -249,6 +249,16 @@ class MyApp extends StatelessWidget {
             transition: Transition.fadeIn,
             transitionDuration: const Duration(milliseconds: 300),
           ),
+          // Deep target for withdrawal-status notifications: opens the workspace
+          // shell directly on the wallet tab (which hosts the "السحوبات" list).
+          GetPage(
+            name: TeacherRoutes.wallet,
+            page: () => const TeacherWorkspace(
+              initialIndex: TeacherWorkspaceState.walletIdx,
+            ),
+            transition: Transition.fadeIn,
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
           GetPage(
             name: "/complete-profile",
             page: () => const CompleteProfileScreen(),

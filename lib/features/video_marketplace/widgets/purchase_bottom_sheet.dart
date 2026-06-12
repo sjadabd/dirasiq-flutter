@@ -7,10 +7,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:mulhimiq/core/utils/money.dart';
 import 'package:mulhimiq/shared/design_system/design_system.dart';
+import 'package:mulhimiq/shared/widgets/wayl_payment_screen.dart';
 import '../controllers/video_marketplace_controller.dart';
 
 class PurchaseBottomSheet extends StatelessWidget {
@@ -36,18 +36,23 @@ class PurchaseBottomSheet extends StatelessWidget {
       _snack(context, 'تعذّر بدء عملية الشراء. حاول مرة أخرى.');
       return;
     }
-    final uri = Uri.tryParse(url);
-    if (uri == null) {
-      _snack(context, 'رابط الدفع غير صالح.');
-      return;
-    }
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    // Open Wayl inside the app. The screen pops itself the moment Wayl redirects
+    // back to our domain, so the student is returned to the app automatically.
+    final reached = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => WaylPaymentScreen(url: url)),
+    );
     if (!context.mounted) return;
-    if (!launched) {
-      _snack(context, 'تعذّر فتح صفحة الدفع.');
-      return;
-    }
-    Navigator.of(context).pop();
+    // Re-fetch real ownership from the API (the webhook is the source of truth);
+    // the storefront + library reflect the purchase with no manual refresh.
+    await controller.refreshAll();
+    if (!context.mounted) return;
+    Navigator.of(context).pop(); // close sheet → the detail screen refetches
+    _snack(
+      context,
+      reached == true
+          ? 'تم تحديث حالة الدورة — إن اكتمل الدفع ستجدها في مكتبتك ويمكنك المشاهدة.'
+          : 'لم يكتمل الدفع.',
+    );
   }
 
   void _snack(BuildContext context, String msg) {

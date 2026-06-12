@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../../../core/utils/money.dart';
+import '../../../shared/widgets/wayl_payment_screen.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
@@ -133,29 +133,23 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
         _toast('تعذّر إنشاء رابط الدفع — حاول مجدداً');
         return;
       }
-      final opened = await _launchPayment(url);
-      if (!opened) {
-        _toast('تعذّر فتح رابط الدفع');
-        return;
-      }
-      _awaitingPayment = true;
-      _toast('بعد إتمام الدفع، عُد إلى التطبيق وسيُحدَّث الرصيد تلقائياً');
+      if (!mounted) return;
+      // Open Wayl inside the app; it pops itself when the redirect lands back
+      // on our domain, returning the teacher to the wallet automatically.
+      final reached = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => WaylPaymentScreen(url: url, title: 'شحن المحفظة'),
+        ),
+      );
+      if (!mounted) return;
+      await _fetch();
+      _toast(reached == true
+          ? 'تم تحديث رصيد المحفظة'
+          : 'لم يكتمل الشحن');
     } catch (e) {
       _toast(_apiMessage(e) ?? 'تعذّر بدء عملية الشحن');
     } finally {
       if (mounted) setState(() => _preparing = false);
-    }
-  }
-
-  Future<bool> _launchPayment(String url) async {
-    try {
-      final uri = Uri.parse(url);
-      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        return true;
-      }
-      return await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
-    } catch (_) {
-      return false;
     }
   }
 
