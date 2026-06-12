@@ -792,6 +792,22 @@ class _SessionRow extends StatelessWidget {
     return s.length >= 5 ? s.substring(0, 5) : s;
   }
 
+  /// The most recent occurrence (<= today) of weekday [wd], as dd/MM — this is
+  /// the date the attendance screen opens for, so it lets the teacher tell the
+  /// weekly sessions apart by their concrete date.
+  String _recentDate(int wd) {
+    if (wd < 0 || wd > 6) return '';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    for (var i = 0; i < 7; i++) {
+      final d = today.subtract(Duration(days: i));
+      if (d.weekday % 7 == wd) {
+        return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+      }
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final mq = context.mq;
@@ -800,7 +816,10 @@ class _SessionRow extends StatelessWidget {
     final wd = (session['weekday'] is num)
         ? (session['weekday'] as num).toInt()
         : -1;
-    final day = (wd >= 0 && wd < 7) ? _days[wd] : '';
+    final dayName = (wd >= 0 && wd < 7) ? _days[wd] : '';
+    final dateLabel = _recentDate(wd);
+    final day =
+        dateLabel.isEmpty ? dayName : '$dayName $dateLabel';
     final start = _time(session['start_time']);
     final end = _time(session['end_time']);
 
