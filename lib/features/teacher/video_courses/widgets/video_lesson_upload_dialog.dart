@@ -14,6 +14,7 @@
 
 import 'dart:io';
 
+import 'package:dio/dio.dart' show DioException;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -190,8 +191,27 @@ class _VideoLessonUploadDialogState extends State<VideoLessonUploadDialog> {
   }
 
   String _humanizeError(Object e) {
+    if (e is DioException) {
+      // The server responded with an error → show its actual message instead of
+      // a misleading "check your internet" (e.g. a 502 from Bunny Stream).
+      final data = e.response?.data;
+      if (data is Map) {
+        final errs = data['errors'];
+        if (errs is List && errs.isNotEmpty && errs.first is Map) {
+          final m = (errs.first as Map)['message']?.toString();
+          if (m != null && m.isNotEmpty) return m;
+        }
+        final m = data['message']?.toString();
+        if (m != null && m.isNotEmpty) return m;
+      }
+      // No response at all → a genuine network/connectivity failure.
+      if (e.response == null) {
+        return 'خطأ في الاتصال — تحقّق من الإنترنت ثم حاول مجدداً.';
+      }
+      return 'فشل الرفع (رمز ${e.response?.statusCode ?? '—'}). حاول مجدداً.';
+    }
     final msg = e.toString();
-    if (msg.contains('DioException') || msg.contains('SocketException')) {
+    if (msg.contains('SocketException')) {
       return 'خطأ في الاتصال — تحقّق من الإنترنت ثم حاول مجدداً.';
     }
     return 'فشل الرفع. حاول مرة أخرى. (${msg.length > 80 ? '${msg.substring(0, 80)}…' : msg})';
