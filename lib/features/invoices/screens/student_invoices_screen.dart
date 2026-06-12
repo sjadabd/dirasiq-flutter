@@ -1,11 +1,19 @@
-import 'package:mulhimiq/core/services/api_service.dart';
-import 'package:mulhimiq/shared/themes/app_colors.dart';
-import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
-import 'package:mulhimiq/shared/widgets/status_views.dart';
+// Student → Invoices / bills (MulhimIQ design-system pass).
+//
+// Read-only surface: the app has NO student-side payment flow for invoices
+// (the only Wayl checkout in the app is video-course purchase), so there is no
+// "دفع الآن" action here — tapping an invoice opens its read-only details.
+// The fetch + study-year + status filtering all hit the backend unchanged;
+// only the presentation was restyled. The `status` filter values map 1:1 to
+// the server query param (pending / partial / paid / overdue); there is no
+// "cancelled" status, so a ملغاة chip is intentionally not shown.
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+
+import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class StudentInvoicesScreen extends StatefulWidget {
   const StudentInvoicesScreen({super.key});
@@ -17,24 +25,30 @@ class StudentInvoicesScreen extends StatefulWidget {
 class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
   final _api = ApiService();
   bool _loading = true;
+  String? _error;
   String? _studyYear;
   String? _courseId;
   String? _status;
-  final _currency = NumberFormat.currency(symbol: 'IQD ', decimalDigits: 0);
-  final _dateFormat = DateFormat('yyyy-MM-dd');
+
+  final _money = NumberFormat('#,##0', 'en_US');
 
   List<Map<String, dynamic>> _invoices = [];
-  int _total = 0;
   double? _rTotalDue;
-  double? _rTotalDisc;
   double? _rTotalPaid;
   double? _rTotalRemain;
+
+  static const List<(String?, String)> _statusChips = [
+    (null, 'الكل'),
+    ('pending', 'قيد السداد'),
+    ('partial', 'سداد جزئي'),
+    ('paid', 'مدفوعة'),
+    ('overdue', 'متأخرة'),
+  ];
 
   String _currentStudyYear() {
     final now = DateTime.now();
     final startYear = now.month >= 9 ? now.year : now.year - 1;
-    final endYear = startYear + 1;
-    return '$startYear-$endYear';
+    return '$startYear-${startYear + 1}';
   }
 
   @override
@@ -55,7 +69,7 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
       final res = await _api.fetchStudentInvoices(
         studyYear: _studyYear,
@@ -66,75 +80,32 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
       );
       final data = res['data'];
       List<Map<String, dynamic>> items = [];
-      double? rDue;
-      double? rDisc;
-      double? rPaid;
-      double? rRemain;
+      double? rDue, rPaid, rRemain;
 
       if (data is Map<String, dynamic>) {
-        // New shape: { invoices: [...], report: {...} }
-        final list =
-            (data['invoices'] ?? data['items'] ?? data['data'] ?? []) as List;
+        final list = (data['invoices'] ?? data['items'] ?? data['data'] ?? []) as List;
         items = List<Map<String, dynamic>>.from(list);
-        _total = items.length;
-
         final report = data['report'];
         if (report is Map<String, dynamic>) {
-          double parseNum(dynamic v) {
-            if (v is num) return v.toDouble();
-            if (v is String) return double.tryParse(v) ?? 0;
-            return 0;
-          }
-
-          rDue = parseNum(report['total_amount_due']);
-          rDisc = parseNum(report['total_discount']);
-          rPaid = parseNum(report['total_paid']);
-          rRemain = parseNum(report['total_remaining']);
+          rDue = _toDouble(report['total_amount_due']);
+          rPaid = _toDouble(report['total_paid']);
+          rRemain = _toDouble(report['total_remaining']);
         }
       } else if (data is List) {
-        // Fallback legacy shape
         items = List<Map<String, dynamic>>.from(data);
-        _total = items.length;
-      } else {
-        items = [];
-        _total = 0;
       }
 
       setState(() {
         _invoices = items;
         _rTotalDue = rDue;
-        _rTotalDisc = rDisc;
         _rTotalPaid = rPaid;
         _rTotalRemain = rRemain;
       });
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) setState(() => _error = 'تعذّر تحميل الفواتير');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Map<String, double> _aggregatePaidStatus() {
-    double paid = 0;
-    double unpaid = 0;
-
-    for (final inv in _invoices) {
-      final st = (inv['invoice_status'] ?? inv['status'] ?? 'pending')
-          .toString();
-      if (st == 'paid') {
-        paid += 1;
-      } else {
-        unpaid += 1;
-      }
-    }
-
-    return {"paid": paid, "unpaid": unpaid};
   }
 
   double _toDouble(dynamic v) {
@@ -151,954 +122,303 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
     return s;
   }
 
-  String _formatDate(dynamic dateValue) {
-    if (dateValue == null || dateValue.toString().isEmpty) return 'غير محدد';
+  String _money2(double v) => '${_money.format(v)} د.ع';
+
+  String _formatDate(dynamic v) {
+    if (v == null || v.toString().isEmpty) return 'غير محدد';
     try {
-      final date = DateTime.parse(dateValue.toString());
-      return _dateFormat.format(date);
-    } catch (e) {
-      return dateValue.toString().split('T').first;
+      return DateFormat('yyyy/MM/dd').format(DateTime.parse(v.toString()).toLocal());
+    } catch (_) {
+      return v.toString().split('T').first;
     }
   }
+
+  String _statusLabel(String s) => switch (s) {
+        'paid' => 'مدفوعة',
+        'partial' => 'سداد جزئي',
+        'overdue' => 'متأخرة',
+        _ => 'قيد السداد',
+      };
+
+  (MqBadgeTone, Color) _statusTone(BuildContext context, String s) {
+    final m = context.mq;
+    return switch (s) {
+      'paid' => (MqBadgeTone.success, m.success),
+      'partial' => (MqBadgeTone.accent, m.accent),
+      'overdue' => (MqBadgeTone.error, m.error),
+      _ => (MqBadgeTone.orange, m.orange),
+    };
+  }
+
+  // ── build ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final paidStatus = _aggregatePaidStatus();
-    final totalDue = _rTotalDue ?? _sumField('amount_due');
-    final totalDisc = _rTotalDisc ?? _sumField('discount_total');
-    final totalPaid = _rTotalPaid ?? _sumField('amount_paid');
-    final totalRemain = _rTotalRemain ?? _sumField('remaining_amount');
-
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
-      appBar: const GlobalAppBar(title: 'فواتيري ودفعاتي'),
-      body: RefreshIndicator(
-        color: AppColors.primary,
-        onRefresh: _load,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _filters(),
-                const SizedBox(height: 10),
-                _summaryCards(
-                  totalDue: totalDue,
-                  totalDisc: totalDisc,
-                  totalPaid: totalPaid,
-                  totalRemain: totalRemain,
-                ),
-                const SizedBox(height: 10),
-                _chartsSection(paidStatus),
-                const SizedBox(height: 10),
-                _loading
-                    ? const StatusView.loading(message: 'جارٍ تحميل فواتيرك…')
-                    : _invoices.isEmpty
-                    ? _empty()
-                    : _list(),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _filters() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
-    final textPrimary = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
-    final textSecondary = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.textSecondary;
-    return Container(
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    Icons.filter_list_rounded,
-                    color: AppColors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'تصفية الفواتير',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: surfaceColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _status ?? 'all',
-                      decoration: InputDecoration(
-                        labelText: 'الحالة',
-                        labelStyle: TextStyle(
-                          color: textSecondary,
-                          fontSize: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: surfaceColor,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                      isExpanded: true,
-                      dropdownColor: surfaceColor,
-                      style: TextStyle(color: textPrimary, fontSize: 13),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'all',
-                          child: Text(
-                            'الكل',
-                            style: TextStyle(color: textPrimary, fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'pending',
-                          child: Text(
-                            'قيد السداد',
-                            style: TextStyle(color: textPrimary, fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'partial',
-                          child: Text(
-                            'سداد جزئي',
-                            style: TextStyle(color: textPrimary, fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'paid',
-                          child: Text(
-                            'مدفوعة',
-                            style: TextStyle(color: textPrimary, fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'overdue',
-                          child: Text(
-                            'متأخرة',
-                            style: TextStyle(color: textPrimary, fontSize: 13),
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        setState(() {
-                          _status = (v == 'all') ? null : v;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _studyYear ?? _currentStudyYear(),
-                    decoration: InputDecoration(
-                      labelText: 'السنة الدراسية',
-                      labelStyle: TextStyle(color: textSecondary, fontSize: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: surfaceColor,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                    isExpanded: true,
-                    dropdownColor: surfaceColor,
-                    style: TextStyle(color: textPrimary, fontSize: 13),
-                    items: [
-                      DropdownMenuItem(
-                        value: _currentStudyYear(),
-                        child: Text(
-                          _currentStudyYear(),
-                          style: TextStyle(color: textPrimary, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      setState(() {
-                        _studyYear = val;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 44,
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                icon: const Icon(Icons.search_rounded, size: 16),
-                label: const Text(
-                  'تصفية',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _summaryCards({
-    required double totalDue,
-    required double totalDisc,
-    required double totalPaid,
-    required double totalRemain,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
-    Widget card(
-      IconData icon,
-      String title,
-      double value,
-      Color color,
-      Color bgColor,
-    ) {
-      return Container(
-        width: 140,
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.08),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _currency.format(value),
-                style: TextStyle(
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        card(
-          Icons.receipt_long_rounded,
-          'قيمة الكورسات',
-          totalDue,
-          AppColors.primary,
-          AppColors.primary.withValues(alpha: 0.1),
-        ),
-        card(
-          Icons.local_offer_rounded,
-          'تخفيضات لك',
-          totalDisc,
-          AppColors.warning,
-          AppColors.warning.withValues(alpha: 0.1),
-        ),
-        card(
-          Icons.payments_rounded,
-          'دفعتم حتى الآن',
-          totalPaid,
-          AppColors.success,
-          AppColors.success.withValues(alpha: 0.1),
-        ),
-        card(
-          Icons.account_balance_wallet_rounded,
-          'المتبقّي للدفع',
-          totalRemain,
-          AppColors.error,
-          AppColors.error.withValues(alpha: 0.1),
-        ),
-      ],
-    );
-  }
-
-  Widget _chartsSection(Map<String, double> paidStatus) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
-    final total = paidStatus.values.fold<double>(0, (p, e) => p + e);
-    if (total == 0) return const SizedBox.shrink();
-
-    final paidCount = paidStatus['paid'] ?? 0;
-    final unpaidCount = paidStatus['unpaid'] ?? 0;
-    final paidPercent = ((paidCount / total) * 100).toStringAsFixed(1);
-    final unpaidPercent = ((unpaidCount / total) * 100).toStringAsFixed(1);
-
-    final pieSections = <PieChartSectionData>[
-      if (paidCount > 0)
-        PieChartSectionData(
-          value: paidCount,
-          color: AppColors.success,
-          title: '$paidPercent%',
-          radius: 40,
-          titleStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-      if (unpaidCount > 0)
-        PieChartSectionData(
-          value: unpaidCount,
-          color: AppColors.error,
-          title: '$unpaidPercent%',
-          radius: 40,
-          titleStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    Icons.pie_chart_rounded,
-                    color: AppColors.primary,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'توزيع الفواتير (مسدد / غير مسدد)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 140,
-                    child: PieChart(
-                      PieChartData(
-                        sections: pieSections,
-                        sectionsSpace: 3,
-                        centerSpaceRadius: 30,
-                        borderData: FlBorderData(show: false),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _legendItemWithCount(
-                      'مسدد',
-                      AppColors.success,
-                      paidCount.toInt(),
-                    ),
-                    const SizedBox(height: 8),
-                    _legendItemWithCount(
-                      'غير مسدد',
-                      AppColors.error,
-                      unpaidCount.toInt(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _legendItemWithCount(String label, Color color, int count) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '$label ($count)',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _list() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: context.mq.page,
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(
-                      Icons.receipt_long_rounded,
-                      color: AppColors.primary,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'الفواتير ($_total)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+                  const Text('فواتيري'),
+                  Text('تابع مدفوعاتك ورسوم الدورات', style: context.text.bodySmall),
                 ],
               ),
-              TextButton.icon(
-                onPressed: _load,
-                icon: Icon(
-                  Icons.refresh_rounded,
-                  size: 16,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                ),
-                label: Text(
-                  'تحديث',
-                  style: TextStyle(
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
+            ),
+            body: RefreshIndicator(onRefresh: _load, child: _body(context)),
           ),
         ),
-        const SizedBox(height: 6),
-        ..._invoices.map((inv) => _invoiceTile(inv)),
-        const SizedBox(height: 70),
+      ),
+    );
+  }
+
+  Widget _body(BuildContext context) {
+    if (_loading) return _skeleton(context);
+    if (_error != null) return _errorView(context);
+
+    final totalDue = _rTotalDue ?? _sumField('amount_due');
+    final totalPaid = _rTotalPaid ?? _sumField('amount_paid');
+    final totalRemain = _rTotalRemain ?? _sumField('remaining_amount');
+    final overdueCount = _invoices
+        .where((i) => (i['invoice_status'] ?? i['status'] ?? '').toString() == 'overdue')
+        .length;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl + MqSpacing.xl),
+      children: [
+        if (_invoices.isNotEmpty) ...[
+          Row(children: [
+            Expanded(child: _summaryCard(context, _money2(totalDue), 'إجمالي المطلوب', context.mq.accent, Icons.receipt_long_rounded)),
+            MqSpacing.gapSm,
+            Expanded(child: _summaryCard(context, _money2(totalPaid), 'المدفوع', context.mq.success, Icons.payments_rounded)),
+          ]),
+          MqSpacing.gapSm,
+          Row(children: [
+            Expanded(child: _summaryCard(context, _money2(totalRemain), 'المتبقي', context.mq.orange, Icons.account_balance_wallet_outlined)),
+            MqSpacing.gapSm,
+            Expanded(child: _summaryCard(context, '$overdueCount', 'الفواتير المتأخرة', context.mq.error, Icons.warning_amber_rounded)),
+          ]),
+          MqSpacing.gapLg,
+        ],
+        SizedBox(
+          height: MqSize.chipHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _statusChips.length,
+            separatorBuilder: (_, _) => const SizedBox(width: MqSpacing.xs),
+            itemBuilder: (_, i) {
+              final (value, label) = _statusChips[i];
+              return MqChip(
+                label: label,
+                selected: _status == value,
+                onTap: () {
+                  if (_status == value) return;
+                  setState(() => _status = value);
+                  _load();
+                },
+              );
+            },
+          ),
+        ),
+        MqSpacing.gapMd,
+        if (_invoices.isEmpty)
+          _empty(context)
+        else
+          for (final inv in _invoices)
+            Padding(
+              padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+              child: _invoiceCard(context, inv),
+            ),
       ],
     );
   }
 
-  Widget _invoiceTile(Map<String, dynamic> inv) {
+  Widget _summaryCard(BuildContext context, String value, String label, Color color, IconData icon) {
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: MqSize.iconMd),
+          MqSpacing.gapXs,
+          Text(value,
+              style: context.text.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w700),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(label, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+
+  Widget _invoiceCard(BuildContext context, Map<String, dynamic> inv) {
+    final m = context.mq;
     final status = (inv['invoice_status'] ?? inv['status'] ?? '').toString();
+    final (tone, color) = _statusTone(context, status);
     final due = _toDouble(inv['amount_due']);
     final paid = _toDouble(inv['amount_paid']);
     final remain = _toDouble(inv['remaining_amount']);
-    final discount = _toDouble(inv['discount_total']);
-    final invoiceDate = _formatDate(
-      inv['invoice_date'] ?? inv['created_at'] ?? inv['createdAt'],
-    );
+    final hasPaid = inv.containsKey('amount_paid') && inv['amount_paid'] != null;
+    final hasRemain = inv.containsKey('remaining_amount') && inv['remaining_amount'] != null;
     final dueDate = _formatDate(inv['due_date'] ?? inv['dueDate']);
-    final notes = inv['notes']?.toString() ?? '';
-    final courseName = inv['course_name']?.toString() ?? '';
-    final teacherName = inv['teacher_name']?.toString() ?? '';
+    final courseName = (inv['course_name'] ?? '').toString();
+    final teacherName = (inv['teacher_name'] ?? '').toString();
+    final invNo = (inv['invoice_number'] ?? inv['invoice_no'] ?? inv['number'] ?? '').toString();
+    final id = inv['id']?.toString() ?? '';
 
-    Color statusColor() {
-      switch (status) {
-        case 'paid':
-          return AppColors.success;
-        case 'partial':
-          return AppColors.info;
-        case 'overdue':
-          return AppColors.error;
-        default:
-          return AppColors.warning;
-      }
-    }
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: statusColor().withValues(alpha: 0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: statusColor().withValues(alpha: 0.06),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            final id = inv['id']?.toString() ?? '';
-            if (id.isNotEmpty) {
-              Get.toNamed('/invoice-details', arguments: id);
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: statusColor().withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.receipt_long_rounded,
-                        color: statusColor(),
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (courseName.isNotEmpty ||
-                              teacherName.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            if (courseName.isNotEmpty)
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.book_rounded,
-                                    size: 12,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      courseName,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isDark
-                                            ? AppColors.darkTextPrimary
-                                            : AppColors.textPrimary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            if (teacherName.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.person_rounded,
-                                    size: 12,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      teacherName,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isDark
-                                            ? AppColors.darkTextPrimary
-                                            : AppColors.textPrimary,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                            const SizedBox(height: 2),
-                          ],
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor().withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _statusLabel(status),
-                        style: TextStyle(
-                          color: statusColor(),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: surfaceColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    children: [
-                      _detailRow(
-                        'قيمة الكورس',
-                        _currency.format(due),
-                        isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.textPrimary,
-                        true,
-                      ),
-                      const SizedBox(height: 6),
-                      _detailRow(
-                        'تخفيض لك',
-                        _currency.format(discount),
-                        AppColors.warning,
-                        false,
-                      ),
-                      const SizedBox(height: 6),
-                      _detailRow(
-                        'دفعتم حتى الآن',
-                        _currency.format(paid),
-                        AppColors.success,
-                        false,
-                      ),
-                      const SizedBox(height: 6),
-                      _detailRow(
-                        'المتبقّي للدفع',
-                        _currency.format(remain),
-                        AppColors.error,
-                        true,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today_rounded,
-                            size: 10,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'تاريخ الفاتورة: ',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Text(
-                            invoiceDate,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: isDark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.event_rounded,
-                            size: 10,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'تاريخ الاستحقاق: ',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Text(
-                            dueDate,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: isDark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (notes.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.info.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: AppColors.info.withValues(alpha: 0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.note_rounded,
-                          size: 12,
-                          color: AppColors.info,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            notes,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isDark
-                                  ? AppColors.darkTextPrimary
-                                  : AppColors.textSecondary,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.md),
+      onTap: id.isEmpty ? null : () => Get.toNamed('/invoice-details', arguments: id),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: MqRadius.brMd),
+                child: Icon(Icons.receipt_long_rounded, color: color, size: MqSize.iconSm),
+              ),
+              MqSpacing.gapMd,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'اضغط للمزيد من التفاصيل',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.primary,
-                      size: 10,
-                    ),
+                      courseName.isNotEmpty ? courseName : (invNo.isNotEmpty ? 'فاتورة #$invNo' : 'فاتورة'),
+                      style: context.text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if (teacherName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(teacherName, style: context.text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ] else if (invNo.isNotEmpty && courseName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text('#$invNo', style: context.text.labelSmall),
+                    ],
                   ],
                 ),
+              ),
+              MqSpacing.gapSm,
+              MqBadge(label: _statusLabel(status), tone: tone),
+            ],
+          ),
+          MqSpacing.gapMd,
+          MqSurface(
+            tone: MqSurfaceTone.neutral,
+            padding: const EdgeInsets.all(MqSpacing.sm),
+            child: Column(
+              children: [
+                _amountRow(context, 'قيمة الفاتورة', _money2(due), m.ink),
+                if (hasPaid) ...[
+                  const SizedBox(height: 4),
+                  _amountRow(context, 'المدفوع', _money2(paid), m.success),
+                ],
+                if (hasRemain) ...[
+                  const SizedBox(height: 4),
+                  _amountRow(context, 'المتبقي', _money2(remain), m.orange),
+                ],
               ],
             ),
           ),
-        ),
+          MqSpacing.gapSm,
+          Row(
+            children: [
+              Icon(Icons.event_outlined, size: 13, color: m.ink3),
+              MqSpacing.gapXxs,
+              Text('الاستحقاق: $dueDate', style: context.text.labelSmall),
+              const Spacer(),
+              Text('عرض التفاصيل',
+                  style: context.text.labelMedium?.copyWith(color: m.accent, fontWeight: FontWeight.w600)),
+              Icon(Icons.chevron_left_rounded, size: 18, color: m.accent),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _detailRow(String label, String value, Color valueColor, bool bold) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final labelColor = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.textSecondary;
+  Widget _amountRow(BuildContext context, String label, String value, Color valueColor) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: labelColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: bold ? 12 : 11,
-            color: valueColor,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
-          ),
-        ),
+        Text(label, style: context.text.labelSmall),
+        Text(value, style: context.text.labelMedium?.copyWith(color: valueColor, fontWeight: FontWeight.w700)),
       ],
     );
   }
 
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'paid':
-        return 'مدفوعة';
-      case 'partial':
-        return 'سداد جزئي';
-      case 'overdue':
-        return 'متأخرة';
-      default:
-        return 'قيد السداد';
-    }
+  // ── states ──────────────────────────────────────────────────────────────────
+
+  Widget _empty(BuildContext context) {
+    final m = context.mq;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MqSpacing.xxl),
+      child: Center(child: Column(children: [
+        Container(
+          padding: const EdgeInsets.all(MqSpacing.lg),
+          decoration: BoxDecoration(color: m.accentSoft, shape: BoxShape.circle),
+          child: Icon(Icons.receipt_long_rounded, size: 44, color: m.accent),
+        ),
+        MqSpacing.gapMd,
+        Text('لا توجد فواتير', style: context.text.titleMedium),
+        MqSpacing.gapXs,
+        Text('ستظهر هنا فواتير ورسوم دوراتك.', textAlign: TextAlign.center, style: context.text.bodySmall),
+      ])),
+    );
   }
 
-  Widget _empty() => const StatusView.empty(
-        icon: Icons.receipt_long_rounded,
-        message: 'لا توجد فواتير في هذه التصفية حالياً.',
-      );
+  Widget _errorView(BuildContext context) {
+    final m = context.mq;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      children: [
+        const SizedBox(height: MqSpacing.xxl),
+        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.wifi_off_rounded, size: 44, color: m.error),
+          MqSpacing.gapMd,
+          Text(_error ?? 'حدث خطأ', textAlign: TextAlign.center, style: context.text.bodyMedium),
+          MqSpacing.gapMd,
+          MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: _load),
+        ])),
+      ],
+    );
+  }
+
+  Widget _skeleton(BuildContext context) {
+    final m = context.mq;
+    Widget block(double h) => Container(height: h, decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brLg));
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      children: [
+        Row(children: [Expanded(child: block(72)), MqSpacing.gapSm, Expanded(child: block(72))]),
+        MqSpacing.gapSm,
+        Row(children: [Expanded(child: block(72)), MqSpacing.gapSm, Expanded(child: block(72))]),
+        MqSpacing.gapLg,
+        for (var i = 0; i < 3; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+            child: MqCard(
+              padding: const EdgeInsets.all(MqSpacing.md),
+              child: Row(children: [
+                Container(width: 40, height: 40, decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brMd)),
+                MqSpacing.gapMd,
+                Expanded(child: block(46)),
+              ]),
+            ),
+          ),
+      ],
+    );
+  }
 }

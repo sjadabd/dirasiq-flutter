@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'teacher_app_bar.dart';
 import 'teacher_drawer.dart';
-import 'teacher_bottom_nav.dart';
 
 /// Shared placeholder for teacher tabs that haven't been built yet.
 ///
@@ -27,7 +26,6 @@ class TeacherPlaceholder extends StatelessWidget {
     return Scaffold(
       appBar: TeacherAppBar(title: title, subtitle: subtitle),
       drawer: const TeacherDrawer(),
-      bottomNavigationBar: const TeacherBottomNav(),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),

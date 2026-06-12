@@ -1,14 +1,9 @@
-// Teacher video-course detail (full screen).
+// Teacher video-course detail (Teacher Design System pass).
 //
-// Read-only summary header (cover + title + status/visibility/price chips +
-// metadata + review notes) with an Edit button → opens the shared form
-// dialog. Below: lessons grid with thumbnail, Bunny status chip, and
-// per-card action menu (play / edit-meta / replace-video / delete).
-// Reorder mode swaps the action menu for up/down arrows + a "save order"
-// button. Add-lesson FAB opens the lesson upload dialog.
-//
-// Every error / success surfaces inline (SnackBars + in-dialog alerts) —
-// no native browser-style alerts.
+// Presentation only — _fetchAll, the realtime lesson/course subscriptions,
+// cover upload, lesson CRUD (add/edit/replace/delete/sync), reorder, and
+// playback are UNCHANGED. Restyled to the teacher design system; the edit-
+// lesson dialog is now an animated bottom sheet.
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -16,8 +11,11 @@ import 'package:get/get.dart';
 
 import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
+import '../../../core/utils/money.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/unified_video_player/unified_video_player_screen.dart';
+import '../shared/design/teacher_design.dart';
+import '../shared/teacher_app_bar.dart';
 import 'widgets/video_course_form_dialog.dart';
 import 'widgets/video_lesson_upload_dialog.dart';
 
@@ -26,10 +24,12 @@ class TeacherVideoCourseDetailScreen extends StatefulWidget {
   final String courseId;
 
   @override
-  State<TeacherVideoCourseDetailScreen> createState() => _TeacherVideoCourseDetailScreenState();
+  State<TeacherVideoCourseDetailScreen> createState() =>
+      _TeacherVideoCourseDetailScreenState();
 }
 
-class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetailScreen> {
+class _TeacherVideoCourseDetailScreenState
+    extends State<TeacherVideoCourseDetailScreen> {
   final _api = TeacherApiService();
 
   bool _loading = true;
@@ -41,25 +41,40 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
   bool _reorderMode = false;
   bool _reorderBusy = false;
 
-  // Unsubscribe handles for realtime listeners — invoked in dispose() so
-  // we don't leak callbacks after the screen pops.
   void Function()? _unsubLessonStatus;
   void Function()? _unsubCourseStatus;
 
-  // Status chip mappings (matches the dashboard for consistency).
-  static const _courseStatusMeta = <String, Map<String, dynamic>>{
-    'pending_review': {'label': 'بانتظار المراجعة', 'color': Colors.orange,    'icon': Icons.access_time},
-    'approved':       {'label': 'مقبولة',           'color': Colors.green,     'icon': Icons.check_circle_outline},
-    'hidden':         {'label': 'مخفية',            'color': Colors.blueGrey,  'icon': Icons.visibility_off_outlined},
-    'rejected':       {'label': 'مرفوضة',           'color': Colors.red,       'icon': Icons.cancel_outlined},
-  };
-  static const _bunnyStatusMeta = <String, Map<String, dynamic>>{
-    'pending':    {'label': 'بانتظار الرفع',   'color': Colors.blueGrey, 'icon': Icons.schedule},
-    'uploaded':   {'label': 'تم الرفع',        'color': Colors.blue,     'icon': Icons.cloud_done_outlined},
-    'processing': {'label': 'قيد المعالجة',    'color': Colors.orange,   'icon': Icons.autorenew},
-    'ready':      {'label': 'جاهز',            'color': Colors.green,    'icon': Icons.check_circle},
-    'failed':     {'label': 'فشل',             'color': Colors.red,      'icon': Icons.error_outline},
-  };
+  static (String, TeacherTone) _courseStatus(String s) {
+    switch (s) {
+      case 'pending_review':
+        return ('بانتظار المراجعة', TeacherTone.warning);
+      case 'approved':
+        return ('مقبولة', TeacherTone.success);
+      case 'hidden':
+        return ('مخفية', TeacherTone.neutral);
+      case 'rejected':
+        return ('مرفوضة', TeacherTone.danger);
+      default:
+        return (s, TeacherTone.neutral);
+    }
+  }
+
+  static (String, TeacherTone) _bunnyStatus(String s) {
+    switch (s) {
+      case 'pending':
+        return ('بانتظار الرفع', TeacherTone.neutral);
+      case 'uploaded':
+        return ('تم الرفع', TeacherTone.info);
+      case 'processing':
+        return ('قيد المعالجة', TeacherTone.warning);
+      case 'ready':
+        return ('جاهز', TeacherTone.success);
+      case 'failed':
+        return ('فشل', TeacherTone.danger);
+      default:
+        return (s, TeacherTone.neutral);
+    }
+  }
 
   @override
   void initState() {
@@ -75,9 +90,6 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
     super.dispose();
   }
 
-  /// Subscribe to the realtime events that affect THIS course's view. The
-  /// callbacks filter by id so events for other courses don't trigger a
-  /// refetch here.
   void _attachRealtime() {
     _unsubLessonStatus = RealtimeService.instance.subscribe(
       'video-lesson:status_changed',
@@ -89,42 +101,25 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
         if (lesson == null) return;
         if (lesson['courseId']?.toString() != widget.courseId) return;
 
-        // Surgical update: patch the matching row in `_lessons` in place
-        // instead of refetching the whole course. _fetchAll() flips the
-        // page-level _loading flag, which makes the whole screen blink
-        // a spinner on every Bunny tick — bad UX for what should be a
-        // single-card status change.
-        //
-        // If the lesson isn't in our list (race: new lesson created on
-        // another device), fall through to a full fetch so we don't
-        // miss it.
         final lessonId = lesson['id']?.toString();
         if (lessonId != null && lessonId.isNotEmpty) {
-          final idx = _lessons.indexWhere((l) => l['id']?.toString() == lessonId);
+          final idx =
+              _lessons.indexWhere((l) => l['id']?.toString() == lessonId);
           if (idx >= 0) {
             setState(() {
-              // Merge — keep fields we have that the payload doesn't ship
-              // (e.g. createdAt, displayOrder if absent from the event).
-              _lessons[idx] = { ..._lessons[idx], ...lesson };
+              _lessons[idx] = {..._lessons[idx], ...lesson};
             });
           } else {
-            // Unknown lesson id for this course → safer to refetch the
-            // list so we pick up the new row.
             _fetchAll();
           }
         }
 
-        // Surface a single user-facing event when a lesson flips to
-        // a terminal status so the teacher knows their open screen just
-        // updated.
         final status = lesson['bunnyStatus']?.toString();
         if (status == 'ready') {
           _snack('تم تجهيز فيديو الدرس "${lesson['title'] ?? ''}"');
         } else if (status == 'failed') {
-          _snack(
-            'فشل معالجة فيديو الدرس "${lesson['title'] ?? ''}"',
-            error: true,
-          );
+          _snack('فشل معالجة فيديو الدرس "${lesson['title'] ?? ''}"',
+              error: true);
         }
       },
     );
@@ -138,7 +133,9 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
       if (course['id']?.toString() != widget.courseId) return;
       _fetchAll();
       _snack(
-        approved ? 'تمت الموافقة على الدورة من قبل الإدارة' : 'تم رفض الدورة من قبل الإدارة',
+        approved
+            ? 'تمت الموافقة على الدورة من قبل الإدارة'
+            : 'تم رفض الدورة من قبل الإدارة',
         error: !approved,
       );
     }
@@ -151,11 +148,17 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
       'video-course:rejected',
       (d) => onCourseStatus(d, approved: false),
     );
-    _unsubCourseStatus = () { approveUnsub(); rejectUnsub(); };
+    _unsubCourseStatus = () {
+      approveUnsub();
+      rejectUnsub();
+    };
   }
 
   Future<void> _fetchAll() async {
-    setState(() { _loading = true; _error = ''; });
+    setState(() {
+      _loading = true;
+      _error = '';
+    });
     try {
       final results = await Future.wait([
         _api.fetchMyVideoCourse(widget.courseId),
@@ -178,9 +181,12 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
 
   Future<void> _openEditDialog() async {
     if (_course == null) return;
-    final id = await showDialog<String?>(
+    final id = await showModalBottomSheet<String?>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => VideoCourseFormDialog(initial: _course),
     );
     if (id != null) {
@@ -212,7 +218,8 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
   Future<void> _askDeleteCourse() async {
     final ok = await _confirmDialog(
       title: 'حذف الدورة',
-      message: 'سيتم حذف الدورة وجميع دروسها. الإجراء غير قابل للاسترجاع من واجهة الأستاذ.',
+      message:
+          'سيتم حذف الدورة وجميع دروسها. الإجراء غير قابل للاسترجاع من واجهة الأستاذ.',
       confirmLabel: 'حذف',
       destructive: true,
     );
@@ -230,9 +237,12 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
   // ----- Lesson actions ----------------------------------------------------
 
   Future<void> _openAddLessonDialog() async {
-    final newId = await showDialog<String?>(
+    final newId = await showModalBottomSheet<String?>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => VideoLessonUploadDialog(courseId: widget.courseId),
     );
     if (newId != null) _fetchAll();
@@ -246,9 +256,12 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
     );
     if (ok != true) return;
     if (!mounted) return;
-    final newId = await showDialog<String?>(
+    final newId = await showModalBottomSheet<String?>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => VideoLessonUploadDialog(
         courseId: widget.courseId,
         replaceLessonId: lesson['id']?.toString(),
@@ -260,88 +273,155 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
   }
 
   Future<void> _openEditLessonDialog(Map<String, dynamic> lesson) async {
-    final title = TextEditingController(text: lesson['title']?.toString() ?? '');
-    final description = TextEditingController(text: lesson['description']?.toString() ?? '');
+    final title =
+        TextEditingController(text: lesson['title']?.toString() ?? '');
+    final description =
+        TextEditingController(text: lesson['description']?.toString() ?? '');
     String err = '';
     bool submitting = false;
-    final ok = await showDialog<bool>(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final ok = await showModalBottomSheet<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setS) {
-          return AlertDialog(
-            title: const Text('تعديل بيانات الدرس'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: title,
-                    enabled: !submitting,
-                    decoration: const InputDecoration(
-                      labelText: 'عنوان الدرس *',
-                      border: OutlineInputBorder(),
-                      isDense: true,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Theme(
+        data: isDark ? MqTheme.dark() : MqTheme.light(),
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: StatefulBuilder(builder: (ctx, setS) {
+            final mq = ctx.mq;
+            return Padding(
+              padding:
+                  EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: mq.card,
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(MqRadius.xl)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(MqSpacing.lg,
+                        MqSpacing.sm, MqSpacing.lg, MqSpacing.lg),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: MqSpacing.md),
+                            decoration: BoxDecoration(
+                                color: mq.line, borderRadius: MqRadius.brPill),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                  color: mq.accentSoft,
+                                  borderRadius: MqRadius.brSm),
+                              child: Icon(Icons.edit_outlined,
+                                  size: MqSize.iconSm, color: mq.accent),
+                            ),
+                            const SizedBox(width: MqSpacing.sm),
+                            Expanded(
+                              child: Text('تعديل بيانات الدرس',
+                                  style: ctx.text.titleMedium),
+                            ),
+                            InkWell(
+                              onTap: submitting
+                                  ? null
+                                  : () => Navigator.pop(ctx, false),
+                              customBorder: const CircleBorder(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child:
+                                    Icon(Icons.close_rounded, color: mq.ink3),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: MqSpacing.lg),
+                        TextField(
+                          controller: title,
+                          enabled: !submitting,
+                          decoration: const InputDecoration(
+                            labelText: 'عنوان الدرس *',
+                            prefixIcon: Icon(Icons.title_rounded),
+                          ),
+                        ),
+                        const SizedBox(height: MqSpacing.md),
+                        TextField(
+                          controller: description,
+                          enabled: !submitting,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'الوصف',
+                            hintText: 'وصف اختياري...',
+                          ),
+                        ),
+                        if (err.isNotEmpty) ...[
+                          const SizedBox(height: MqSpacing.sm),
+                          Text(err,
+                              style: ctx.text.bodySmall
+                                  ?.copyWith(color: mq.error)),
+                        ],
+                        const SizedBox(height: MqSpacing.xl),
+                        MqButton(
+                          label: submitting ? 'جارٍ الحفظ…' : 'حفظ',
+                          icon: submitting ? null : Icons.check_rounded,
+                          loading: submitting,
+                          onPressed: submitting
+                              ? null
+                              : () async {
+                                  if (title.text.trim().isEmpty) {
+                                    setS(() => err = 'العنوان مطلوب');
+                                    return;
+                                  }
+                                  setS(() {
+                                    submitting = true;
+                                    err = '';
+                                  });
+                                  try {
+                                    await _api.updateVideoLesson(
+                                      courseId: widget.courseId,
+                                      lessonId: lesson['id'].toString(),
+                                      title: title.text.trim(),
+                                      description: description.text.trim(),
+                                    );
+                                    if (ctx.mounted) Navigator.pop(ctx, true);
+                                  } catch (_) {
+                                    setS(() {
+                                      submitting = false;
+                                      err = 'تعذّر الحفظ';
+                                    });
+                                  }
+                                },
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: description,
-                    enabled: !submitting,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'الوصف',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                  if (err.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(err, style: const TextStyle(color: Colors.red, fontSize: 12)),
-                  ],
-                ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: submitting ? null : () => Navigator.pop(ctx, false),
-                child: const Text('إلغاء'),
-              ),
-              FilledButton(
-                onPressed: submitting
-                    ? null
-                    : () async {
-                        if (title.text.trim().isEmpty) {
-                          setS(() => err = 'العنوان مطلوب');
-                          return;
-                        }
-                        setS(() { submitting = true; err = ''; });
-                        try {
-                          await _api.updateVideoLesson(
-                            courseId: widget.courseId,
-                            lessonId: lesson['id'].toString(),
-                            title: title.text.trim(),
-                            description: description.text.trim(),
-                          );
-                          if (ctx.mounted) Navigator.pop(ctx, true);
-                        } catch (_) {
-                          setS(() {
-                            submitting = false;
-                            err = 'تعذّر الحفظ';
-                          });
-                        }
-                      },
-                child: submitting
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('حفظ'),
-              ),
-            ],
-          );
-        });
-      },
+            );
+          }),
+        ),
+      ),
     );
-    title.dispose();
-    description.dispose();
+    // Dispose after the sheet's slide-out animation; disposing while the
+    // TextFields are still rebuilding crashes with "ChangeNotifier used after
+    // dispose" (the red `_dependents.isEmpty` screen).
+    Future.delayed(const Duration(milliseconds: 500), () {
+      title.dispose();
+      description.dispose();
+    });
     if (ok == true) {
       _snack('تم تحديث الدرس.');
       _fetchAll();
@@ -442,9 +522,13 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء')),
           FilledButton(
-            style: destructive ? FilledButton.styleFrom(backgroundColor: Colors.red) : null,
+            style: destructive
+                ? FilledButton.styleFrom(backgroundColor: Colors.red)
+                : null,
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(confirmLabel),
           ),
@@ -455,23 +539,6 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
 
   void _snack(String text, {bool error = false}) {
     if (!mounted) return;
-    // Why the two-step (remove + post-frame show) dance:
-    //
-    // Material's SnackBar wraps its content in a Hero whose tag is
-    // derived from the Text widget. If we show two snackbars with the
-    // SAME content in quick succession, BOTH heroes briefly co-exist in
-    // the tree → "multiple heroes that share the same tag" assertion
-    // → red-screen exception during the scheduler frame.
-    //
-    // clearSnackBars() alone is not enough — it removes the snackbar
-    // from the queue but the Hero teardown happens in the NEXT frame.
-    // If we call showSnackBar() in the same tick, the old Hero is
-    // still mounted when the new one is being inserted.
-    //
-    // Pattern that survives rapid bursts (realtime events, double
-    // button taps): remove current (synchronous, no animation) +
-    // schedule the new snackbar via addPostFrameCallback so the
-    // teardown completes first.
     final messenger = ScaffoldMessenger.of(context);
     messenger.removeCurrentSnackBar();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -495,7 +562,9 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
   }
 
   String _formatDuration(dynamic seconds) {
-    final n = (seconds is num) ? seconds.toInt() : int.tryParse(seconds?.toString() ?? '0') ?? 0;
+    final n = (seconds is num)
+        ? seconds.toInt()
+        : int.tryParse(seconds?.toString() ?? '0') ?? 0;
     if (n <= 0) return '—';
     final m = n ~/ 60;
     final s = n % 60;
@@ -506,432 +575,522 @@ class _TeacherVideoCourseDetailScreenState extends State<TeacherVideoCourseDetai
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: AppBar(
-        backgroundColor: scheme.surface,
-        elevation: 0,
-        title: Text(_course?['title']?.toString() ?? 'تفاصيل الدورة',
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          if (!_loading && _course != null)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'تعديل',
-              onPressed: _openEditDialog,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Scaffold(
+            backgroundColor: mq.page,
+            appBar: TeacherAppBar(
+              title: 'تفاصيل الدورة',
+              actions: [
+                if (!_loading && _course != null)
+                  _ActionChip(
+                      icon: Icons.edit_outlined, onTap: _openEditDialog),
+                _ActionChip(
+                    icon: Icons.refresh_rounded,
+                    onTap: _loading ? null : _fetchAll),
+              ],
             ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'تحديث',
-            onPressed: _loading ? null : _fetchAll,
-          ),
-        ],
+            floatingActionButton: (_loading || _course == null || _reorderMode)
+                ? null
+                : FloatingActionButton(
+                    onPressed: _openAddLessonDialog,
+                    backgroundColor: mq.accent,
+                    foregroundColor: mq.onAccent,
+                    elevation: 3,
+                    tooltip: 'درس جديد',
+                    shape: const RoundedRectangleBorder(
+                        borderRadius: MqRadius.brLg),
+                    child: const Icon(Icons.add_rounded),
+                  ),
+            body: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error.isNotEmpty
+                    ? _ErrorState(message: _error, onRetry: _fetchAll)
+                    : _course == null
+                        ? Center(
+                            child: Text('الدورة غير متوفرة',
+                                style: context.text.bodyMedium))
+                        : RefreshIndicator(
+                            onRefresh: _fetchAll,
+                            color: mq.accent,
+                            child: ListView(
+                              padding: const EdgeInsets.fromLTRB(MqSpacing.lg,
+                                  MqSpacing.lg, MqSpacing.lg, 96),
+                              children: [
+                                _summaryCard(context),
+                                const SizedBox(height: MqSpacing.lg),
+                                _lessonsHeader(context),
+                                const SizedBox(height: MqSpacing.sm),
+                                if (_lessons.isEmpty)
+                                  _emptyLessons(context)
+                                else
+                                  _lessonsGrid(context),
+                              ],
+                            ),
+                          ),
+          );
+        }),
       ),
-      floatingActionButton: (_loading || _course == null || _reorderMode)
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _openAddLessonDialog,
-              icon: const Icon(Icons.add_circle_outline),
-              label: const Text('درس جديد'),
-            ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error.isNotEmpty
-              ? _ErrorState(message: _error, onRetry: _fetchAll)
-              : _course == null
-                  ? const Center(child: Text('الدورة غير متوفرة'))
-                  : RefreshIndicator(
-                      onRefresh: _fetchAll,
-                      child: ListView(
-                        padding: const EdgeInsets.all(12),
-                        children: [
-                          _buildSummaryCard(scheme),
-                          const SizedBox(height: 12),
-                          _buildLessonsHeader(scheme),
-                          const SizedBox(height: 8),
-                          if (_lessons.isEmpty)
-                            _buildEmptyLessons()
-                          else
-                            _buildLessonsGrid(scheme),
-                          const SizedBox(height: 100), // bottom padding for FAB
-                        ],
-                      ),
-                    ),
     );
   }
 
   // ----- Summary card ------------------------------------------------------
 
-  Widget _buildSummaryCard(ColorScheme scheme) {
+  Widget _summaryCard(BuildContext context) {
+    final mq = context.mq;
     final c = _course!;
-    final statusKey = c['status']?.toString() ?? '';
-    final statusMeta = _courseStatusMeta[statusKey] ?? {
-      'label': statusKey, 'color': Colors.grey, 'icon': Icons.help_outline,
-    };
+    final (statusLabel, statusTone) =
+        _courseStatus(c['status']?.toString() ?? '');
     final isFree = c['isFree'] == true;
-    final visibility = c['visibility']?.toString() ?? 'private';
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                AppNetworkImage(
-                  url: c['coverImage']?.toString() ?? '',
-                  fit: BoxFit.cover,
-                  fallbackIcon: Icons.movie_outlined,
-                ),
-                if (_coverUploading)
-                  Container(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    alignment: Alignment.center,
-                    child: const CircularProgressIndicator(color: Colors.white),
+    final isPublic = (c['visibility']?.toString() ?? 'private') == 'public';
+    final desc = (c['description']?.toString() ?? '');
+    final reviewNotes = (c['reviewNotes']?.toString() ?? '');
+
+    return MqCard(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: MqRadius.brLg,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  AppNetworkImage(
+                    url: c['coverImage']?.toString() ?? '',
+                    fit: BoxFit.cover,
+                    fallbackIcon: Icons.movie_outlined,
                   ),
-                // Material + InkWell instead of ElevatedButton.icon here —
-                // ElevatedButton's internal _RenderInputPadding asserts a
-                // bounded width, but Positioned(bottom, right) inside an
-                // AspectRatio→Stack gives the child width=Infinity which
-                // crashes layout. Material+InkWell sizes intrinsically.
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Material(
-                    color: Colors.white,
-                    elevation: 2,
-                    borderRadius: BorderRadius.circular(20),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: _coverUploading ? null : _changeCover,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.image_outlined, size: 16, color: scheme.primary),
-                          const SizedBox(width: 6),
-                          Text(
-                            'غيّر الغلاف',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        ]),
+                  if (_coverUploading)
+                    Container(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      alignment: Alignment.center,
+                      child:
+                          const CircularProgressIndicator(color: Colors.white),
+                    ),
+                  PositionedDirectional(
+                    bottom: 8,
+                    end: 8,
+                    child: Material(
+                      color: mq.card,
+                      elevation: 2,
+                      borderRadius: MqRadius.brPill,
+                      child: InkWell(
+                        borderRadius: MqRadius.brPill,
+                        onTap: _coverUploading ? null : _changeCover,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: MqSpacing.md, vertical: MqSpacing.xs),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.image_outlined,
+                                size: 16, color: mq.accent),
+                            const SizedBox(width: MqSpacing.xs),
+                            Text('غيّر الغلاف',
+                                style: context.text.labelSmall?.copyWith(
+                                    color: mq.accent,
+                                    fontWeight: FontWeight.w700)),
+                          ]),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        c['title']?.toString() ?? '',
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            Padding(
+              padding: const EdgeInsets.all(MqSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(c['title']?.toString() ?? '',
+                            style: context.text.titleMedium),
                       ),
+                      _ActionChip(
+                          icon: Icons.delete_outline_rounded,
+                          color: mq.error,
+                          onTap: _askDeleteCourse),
+                    ],
+                  ),
+                  const SizedBox(height: MqSpacing.sm),
+                  Wrap(
+                    spacing: MqSpacing.xs,
+                    runSpacing: MqSpacing.xs,
+                    children: [
+                      TeacherStatusPill(label: statusLabel, tone: statusTone),
+                      MqBadge(
+                          label: isPublic ? 'عامة' : 'خاصة',
+                          tone: isPublic
+                              ? MqBadgeTone.success
+                              : MqBadgeTone.neutral),
+                      MqBadge(
+                          label: isFree ? 'مجاني' : '${fmtMoney(c['price'])} د.ع',
+                          tone: isFree
+                              ? MqBadgeTone.success
+                              : MqBadgeTone.orange),
+                    ],
+                  ),
+                  if (desc.isNotEmpty) ...[
+                    const SizedBox(height: MqSpacing.md),
+                    Text(desc,
+                        style: context.text.bodySmall
+                            ?.copyWith(color: mq.ink2, height: 1.5)),
+                  ],
+                  const SizedBox(height: MqSpacing.md),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: MqSpacing.md, vertical: MqSpacing.sm),
+                    decoration: BoxDecoration(
+                        color: mq.fill, borderRadius: MqRadius.brMd),
+                    child: Column(
+                      children: [
+                        _metaRow(context, 'المادة',
+                            c['subject']?.toString() ?? '—'),
+                        _metaRow(context, 'المرحلة',
+                            c['teachingStage']?.toString() ?? '—'),
+                        _metaRow(context, 'الإضافة',
+                            _formatDate(c['createdAt']?.toString())),
+                        _metaRow(context, 'آخر تحديث',
+                            _formatDate(c['updatedAt']?.toString())),
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      tooltip: 'حذف الدورة',
-                      onPressed: _askDeleteCourse,
+                  ),
+                  if (reviewNotes.isNotEmpty) ...[
+                    const SizedBox(height: MqSpacing.md),
+                    MqSurface(
+                      tone: MqSurfaceTone.orange,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('ملاحظة من الإدارة',
+                              style: context.text.labelSmall?.copyWith(
+                                  color: context.teacher.warning,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: MqSpacing.xs),
+                          Text(reviewNotes,
+                              style: context.text.bodySmall
+                                  ?.copyWith(height: 1.5)),
+                        ],
+                      ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(spacing: 6, runSpacing: 6, children: [
-                  _chip(statusMeta['label'] as String, statusMeta['color'] as Color, icon: statusMeta['icon'] as IconData),
-                  _chip(visibility == 'public' ? 'عامة' : 'خاصة', visibility == 'public' ? Colors.green : Colors.blueGrey),
-                  _chip(isFree ? 'مجاني' : '${c['price'] ?? 0} د.ع', isFree ? Colors.green : Colors.orange),
-                ]),
-                if ((c['description']?.toString() ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(c['description'].toString(),
-                      style: TextStyle(fontSize: 13, color: scheme.onSurface.withValues(alpha: 0.85), height: 1.5)),
                 ],
-                const SizedBox(height: 12),
-                _metaRow('المادة', c['subject']?.toString() ?? '—'),
-                _metaRow('المرحلة', c['teachingStage']?.toString() ?? '—'),
-                _metaRow('الإضافة', _formatDate(c['createdAt']?.toString())),
-                _metaRow('آخر تحديث', _formatDate(c['updatedAt']?.toString())),
-                if ((c['reviewNotes']?.toString() ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.orange.withValues(alpha: 0.25)),
-                    ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('ملاحظة من الإدارة',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.orange)),
-                      const SizedBox(height: 4),
-                      Text(c['reviewNotes'].toString(),
-                          style: const TextStyle(fontSize: 13, height: 1.5)),
-                    ]),
-                  ),
-                ],
-              ],
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _metaRow(BuildContext context, String label, String value) {
+    final mq = context.mq;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 78,
+            child: Text(label,
+                style: context.text.labelSmall?.copyWith(color: mq.ink3)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: context.text.labelMedium
+                    ?.copyWith(color: mq.ink, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _metaRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(
-          width: 80,
-          child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        ),
-        Expanded(
-          child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        ),
-      ]),
-    );
-  }
-
-  Widget _chip(String label, Color color, {IconData? icon}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (icon != null) ...[
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-        ],
-        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-      ]),
     );
   }
 
   // ----- Lessons -----------------------------------------------------------
 
-  Widget _buildLessonsHeader(ColorScheme scheme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(children: [
-        const Text('الدروس', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-        const SizedBox(width: 6),
-        _chip('${_lessons.length}', scheme.primary),
+  Widget _lessonsHeader(BuildContext context) {
+    return Row(
+      children: [
+        Text('الدروس', style: context.text.titleSmall),
+        const SizedBox(width: MqSpacing.sm),
+        MqBadge(label: '${_lessons.length}', tone: MqBadgeTone.accent),
         const Spacer(),
         if (!_reorderMode) ...[
           if (_lessons.length > 1)
-            TextButton.icon(
+            MqButton.text(
+              label: 'ترتيب',
+              icon: Icons.swap_vert_rounded,
+              size: MqButtonSize.small,
               onPressed: () => setState(() => _reorderMode = true),
-              icon: const Icon(Icons.swap_vert, size: 16),
-              label: const Text('ترتيب'),
             ),
         ] else ...[
-          TextButton(onPressed: _reorderBusy ? null : () { setState(() => _reorderMode = false); _fetchAll(); }, child: const Text('إلغاء')),
-          FilledButton.icon(
+          MqButton.text(
+            label: 'إلغاء',
+            size: MqButtonSize.small,
+            onPressed: _reorderBusy
+                ? null
+                : () {
+                    setState(() => _reorderMode = false);
+                    _fetchAll();
+                  },
+          ),
+          const SizedBox(width: MqSpacing.xs),
+          MqButton(
+            label: 'حفظ',
+            icon: _reorderBusy ? null : Icons.save_outlined,
+            size: MqButtonSize.small,
+            expand: false,
+            loading: _reorderBusy,
             onPressed: _reorderBusy ? null : _saveReorder,
-            icon: _reorderBusy
-                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.save, size: 16),
-            label: const Text('حفظ'),
           ),
         ],
-      ]),
+      ],
     );
   }
 
-  Widget _buildEmptyLessons() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.3), style: BorderStyle.solid),
-        borderRadius: BorderRadius.circular(10),
+  Widget _emptyLessons(BuildContext context) {
+    final mq = context.mq;
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.xl),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(color: mq.fill2, shape: BoxShape.circle),
+            child:
+                Icon(Icons.movie_creation_outlined, size: 30, color: mq.ink3),
+          ),
+          const SizedBox(height: MqSpacing.md),
+          Text('لم تضِف دروساً بعد',
+              style: context.text.bodyMedium?.copyWith(color: mq.ink2)),
+          const SizedBox(height: MqSpacing.md),
+          MqButton.tonal(
+            label: 'إضافة أول درس',
+            icon: Icons.add_rounded,
+            expand: false,
+            onPressed: _openAddLessonDialog,
+          ),
+        ],
       ),
-      child: Column(children: [
-        const Icon(Icons.movie_creation_outlined, size: 40, color: Colors.grey),
-        const SizedBox(height: 8),
-        const Text('لم تضِف دروساً بعد', style: TextStyle(color: Colors.grey)),
-        const SizedBox(height: 12),
-        FilledButton.tonalIcon(
-          onPressed: _openAddLessonDialog,
-          icon: const Icon(Icons.add),
-          label: const Text('إضافة أول درس'),
-        ),
-      ]),
     );
   }
 
-  Widget _buildLessonsGrid(ColorScheme scheme) {
+  Widget _lessonsGrid(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 220,
-        mainAxisExtent: 250,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        mainAxisExtent: 256,
+        crossAxisSpacing: MqSpacing.md,
+        mainAxisSpacing: MqSpacing.md,
       ),
       itemCount: _lessons.length,
-      itemBuilder: (_, idx) => _buildLessonCard(scheme, _lessons[idx], idx),
+      itemBuilder: (_, idx) => _lessonCard(context, _lessons[idx], idx),
     );
   }
 
-  Widget _buildLessonCard(ColorScheme scheme, Map<String, dynamic> lesson, int idx) {
-    final bunnyStatus = lesson['bunnyStatus']?.toString() ?? '';
-    final isReady = bunnyStatus == 'ready';
-    final isProcessing = bunnyStatus == 'uploaded' || bunnyStatus == 'processing';
-    final meta = _bunnyStatusMeta[bunnyStatus] ?? {
-      'label': bunnyStatus, 'color': Colors.grey, 'icon': Icons.help_outline,
-    };
-    return Container(
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Thumb + play overlay
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                AppNetworkImage(
-                  url: lesson['bunnyThumbnailUrl']?.toString() ?? '',
-                  fit: BoxFit.cover,
-                  fallbackIcon: Icons.movie_outlined,
-                ),
-                Positioned(
-                  top: 4, left: 4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text('#${idx + 1}',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+  Widget _lessonCard(BuildContext context, Map<String, dynamic> lesson, int idx) {
+    final mq = context.mq;
+    final bunny = lesson['bunnyStatus']?.toString() ?? '';
+    final isReady = bunny == 'ready';
+    final isProcessing = bunny == 'uploaded' || bunny == 'processing';
+    final (label, tone) = _bunnyStatus(bunny);
+    final hasDuration = (lesson['durationSeconds'] is num) &&
+        (lesson['durationSeconds'] as num) > 0;
+
+    return MqCard(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: MqRadius.brLg,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  AppNetworkImage(
+                    url: lesson['bunnyThumbnailUrl']?.toString() ?? '',
+                    fit: BoxFit.cover,
+                    fallbackIcon: Icons.movie_outlined,
                   ),
-                ),
-                if ((lesson['durationSeconds'] is num) && (lesson['durationSeconds'] as num) > 0)
-                  Positioned(
-                    bottom: 4, right: 4,
+                  PositionedDirectional(
+                    top: 4,
+                    start: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: MqSpacing.sm, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.65),
-                        borderRadius: BorderRadius.circular(4),
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: MqRadius.brSm,
                       ),
-                      child: Text(_formatDuration(lesson['durationSeconds']),
-                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                      child: Text('#${idx + 1}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700)),
                     ),
                   ),
-                if (isReady)
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _playLesson(lesson),
+                  if (hasDuration)
+                    PositionedDirectional(
+                      bottom: 4,
+                      end: 4,
                       child: Container(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.play_circle_filled, color: Colors.white, size: 44),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: MqSpacing.sm, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: MqRadius.brSm,
+                        ),
+                        child: Text(_formatDuration(lesson['durationSeconds']),
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 10)),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lesson['title']?.toString() ?? '',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                _chip(meta['label'] as String, meta['color'] as Color, icon: meta['icon'] as IconData),
-              ],
-            ),
-          ),
-          const Spacer(),
-          // Action bar
-          Container(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5))),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-            child: _reorderMode
-                ? Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_upward, size: 18),
-                      tooltip: 'تحريك لأعلى',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: idx == 0 ? null : () => _moveLesson(idx, -1),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.arrow_downward, size: 18),
-                      tooltip: 'تحريك لأسفل',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: idx == _lessons.length - 1 ? null : () => _moveLesson(idx, 1),
-                    ),
-                  ])
-                : Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                    if (isProcessing)
-                      IconButton(
-                        icon: const Icon(Icons.refresh, size: 18),
-                        tooltip: 'تحديث الحالة',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () => _syncLesson(lesson),
+                  if (isReady)
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _playLesson(lesson),
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.play_circle_filled,
+                              color: Colors.white, size: 44),
+                        ),
                       ),
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      tooltip: 'تعديل البيانات',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => _openEditLessonDialog(lesson),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.upload_file, size: 18),
-                      tooltip: 'استبدال الفيديو',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => _replaceLessonVideo(lesson),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  MqSpacing.sm, MqSpacing.sm, MqSpacing.sm, MqSpacing.xs),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(lesson['title']?.toString() ?? '',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.bodySmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: MqSpacing.xs),
+                  TeacherStatusPill(label: label, tone: tone, dense: true),
+                ],
+              ),
+            ),
+            const Spacer(),
+            Container(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: mq.line)),
+              ),
+              child: _reorderMode
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                          visualDensity: VisualDensity.compact,
+                          color: mq.ink2,
+                          onPressed:
+                              idx == 0 ? null : () => _moveLesson(idx, -1),
+                        ),
+                        IconButton(
+                          icon:
+                              const Icon(Icons.arrow_downward_rounded, size: 18),
+                          visualDensity: VisualDensity.compact,
+                          color: mq.ink2,
+                          onPressed: idx == _lessons.length - 1
+                              ? null
+                              : () => _moveLesson(idx, 1),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        if (isProcessing)
+                          IconButton(
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            tooltip: 'تحديث الحالة',
+                            visualDensity: VisualDensity.compact,
+                            color: mq.ink2,
+                            onPressed: () => _syncLesson(lesson),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          tooltip: 'تعديل',
+                          visualDensity: VisualDensity.compact,
+                          color: mq.ink2,
+                          onPressed: () => _openEditLessonDialog(lesson),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.upload_file_rounded, size: 18),
+                          tooltip: 'استبدال الفيديو',
+                          visualDensity: VisualDensity.compact,
+                          color: mq.ink2,
+                          onPressed: () => _replaceLessonVideo(lesson),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 18),
+                          tooltip: 'حذف',
+                          visualDensity: VisualDensity.compact,
+                          color: mq.error,
+                          onPressed: () => _askDeleteLesson(lesson),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                      tooltip: 'حذف',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => _askDeleteLesson(lesson),
-                    ),
-                  ]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sub-widgets
+// ---------------------------------------------------------------------------
+
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({required this.icon, required this.onTap, this.color});
+  final IconData icon;
+  final VoidCallback? onTap;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = context.mq;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.xs),
+      child: Material(
+        color: mq.fill,
+        shape: RoundedRectangleBorder(
+          borderRadius: MqRadius.brMd,
+          side: BorderSide(color: mq.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Icon(icon, size: MqSize.iconSm, color: color ?? mq.ink2),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -943,20 +1102,23 @@ class _ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
   @override
   Widget build(BuildContext context) {
+    final mq = context.mq;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(MqSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 56, color: Colors.grey),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            FilledButton.tonalIcon(
+            Icon(Icons.error_outline_rounded, size: 48, color: mq.error),
+            const SizedBox(height: MqSpacing.md),
+            Text(message,
+                textAlign: TextAlign.center, style: context.text.bodyMedium),
+            const SizedBox(height: MqSpacing.lg),
+            MqButton(
+              label: 'إعادة المحاولة',
+              icon: Icons.refresh_rounded,
+              expand: false,
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('إعادة المحاولة'),
             ),
           ],
         ),

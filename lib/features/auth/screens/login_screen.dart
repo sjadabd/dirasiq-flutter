@@ -1,15 +1,26 @@
-import 'package:flutter/material.dart';
+// Auth → Login (MulhimIQ design-system pass).
+//
+// Presentation only. The auth flow is UNCHANGED: AuthController.login (which
+// uses AuthService + RoleRouter for role-aware redirect), Google sign-in
+// (GoogleAuthService + RoleRouter, EMAIL_VERIFICATION_REQUIRED branch), Apple
+// sign-in, and navigation to Forgot/Register/EmailVerification/join-as-teacher
+// are all preserved. Only a local submitting flag was added for the button's
+// loading/disabled state.
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+
+import 'package:mulhimiq/core/services/apple_auth_service.dart';
+import 'package:mulhimiq/core/services/google_auth_service.dart';
+import 'package:mulhimiq/core/services/role_router.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/auth_text_field.dart';
-import 'register_screen.dart';
-import '../../../core/services/google_auth_service.dart';
-import '../../../core/services/role_router.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:mulhimiq/core/services/apple_auth_service.dart';
-import 'forgot_password_screen.dart';
 import 'email_verification_screen.dart';
+import 'forgot_password_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,11 +35,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthController _controller = Get.find<AuthController>();
   final AppleAuthService _appleAuthService = AppleAuthService();
 
+  bool _submitting = false;
+  bool _obscure = true;
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      await _controller.login(context, _emailController.text.trim(), _passwordController.text.trim());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   Future<void> _handleGoogleLogin(BuildContext context) async {
@@ -44,22 +68,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (error == null) {
       debugPrint('[LoginScreen] Google sign-in success — dispatching via RoleRouter');
-      // RoleRouter inspects user.userType (student/teacher) and respects the
-      // student profile-completion gate; teachers skip that gate.
       await RoleRouter.routeAfterAuth();
     } else if (error == "EMAIL_VERIFICATION_REQUIRED") {
       final email = GoogleAuthService().lastEmail ?? '';
-      debugPrint(
-        '[LoginScreen] account not activated -> navigate EmailVerificationScreen for $email',
-      );
+      debugPrint('[LoginScreen] account not activated -> navigate EmailVerificationScreen for $email');
       Get.offAll(() => EmailVerificationScreen(email: email));
     } else {
       debugPrint('[LoginScreen] Google sign-in error: $error');
-      // Get.snackbar resolves through the global Overlay, which is briefly
-      // missing while SignInHubActivity tears down on a cancel/failure
-      // (see "No Overlay widget found" crash). ScaffoldMessenger uses the
-      // current ScaffoldMessengerState directly and is safe under that
-      // race — combined with the context.mounted guard above.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error), behavior: SnackBarBehavior.floating),
       );
@@ -68,9 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleAppleLogin(BuildContext context) async {
     final String? error = await _appleAuthService.signInWithApple("student");
-
     if (!context.mounted) return;
-
     if (error == null) {
       await RoleRouter.routeAfterAuth();
     } else {
@@ -82,241 +95,150 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
     final bool isApple =
-        defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS;
+        defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS;
 
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // 🔹 Header
-              const SizedBox(height: 40),
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.lock_outline_rounded,
-                  color: scheme.primary,
-                  size: 40,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                "مرحباً بك من جديد 👋",
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "سجل دخولك للمتابعة إلى حسابك",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // 🔹 Input Fields
-              Column(
-                children: [
-                  AuthTextField(
-                    controller: _emailController,
-                    label: "البريد الإلكتروني",
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 16),
-                  AuthTextField(
-                    controller: _passwordController,
-                    label: "كلمة المرور",
-                    obscureText: true,
-                    textInputAction: TextInputAction.done,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // 🔹 Login Button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await _controller.login(
-                      context,
-                      _emailController.text.trim(),
-                      _passwordController.text.trim(),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: scheme.primary,
-                    foregroundColor: scheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    "تسجيل الدخول",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // 🔹 Divider
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(
-                      color: scheme.outline.withValues(alpha: 0.4),
-                      thickness: 1,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      "أو",
-                      style: TextStyle(
-                        color: scheme.onSurface.withValues(alpha: 0.6),
-                        fontSize: 12,
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) {
+            final m = context.mq;
+            return Scaffold(
+              backgroundColor: m.page,
+              body: SafeArea(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.xl, MqSpacing.lg, MqSpacing.lg),
+                  child: Column(
+                    children: [
+                      _brand(context),
+                      MqSpacing.gapXl,
+                      MqCard(
+                        padding: const EdgeInsets.all(MqSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('مرحباً بك من جديد 👋', style: context.text.titleLarge),
+                            const SizedBox(height: 4),
+                            Text('سجّل دخولك للمتابعة إلى حسابك', style: context.text.bodySmall),
+                            MqSpacing.gapLg,
+                            AuthTextField(
+                              controller: _emailController,
+                              label: 'البريد الإلكتروني',
+                              keyboardType: TextInputType.emailAddress,
+                              prefixIcon: Icons.alternate_email_rounded,
+                            ),
+                            MqSpacing.gapMd,
+                            AuthTextField(
+                              controller: _passwordController,
+                              label: 'كلمة المرور',
+                              obscureText: _obscure,
+                              textInputAction: TextInputAction.done,
+                              prefixIcon: Icons.lock_outline_rounded,
+                              suffixIcon: IconButton(
+                                icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                    size: 20, color: m.ink3),
+                                onPressed: () => setState(() => _obscure = !_obscure),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: MqButton.text(
+                                label: 'نسيت كلمة المرور؟',
+                                size: MqButtonSize.small,
+                                onPressed: () => Get.to(() => const ForgotPasswordScreen()),
+                              ),
+                            ),
+                            MqSpacing.gapXs,
+                            MqButton(label: 'تسجيل الدخول', icon: Icons.login_rounded, loading: _submitting, onPressed: _login),
+                            MqSpacing.gapMd,
+                            _dividerOr(context),
+                            MqSpacing.gapMd,
+                            _googleButton(context),
+                            if (isApple) ...[
+                              MqSpacing.gapSm,
+                              SizedBox(
+                                width: double.infinity,
+                                height: MqSize.buttonHeight,
+                                child: SignInWithAppleButton(
+                                  onPressed: () => _handleAppleLogin(context),
+                                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                                  text: 'تسجيل الدخول Apple',
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Divider(
-                      color: scheme.outline.withValues(alpha: 0.4),
-                      thickness: 1,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // 🔹 Google Button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: () => _handleGoogleLogin(context),
-                  icon: Image.asset(
-                    "assets/google_logo.png",
-                    height: 20,
-                    width: 20,
-                  ),
-                  label: const Text(
-                    "تسجيل الدخول باستخدام Google",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: scheme.outline.withValues(alpha: 0.4),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    foregroundColor: scheme.onSurface,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              if (isApple) ...[
-                // 🔹 Apple Sign-In Button (iOS/macOS only)
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: SignInWithAppleButton(
-                    onPressed: () => _handleAppleLogin(context),
-                    borderRadius: const BorderRadius.all(Radius.circular(12)),
-                    text: 'تسجيل الدخول Apple',
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-              ],
-
-              // 🔹 Forgot Password / Register
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: () => Get.to(() => const ForgotPasswordScreen()),
-                    child: Text(
-                      "نسيت كلمة المرور؟",
-                      style: TextStyle(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13,
+                      MqSpacing.gapLg,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('ليس لديك حساب؟', style: context.text.bodySmall),
+                          MqButton.text(label: 'إنشاء حساب جديد', size: MqButtonSize.small, onPressed: () => Get.to(() => const RegisterScreen())),
+                        ],
                       ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Get.to(() => RegisterScreen()),
-                    child: Text(
-                      "إنشاء حساب جديد",
-                      style: TextStyle(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                      MqSpacing.gapXs,
+                      MqButton.secondary(
+                        label: 'انضم كأستاذ (تقديم طلب)',
+                        icon: Icons.school_outlined,
+                        onPressed: () => Get.toNamed('/join-as-teacher'),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // 🔹 Join-as-Teacher entry — teachers can't self-register, they
-              // must submit an application that an admin then approves.
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: () => Get.toNamed('/join-as-teacher'),
-                  icon: const Icon(Icons.school_outlined, size: 20),
-                  label: const Text(
-                    'انضم كأستاذ (تقديم طلب)',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: scheme.primary,
-                    side: BorderSide(color: scheme.primary.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                      MqSpacing.gapLg,
+                      Text('© ملهم — جميع الحقوق محفوظة', style: context.text.labelSmall),
+                    ],
                   ),
                 ),
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 40),
+  Widget _brand(BuildContext context) {
+    final m = context.mq;
+    return Column(
+      children: [
+        Container(
+          width: 76, height: 76,
+          decoration: BoxDecoration(color: m.accentSoft, borderRadius: MqRadius.brXl),
+          child: Icon(Icons.school_rounded, color: m.accent, size: 40),
+        ),
+        MqSpacing.gapSm,
+        Text('ملهم IQ', style: context.text.headlineSmall?.copyWith(color: m.accent, fontWeight: FontWeight.w800)),
+        Text('منصة التعليم الذكية', style: context.text.bodySmall),
+      ],
+    );
+  }
 
-              // 🔹 Small Footer
-              Text(
-                "© ملهم - جميع الحقوق محفوظة",
-                style: TextStyle(
-                  color: scheme.onSurface.withValues(alpha: 0.4),
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+  Widget _dividerOr(BuildContext context) {
+    final m = context.mq;
+    return Row(children: [
+      Expanded(child: Divider(color: m.line)),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm), child: Text('أو', style: context.text.labelSmall)),
+      Expanded(child: Divider(color: m.line)),
+    ]);
+  }
+
+  Widget _googleButton(BuildContext context) {
+    final m = context.mq;
+    return SizedBox(
+      width: double.infinity,
+      height: MqSize.buttonHeight,
+      child: OutlinedButton.icon(
+        onPressed: () => _handleGoogleLogin(context),
+        icon: Image.asset('assets/google_logo.png', height: 20, width: 20),
+        label: Text('المتابعة باستخدام Google', style: context.text.labelLarge),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: m.ink,
+          side: BorderSide(color: m.line),
+          shape: RoundedRectangleBorder(borderRadius: MqRadius.brMd),
         ),
       ),
     );

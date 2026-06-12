@@ -1,10 +1,19 @@
+// Auth → Complete profile (MulhimIQ design-system pass).
+//
+// Shown after sign-in for students whose profile isn't complete (gated by the
+// RoleRouter / profile-completion guard) before reaching /home. Presentation
+// only: the stored-user prefill, geolocation, birth-date picker, form
+// validation, the exact completeProfile payload, AuthService.completeProfile,
+// and the Get.offAllNamed("/home") redirect are all UNCHANGED.
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
+
 import 'package:mulhimiq/core/services/api_service.dart';
 import 'package:mulhimiq/core/services/auth_service.dart';
-import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:mulhimiq/shared/controllers/theme_controller.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   const CompleteProfileScreen({super.key});
@@ -20,7 +29,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   late Future<List<Map<String, dynamic>>> _gradesFuture;
 
-  // Controllers
   final _studentPhoneController = TextEditingController();
   final _parentPhoneController = TextEditingController();
   final _schoolNameController = TextEditingController();
@@ -70,6 +78,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     super.dispose();
   }
 
+  // ─── logic (UNCHANGED) ──────────────────────────────────────────────────────
+
   void _updateBirthDateDisplay() {
     if (_birthDate != null) {
       _birthDateController.text =
@@ -82,24 +92,20 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   Future<void> _prefillFromStoredUser() async {
     final user = await _authService.getUser();
     if (user == null) return;
-
     setState(() {
       _studentPhoneController.text = (user['studentPhone'] ?? '').toString();
       _parentPhoneController.text = (user['parentPhone'] ?? '').toString();
       _schoolNameController.text = (user['schoolName'] ?? '').toString();
       _addressController.text = (user['address'] ?? '').toString();
-      _formattedAddressController.text = (user['formattedAddress'] ?? '')
-          .toString();
+      _formattedAddressController.text = (user['formattedAddress'] ?? '').toString();
       _countryController.text = (user['country'] ?? '').toString();
       _cityController.text = (user['city'] ?? '').toString();
       _stateController.text = (user['state'] ?? '').toString();
       _zipcodeController.text = (user['zipcode'] ?? '').toString();
       _streetNameController.text = (user['streetName'] ?? '').toString();
       _suburbController.text = (user['suburb'] ?? '').toString();
-
       _gender = (user['gender'] ?? '') == '' ? null : user['gender'];
       _gradeId = (user['gradeId'] ?? '') == '' ? null : user['gradeId'];
-
       final bd = user['birthDate'];
       if (bd != null && bd.toString().isNotEmpty) {
         try {
@@ -112,52 +118,40 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Future<void> _getLocation() async {
     setState(() => _locationLoading = true);
-
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showErrorSnackBar("خدمة الموقع غير مفعلة");
+        _snack("خدمة الموقع غير مفعلة", error: true);
         return;
       }
-
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showErrorSnackBar("تم رفض إذن الموقع");
+          _snack("تم رفض إذن الموقع", error: true);
           return;
         }
       }
-
       if (permission == LocationPermission.deniedForever) {
-        _showErrorSnackBar("إذن الموقع مرفوض نهائياً");
+        _snack("إذن الموقع مرفوض نهائياً", error: true);
         return;
       }
-
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       if (mounted) {
         setState(() {
           _latitude = pos.latitude;
           _longitude = pos.longitude;
         });
-        _showSuccessSnackBar("تم الحصول على الموقع بنجاح");
+        _snack("تم الحصول على الموقع بنجاح");
       }
     } catch (e) {
-      if (mounted) {
-        _showErrorSnackBar("خطأ في جلب الموقع: $e");
-      }
+      if (mounted) _snack("خطأ في جلب الموقع: $e", error: true);
     } finally {
-      if (mounted) {
-        setState(() => _locationLoading = false);
-      }
+      if (mounted) setState(() => _locationLoading = false);
     }
   }
 
   Future<void> _pickBirthDate() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime(2007, 1, 1),
@@ -167,21 +161,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       helpText: 'اختر تاريخ الميلاد',
       cancelText: 'إلغاء',
       confirmText: 'تأكيد',
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: isDark ? AppColors.darkPrimary : AppColors.primary,
-              onPrimary: Colors.white,
-              surface: isDark ? AppColors.darkSurface : AppColors.surface,
-              onSurface: isDark
-                  ? AppColors.darkTextPrimary
-                  : AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null && mounted) {
       setState(() {
@@ -191,49 +170,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  void _snack(String message, {bool error = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: isDark ? AppColors.darkAccent : AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: isDark ? AppColors.darkSecondary : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 
   bool _validateForm() {
     if (!_formKey.currentState!.validate()) return false;
-
     if (_gender == null || _gradeId == null || _birthDate == null) {
-      _showErrorSnackBar("الرجاء ملء جميع الحقول المطلوبة");
+      _snack("الرجاء ملء جميع الحقول المطلوبة", error: true);
       return false;
     }
     return true;
@@ -241,10 +188,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Future<void> _handleSubmit() async {
     if (!_validateForm()) return;
-
     setState(() => _loading = true);
 
-    // Get location if user opted to send it
     if (_sendLocation && (_latitude == null || _longitude == null)) {
       await _getLocation();
     }
@@ -271,690 +216,247 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
     try {
       final result = await _authService.completeProfile(payload);
-
       if (!mounted) return;
-
       if (result["success"] == true) {
-        _showSuccessSnackBar("تم حفظ البيانات بنجاح ✅");
+        _snack("تم حفظ البيانات بنجاح ✅");
         Get.offAllNamed("/home");
       } else {
-        _showErrorSnackBar(result["message"] ?? "فشل حفظ البيانات ❌");
+        _snack(result["message"] ?? "فشل حفظ البيانات ❌", error: true);
       }
     } catch (e) {
-      if (mounted) {
-        _showErrorSnackBar("خطأ في الاتصال: $e");
-      }
+      if (mounted) _snack("خطأ في الاتصال: $e", error: true);
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.only(top: 24, bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? AppColors.gradientWelcome
-                    .map((c) => isDark ? AppColors.darkPrimary : c)
-                    .toList()
-              : AppColors.gradientWelcome,
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: (isDark ? AppColors.darkPrimary : AppColors.primary)
-                .withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.white, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    bool required = false,
-    TextInputType? keyboardType,
-    bool readOnly = false,
-    VoidCallback? onTap,
-    IconData? prefixIcon,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: required ? "$label *" : label,
-          prefixIcon: prefixIcon != null
-              ? Icon(
-                  prefixIcon,
-                  color: isDark ? AppColors.darkPrimary : AppColors.primary,
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkPrimary : AppColors.primary,
-              width: 2,
-            ),
-          ),
-          filled: true,
-          fillColor: isDark ? AppColors.darkSurface : AppColors.surface,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          labelStyle: TextStyle(
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.textSecondary,
-            fontSize: 14,
-          ),
-        ),
-        keyboardType: keyboardType,
-        readOnly: readOnly,
-        onTap: onTap,
-        style: TextStyle(
-          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-        ),
-        validator: required
-            ? (v) => v == null || v.isEmpty ? "مطلوب" : null
-            : null,
-      ),
-    );
-  }
-
-  Widget _buildGradeDropdown(List<Map<String, dynamic>> grades) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(
-          labelText: "المرحلة / الصف *",
-          prefixIcon: Icon(
-            Icons.school,
-            color: isDark ? AppColors.darkPrimary : AppColors.primary,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkPrimary : AppColors.primary,
-              width: 2,
-            ),
-          ),
-          filled: true,
-          fillColor: isDark ? AppColors.darkSurface : AppColors.surface,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          labelStyle: TextStyle(
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.textSecondary,
-          ),
-        ),
-        initialValue: _gradeId,
-        isExpanded: true,
-        dropdownColor: isDark ? AppColors.darkSurface : AppColors.surface,
-        style: TextStyle(
-          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-        ),
-        items: grades
-            .map(
-              (g) => DropdownMenuItem<String>(
-                value: g["id"] as String,
-                child: Text(
-                  g["name"] as String,
-                  style: TextStyle(
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-        onChanged: (v) {
-          if (v != _gradeId) {
-            setState(() => _gradeId = v);
-          }
-        },
-        validator: (v) => v == null ? "اختر الصف" : null,
-      ),
-    );
-  }
-
-  Widget _buildGenderDropdown() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(
-          labelText: "الجنس *",
-          prefixIcon: Icon(
-            Icons.person,
-            color: isDark ? AppColors.darkPrimary : AppColors.primary,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.outline,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkPrimary : AppColors.primary,
-              width: 2,
-            ),
-          ),
-          filled: true,
-          fillColor: isDark ? AppColors.darkSurface : AppColors.surface,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          labelStyle: TextStyle(
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.textSecondary,
-          ),
-        ),
-        initialValue: _gender,
-        isExpanded: true,
-        dropdownColor: isDark ? AppColors.darkSurface : AppColors.surface,
-        style: TextStyle(
-          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-        ),
-        items: [
-          DropdownMenuItem(
-            value: "male",
-            child: Text(
-              "ذكر",
-              style: TextStyle(
-                color: isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.textPrimary,
-              ),
-            ),
-          ),
-          DropdownMenuItem(
-            value: "female",
-            child: Text(
-              "أنثى",
-              style: TextStyle(
-                color: isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-        onChanged: (v) {
-          if (v != _gender) {
-            setState(() => _gender = v);
-          }
-        },
-        validator: (v) => v == null ? "اختر الجنس" : null,
-      ),
-    );
-  }
-
-  Widget _buildLocationCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? AppColors.black.withValues(alpha: 0.3)
-                : AppColors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: CheckboxListTile(
-        isThreeLine:
-            _locationLoading || (_latitude != null && _longitude != null),
-        title: Text(
-          "إرسال موقعي الحالي",
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-          ),
-        ),
-        subtitle: _locationLoading
-            ? Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        isDark ? AppColors.darkPrimary : AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      "جاري الحصول على الموقع...",
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                      style: TextStyle(
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : _latitude != null && _longitude != null
-            ? Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: (isDark ? AppColors.darkSecondary : AppColors.success)
-                      .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  "تم الحصول على الموقع: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}",
-                  style: TextStyle(
-                    color: isDark ? AppColors.darkSecondary : AppColors.success,
-                    fontSize: 12,
-                  ),
-                ),
-              )
-            : null,
-        value: _sendLocation,
-        onChanged: _locationLoading
-            ? null
-            : (val) {
-                setState(() => _sendLocation = val ?? false);
-                if (_sendLocation) _getLocation();
-              },
-        secondary: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: (isDark ? AppColors.darkPrimary : AppColors.primary)
-                .withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: _locationLoading
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      isDark ? AppColors.darkPrimary : AppColors.primary,
-                    ),
-                  ),
-                )
-              : Icon(
-                  Icons.location_on,
-                  color: isDark ? AppColors.darkPrimary : AppColors.primary,
-                ),
-        ),
-        activeColor: isDark ? AppColors.darkPrimary : AppColors.primary,
-        contentPadding: const EdgeInsets.all(16),
-      ),
-    );
-  }
+  // ─── build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
-      appBar: AppBar(
-        title: Text(
-          "إكمال البيانات الشخصية",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        actions: [
-          Obx(
-            () => IconButton(
-              icon: Icon(
-                ThemeController.to.themeMode.value == ThemeMode.dark
-                    ? Icons.light_mode
-                    : Icons.dark_mode,
-                color: Colors.white,
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) {
+            final m = context.mq;
+            return Scaffold(
+              backgroundColor: m.page,
+              appBar: AppBar(
+                title: const Text('إكمال البيانات الشخصية'),
+                actions: [
+                  Obx(() => IconButton(
+                        icon: Icon(ThemeController.to.themeMode.value == ThemeMode.dark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined),
+                        onPressed: () => ThemeController.to.toggleDarkLight(),
+                        tooltip: ThemeController.to.themeMode.value == ThemeMode.dark ? 'الوضع النهاري' : 'الوضع الليلي',
+                      )),
+                ],
               ),
-              onPressed: () => ThemeController.to.toggleDarkLight(),
-              tooltip: ThemeController.to.themeMode.value == ThemeMode.dark
-                  ? "التبديل للوضع النهاري"
-                  : "التبديل للوضع الليلي",
-            ),
-          ),
-        ],
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? AppColors.gradientWelcome
-                        .map((c) => AppColors.darkPrimary)
-                        .toList()
-                  : AppColors.gradientWelcome,
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-          ),
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _gradesFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [AppColors.darkBackground, AppColors.darkSurface]
-                        : [AppColors.background, AppColors.surfaceVariant],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
+              body: Form(
+                key: _formKey,
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _gradesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return _loadingView(context);
+                    }
+                    if (snapshot.hasError) {
+                      return _errorView(context, '${snapshot.error}');
+                    }
+                    final grades = snapshot.data ?? [];
+                    return ListView(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
+                      children: [
+                        _sectionCard(context, 'معلومات التواصل', Icons.contact_phone_outlined, [
+                          _field(context, _studentPhoneController, 'هاتف الطالب', required: true, keyboardType: TextInputType.phone, icon: Icons.phone_outlined),
+                          MqSpacing.gapMd,
+                          _field(context, _parentPhoneController, 'هاتف ولي الأمر', keyboardType: TextInputType.phone, icon: Icons.contact_phone_outlined),
+                          MqSpacing.gapMd,
+                          _field(context, _schoolNameController, 'اسم المدرسة', icon: Icons.business_outlined),
+                        ]),
+                        MqSpacing.gapMd,
+                        _sectionCard(context, 'المعلومات التعليمية', Icons.school_outlined, [
+                          _dropdown(context, 'الجنس', Icons.wc_outlined, _gender,
+                              const [DropdownMenuItem(value: 'male', child: Text('ذكر')), DropdownMenuItem(value: 'female', child: Text('أنثى'))],
+                              (v) => setState(() => _gender = v), validatorMsg: 'اختر الجنس'),
+                          MqSpacing.gapMd,
+                          _dropdown(context, 'المرحلة / الصف', Icons.school_outlined, _gradeId,
+                              grades.map((g) => DropdownMenuItem<String>(value: g['id'] as String, child: Text(g['name'] as String))).toList(),
+                              (v) => setState(() => _gradeId = v), validatorMsg: 'اختر الصف'),
+                          MqSpacing.gapMd,
+                          _field(context, _birthDateController, 'تاريخ الميلاد', required: true, readOnly: true, onTap: _pickBirthDate, icon: Icons.cake_outlined),
+                        ]),
+                        MqSpacing.gapMd,
+                        _sectionCard(context, 'العنوان', Icons.location_city_outlined, [
+                          _field(context, _addressController, 'العنوان', icon: Icons.home_outlined),
+                        ]),
+                        MqSpacing.gapMd,
+                        _sectionCard(context, 'الموقع', Icons.location_on_outlined, [_locationTile(context)]),
+                        MqSpacing.gapLg,
+                        MqButton(label: 'حفظ البيانات', icon: Icons.save_outlined, loading: _loading, onPressed: _handleSubmit),
+                      ],
+                    );
+                  },
                 ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isDark ? AppColors.darkPrimary : AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        "جاري تحميل البيانات...",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            if (snapshot.hasError) {
-              return Center(
-                child: Container(
-                  margin: const EdgeInsets.all(24),
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurface : AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark
-                            ? Colors.black.withValues(alpha: 0.3)
-                            : Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color:
-                              (isDark ? AppColors.darkAccent : AppColors.error)
-                                  .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: isDark
-                              ? AppColors.darkAccent
-                              : AppColors.error,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        "خطأ في تحميل البيانات",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "${snapshot.error}",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _gradesFuture = _apiService.fetchGrades();
-                          });
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text("إعادة المحاولة"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark
-                              ? AppColors.darkPrimary.withValues(alpha: 0.1)
-                              : AppColors.primary,
-                          foregroundColor: AppColors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            final grades = snapshot.data ?? [];
-
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                // Contact Information Section
-                _buildSectionHeader("معلومات التواصل", Icons.contact_phone),
-                _buildTextField(
-                  controller: _studentPhoneController,
-                  label: "هاتف الطالب",
-                  required: true,
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: Icons.phone,
-                ),
-                _buildTextField(
-                  controller: _parentPhoneController,
-                  label: "هاتف ولي الأمر",
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: Icons.phone_android,
-                ),
-                _buildTextField(
-                  controller: _schoolNameController,
-                  label: "اسم المدرسة",
-                  prefixIcon: Icons.school,
-                ),
-
-                // Educational Information Section
-                _buildSectionHeader("المعلومات التعليمية", Icons.school),
-                _buildGenderDropdown(),
-                _buildGradeDropdown(grades),
-                _buildTextField(
-                  controller: _birthDateController,
-                  label: "تاريخ الميلاد",
-                  required: true,
-                  readOnly: true,
-                  onTap: _pickBirthDate,
-                  prefixIcon: Icons.calendar_today,
-                ),
-
-                // Address Section
-                _buildSectionHeader("العنوان", Icons.location_city),
-                _buildTextField(
-                  controller: _addressController,
-                  label: "العنوان",
-                  prefixIcon: Icons.home,
-                ),
-
-                // Location Section
-                _buildSectionHeader("الموقع", Icons.location_on),
-                _buildLocationCard(),
-
-                const SizedBox(height: 32),
-
-                // Submit Button
-                Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            (isDark ? AppColors.darkPrimary : AppColors.primary)
-                                .withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: _loading
-                      ? Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isDark
-                                  ? AppColors.gradientWelcome
-                                        .map((c) => AppColors.darkPrimary)
-                                        .toList()
-                                  : AppColors.gradientWelcome,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.white,
-                              ),
-                            ),
-                          ),
-                        )
-                      : ElevatedButton.icon(
-                          icon: const Icon(Icons.save, size: 20),
-                          label: const Text(
-                            "حفظ البيانات",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          onPressed: _handleSubmit,
-                          style:
-                              ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                foregroundColor: AppColors.white,
-                                shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ).copyWith(
-                                backgroundColor: WidgetStateProperty.all(
-                                  Colors.transparent,
-                                ),
-                              ),
-                        ),
-                ),
-                const SizedBox(height: 24),
-              ],
+              ),
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _sectionCard(BuildContext context, String title, IconData icon, List<Widget> children) {
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Icon(icon, size: MqSize.iconSm, color: context.mq.accent),
+            MqSpacing.gapXs,
+            Text(title, style: context.text.titleSmall),
+          ]),
+          MqSpacing.gapMd,
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  OutlineInputBorder _border(BuildContext context, Color c, [double w = 1]) =>
+      OutlineInputBorder(borderRadius: MqRadius.brMd, borderSide: BorderSide(color: c, width: w));
+
+  InputDecoration _decoration(BuildContext context, String label, IconData icon, {bool required = false}) {
+    final m = context.mq;
+    return InputDecoration(
+      labelText: required ? '$label *' : label,
+      labelStyle: context.text.bodySmall,
+      prefixIcon: Icon(icon, size: MqSize.iconSm, color: m.ink3),
+      filled: true,
+      fillColor: m.fill,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: MqSpacing.md, vertical: MqSpacing.sm),
+      border: _border(context, m.line),
+      enabledBorder: _border(context, m.line),
+      focusedBorder: _border(context, m.accent, 1.6),
+      errorBorder: _border(context, m.error),
+      focusedErrorBorder: _border(context, m.error, 1.6),
+    );
+  }
+
+  Widget _field(BuildContext context, TextEditingController controller, String label,
+      {bool required = false, TextInputType? keyboardType, bool readOnly = false, VoidCallback? onTap, IconData? icon}) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      readOnly: readOnly,
+      onTap: onTap,
+      style: context.text.bodyMedium,
+      decoration: _decoration(context, label, icon ?? Icons.edit_outlined, required: required),
+      validator: required ? (v) => (v?.isEmpty ?? true) ? 'مطلوب' : null : null,
+    );
+  }
+
+  Widget _dropdown(BuildContext context, String label, IconData icon, String? value,
+      List<DropdownMenuItem<String>> items, ValueChanged<String?> onChanged, {required String validatorMsg}) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      isExpanded: true,
+      dropdownColor: context.mq.card,
+      style: context.text.bodyMedium,
+      decoration: _decoration(context, label, icon, required: true),
+      items: items,
+      onChanged: onChanged,
+      validator: (v) => v == null ? validatorMsg : null,
+    );
+  }
+
+  Widget _locationTile(BuildContext context) {
+    final m = context.mq;
+    return MqSurface(
+      tone: MqSurfaceTone.neutral,
+      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm),
+      child: Column(
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            activeTrackColor: m.accent,
+            value: _sendLocation,
+            onChanged: _locationLoading
+                ? null
+                : (val) {
+                    setState(() => _sendLocation = val);
+                    if (_sendLocation) _getLocation();
+                  },
+            secondary: _locationLoading
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                : Icon(Icons.location_on_outlined, color: m.accent),
+            title: Text('إرسال موقعي الحالي', style: context.text.bodyMedium),
+            subtitle: Text('يساعدنا على تخصيص التجربة التعليمية في منطقتك.', style: context.text.labelSmall),
+          ),
+          if (_locationLoading)
+            Padding(
+              padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+              child: Row(children: [
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                MqSpacing.gapSm,
+                Text('جاري الحصول على الموقع...', style: context.text.labelSmall),
+              ]),
+            )
+          else if (_latitude != null && _longitude != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: MqBadge(
+                  label: 'تم: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
+                  tone: MqBadgeTone.success,
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingView(BuildContext context) {
+    final m = context.mq;
+    return Center(
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        CircularProgressIndicator(color: m.accent),
+        MqSpacing.gapMd,
+        Text('جاري تحميل البيانات...', style: context.text.bodyMedium),
+      ]),
+    );
+  }
+
+  Widget _errorView(BuildContext context, String error) {
+    final m = context.mq;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(MqSpacing.lg),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.wifi_off_rounded, size: 44, color: m.error),
+          MqSpacing.gapMd,
+          Text('خطأ في تحميل البيانات', style: context.text.titleMedium),
+          MqSpacing.gapXs,
+          Text(error, textAlign: TextAlign.center, style: context.text.bodySmall),
+          MqSpacing.gapMd,
+          MqButton(
+            label: 'إعادة المحاولة',
+            icon: Icons.refresh_rounded,
+            expand: false,
+            onPressed: () => setState(() => _gradesFuture = _apiService.fetchGrades()),
+          ),
+        ]),
       ),
     );
   }

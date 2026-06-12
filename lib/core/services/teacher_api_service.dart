@@ -25,6 +25,14 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  /// Today's remaining sessions for the dashboard activity feed. Backed by
+  /// the existing GET /api/teacher/dashboard/upcoming-today endpoint, which
+  /// returns `data: [ { sessionId, courseName, startTime, endTime, state, ... } ]`.
+  Future<Map<String, dynamic>> fetchTodayUpcomingSessions() async {
+    final res = await _dio.get('/teacher/dashboard/upcoming-today');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   Future<Map<String, dynamic>> fetchAcademicYears() async {
     final res = await _dio.get('/teacher/academic-years');
     return Map<String, dynamic>.from(res.data ?? {});
@@ -64,6 +72,22 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  /// Create a Wayl payment link to top up the wallet by [amount] IQD.
+  /// Returns the envelope; `data` carries `{ url, referenceId, amount }`.
+  Future<Map<String, dynamic>> createWalletTopup(int amount) async {
+    final res = await _dio.post('/teacher/wallet/topup', data: {'amount': amount});
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchWalletTransactions({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final res = await _dio.get('/teacher/wallet/transactions',
+        queryParameters: {'page': page, 'limit': limit});
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   // ===========================================================================
   // Reservation payments (course deposits)
   // ===========================================================================
@@ -89,12 +113,13 @@ class TeacherApiService {
 
   Future<Map<String, dynamic>> fetchInvoices({
     required String studyYear, String? status, String? paymentMode,
-    String? search, bool? deleted, int page = 1, int limit = 50,
+    String? search, String? courseId, bool? deleted, int page = 1, int limit = 50,
   }) async {
     final qp = <String, dynamic>{'studyYear': studyYear, 'page': page, 'limit': limit};
     if (status != null && status.isNotEmpty) qp['status'] = status;
     if (paymentMode != null && paymentMode.isNotEmpty) qp['paymentMode'] = paymentMode;
     if (search != null && search.isNotEmpty) qp['search'] = search;
+    if (courseId != null && courseId.isNotEmpty) qp['courseId'] = courseId;
     if (deleted == true) qp['deleted'] = 'true';
     final res = await _dio.get('/teacher/invoices', queryParameters: qp);
     return Map<String, dynamic>.from(res.data ?? {});
@@ -112,8 +137,31 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  /// Create a student invoice. Wire-shape mirrors the dashboard's
+  /// create-invoice.vue payload — `studentId`, `courseId`, `studyYear`,
+  /// `paymentMode` ('cash' | 'installments'), `amountDue`, optional
+  /// `discountAmount`/`invoiceDate`/`dueDate`/`notes`, and for installments the
+  /// auto-split trio `installmentsCount` / `installmentIntervalDays` /
+  /// `installmentFirstDueDate`. The backend (invoiceCreateSchema) validates
+  /// every field and, on success, fires a best-effort push notification to the
+  /// student ("فاتورة جديدة").
+  Future<Map<String, dynamic>> createInvoice(Map<String, dynamic> payload) async {
+    final res = await _dio.post('/teacher/invoices', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   Future<Map<String, dynamic>> addInvoicePayment(String invoiceId, Map<String, dynamic> payload) async {
     final res = await _dio.post('/teacher/invoices/$invoiceId/payments', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Full invoice edit — replaces amount/discount/dates/notes/mode and
+  /// regenerates the installment plan, then the backend notifies the student.
+  /// Same payload shape as [createInvoice] minus student/course/studyYear
+  /// (those are immutable). Only allowed before any payment was collected.
+  Future<Map<String, dynamic>> updateInvoiceFull(
+      String invoiceId, Map<String, dynamic> payload) async {
+    final res = await _dio.put('/teacher/invoices/$invoiceId', data: payload);
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
@@ -222,6 +270,135 @@ class TeacherApiService {
 
   Future<Map<String, dynamic>> fetchStudentsByCourse(String courseId) async {
     final res = await _dio.get('/teacher/students/by-course/$courseId');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  // ===========================================================================
+  // Assignments
+  // ===========================================================================
+
+  Future<Map<String, dynamic>> createAssignment(Map<String, dynamic> payload) async {
+    final res = await _dio.post('/teacher/assignments', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchAssignments({int page = 1, int limit = 50}) async {
+    final res = await _dio.get('/teacher/assignments',
+        queryParameters: {'page': page, 'limit': limit});
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchAssignmentOverview(String id) async {
+    final res = await _dio.get('/teacher/assignments/$id/overview');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> updateAssignment(
+      String id, Map<String, dynamic> payload) async {
+    final res = await _dio.patch('/teacher/assignments/$id', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> deleteAssignment(String id) async {
+    final res = await _dio.delete('/teacher/assignments/$id');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> gradeAssignment(
+      String assignmentId, String studentId,
+      {required num score, String? feedback}) async {
+    final res =
+        await _dio.put('/teacher/assignments/$assignmentId/grade/$studentId',
+            data: {
+          'score': score,
+          if (feedback != null && feedback.trim().isNotEmpty)
+            'feedback': feedback.trim(),
+        });
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> markAssignmentReceived(
+      String assignmentId, String studentId, bool received) async {
+    final res = await _dio.put(
+        '/teacher/assignments/$assignmentId/received/$studentId',
+        data: {'received': received});
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  // ===========================================================================
+  // Exams
+  // ===========================================================================
+
+  Future<Map<String, dynamic>> createExam(Map<String, dynamic> payload) async {
+    final res = await _dio.post('/teacher/exams', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchExams(
+      {int page = 1, int limit = 100, String? type}) async {
+    final qp = <String, dynamic>{'page': page, 'limit': limit};
+    if (type != null && type.isNotEmpty) qp['type'] = type;
+    final res = await _dio.get('/teacher/exams', queryParameters: qp);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchExamById(String id) async {
+    final res = await _dio.get('/teacher/exams/$id');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchExamStudents(String id,
+      {String? sessionId}) async {
+    final qp = <String, dynamic>{};
+    if (sessionId != null && sessionId.isNotEmpty) qp['sessionId'] = sessionId;
+    final res = await _dio.get('/teacher/exams/$id/students',
+        queryParameters: qp.isEmpty ? null : qp);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> gradeExam(
+      String examId, String studentId, num score) async {
+    final res = await _dio.put('/teacher/exams/$examId/grade/$studentId',
+        data: {'score': score});
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> updateExam(
+      String id, Map<String, dynamic> payload) async {
+    final res = await _dio.patch('/teacher/exams/$id', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> deleteExam(String id) async {
+    final res = await _dio.delete('/teacher/exams/$id');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  // ===========================================================================
+  // Student evaluations
+  // ===========================================================================
+
+  Future<Map<String, dynamic>> fetchEvaluationStudents(
+      String courseId, String date) async {
+    final res = await _dio.get('/teacher/evaluations/students-with-eval',
+        queryParameters: {'courseId': courseId, 'date': date, 'limit': 100});
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> bulkUpsertEvaluations(
+      Map<String, dynamic> payload) async {
+    final res =
+        await _dio.post('/teacher/evaluations/bulk-upsert', data: payload);
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchEvaluationsByStudent(String studentId,
+      {int page = 1, int limit = 50}) async {
+    final res = await _dio.get('/teacher/evaluations', queryParameters: {
+      'studentId': studentId,
+      'page': page,
+      'limit': limit,
+    });
     return Map<String, dynamic>.from(res.data ?? {});
   }
 

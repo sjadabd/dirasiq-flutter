@@ -1,4 +1,5 @@
 // Phase 8.12 — public "where is my teacher application?" screen.
+// (Teacher Design System pass — logic unchanged.)
 //
 // Three steps, all on one screen:
 //   1. Enter email → POST /api/teacher-applications/status/request
@@ -12,11 +13,12 @@
 // the OTP is locked and a new one is needed.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import 'package:mulhimiq/core/services/teacher_application_api_service.dart';
 
+import '../../teacher/shared/design/teacher_design.dart';
+import '../widgets/join_widgets.dart';
 import 'teacher_application_form_screen.dart';
 
 enum _Stage { enterEmail, enterCode, showStatus }
@@ -118,69 +120,58 @@ class _CheckApplicationStatusScreenState
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: AppBar(
-        title: const Text('حالة طلب الانضمام'),
-        backgroundColor: scheme.surface,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          child: switch (_stage) {
-            _Stage.enterEmail => _buildEmailStage(scheme),
-            _Stage.enterCode => _buildCodeStage(scheme),
-            _Stage.showStatus => _buildStatusStage(scheme),
-          },
-        ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Scaffold(
+            backgroundColor: mq.page,
+            appBar: const JoinAppBar(title: 'حالة طلب الانضمام'),
+            body: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                    MqSpacing.xl, MqSpacing.lg, MqSpacing.xl, MqSpacing.xl),
+                child: switch (_stage) {
+                  _Stage.enterEmail => _buildEmailStage(context),
+                  _Stage.enterCode => _buildCodeStage(context),
+                  _Stage.showStatus => _buildStatusStage(context),
+                },
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildEmailStage(ColorScheme scheme) {
+  Widget _buildEmailStage(BuildContext context) {
+    final mq = context.mq;
     return Form(
       key: _emailFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.search, size: 44, color: scheme.primary),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'تحقّق من حالة طلبك',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
-                ),
-          ),
-          const SizedBox(height: 8),
+          const JoinHeroIcon(icon: Icons.search, size: 88),
+          const SizedBox(height: MqSpacing.xl),
+          Text('تحقّق من حالة طلبك',
+              textAlign: TextAlign.center, style: context.text.headlineSmall),
+          const SizedBox(height: MqSpacing.sm),
           Text(
             'أدخل البريد الإلكتروني الذي استخدمته عند التقديم وسنرسل إليك رمزاً للاطلاع على الحالة.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.75),
-                ),
+            style: context.text.bodyMedium?.copyWith(color: mq.ink2),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: MqSpacing.xl),
           TextFormField(
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _requestOtp(),
             decoration: const InputDecoration(
-              border: OutlineInputBorder(),
               labelText: 'البريد الإلكتروني',
               prefixIcon: Icon(Icons.email_outlined),
             ),
@@ -193,250 +184,139 @@ class _CheckApplicationStatusScreenState
               return null;
             },
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: _busy ? null : _requestOtp,
-              icon: _busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2.2),
-                    )
-                  : const Icon(Icons.send_outlined, size: 20),
-              label: Text(_busy ? 'جارٍ الإرسال…' : 'إرسال الرمز'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: scheme.primary,
-                foregroundColor: scheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
+          const SizedBox(height: MqSpacing.lg),
+          MqButton(
+            label: _busy ? 'جارٍ الإرسال…' : 'إرسال الرمز',
+            icon: _busy ? null : Icons.send_outlined,
+            loading: _busy,
+            onPressed: _busy ? null : _requestOtp,
           ),
-          if (_error != null) _errorBox(scheme, _error!),
+          if (_error != null) ...[
+            const SizedBox(height: MqSpacing.md),
+            JoinErrorBox(message: _error!),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildCodeStage(ColorScheme scheme) {
+  Widget _buildCodeStage(BuildContext context) {
     return Form(
       key: _codeFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.mark_email_read_outlined,
-                  size: 44, color: scheme.primary),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'أدخل الرمز',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
-                ),
-          ),
-          const SizedBox(height: 8),
-          if (_info != null)
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(children: [
-                Icon(Icons.info_outline, color: scheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(_info!, style: TextStyle(color: scheme.onSurface)),
-                ),
-              ]),
-            ),
-          const SizedBox(height: 16),
-          TextFormField(
+          const JoinHeroIcon(icon: Icons.mark_email_read_outlined, size: 88),
+          const SizedBox(height: MqSpacing.xl),
+          Text('أدخل الرمز',
+              textAlign: TextAlign.center, style: context.text.headlineSmall),
+          const SizedBox(height: MqSpacing.md),
+          if (_info != null) JoinInfoBox(message: _info!),
+          const SizedBox(height: MqSpacing.lg),
+          JoinOtpField(
             controller: _codeCtrl,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(6),
-            ],
-            style: const TextStyle(
-                fontSize: 28, letterSpacing: 6, fontWeight: FontWeight.w700),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'رمز التحقق',
-              hintText: '------',
-            ),
             validator: (v) {
               final s = (v ?? '').trim();
               if (s.length != 6) return 'الرمز يجب أن يكون 6 أرقام.';
               return null;
             },
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: _busy ? null : _verifyOtp,
-              icon: _busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2.2),
-                    )
-                  : const Icon(Icons.verified_outlined, size: 20),
-              label: Text(_busy ? 'جارٍ التحقق…' : 'تأكيد'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: scheme.primary,
-                foregroundColor: scheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
+          const SizedBox(height: MqSpacing.lg),
+          MqButton(
+            label: _busy ? 'جارٍ التحقق…' : 'تأكيد',
+            icon: _busy ? null : Icons.verified_outlined,
+            loading: _busy,
+            onPressed: _busy ? null : _verifyOtp,
           ),
-          const SizedBox(height: 8),
-          TextButton(
+          const SizedBox(height: MqSpacing.sm),
+          MqButton.text(
+            label: 'استخدام بريد إلكتروني آخر',
+            expand: true,
             onPressed: _busy ? null : _resetToEmail,
-            child: const Text('استخدام بريد إلكتروني آخر'),
           ),
-          if (_error != null) _errorBox(scheme, _error!),
+          if (_error != null) ...[
+            const SizedBox(height: MqSpacing.md),
+            JoinErrorBox(message: _error!),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildStatusStage(ColorScheme scheme) {
+  Widget _buildStatusStage(BuildContext context) {
     final result = _result;
-    if (result == null) return _buildEmailStage(scheme);
+    if (result == null) return _buildEmailStage(context);
 
-    final config = _statusVisuals(scheme, result.status);
+    final v = _statusVisuals(context, result.status);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              color: config.accent.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(config.icon, size: 48, color: config.accent),
-          ),
-        ),
-        const SizedBox(height: 24),
+        JoinHeroIcon(icon: v.icon, tone: v.accent, size: 96),
+        const SizedBox(height: MqSpacing.xl),
+        Text(v.title,
+            textAlign: TextAlign.center, style: context.text.headlineSmall),
+        const SizedBox(height: MqSpacing.md),
         Text(
-          config.title,
+          v.subtitle,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: scheme.onSurface,
-              ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          config.subtitle,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurface.withValues(alpha: 0.75),
-              ),
+          style: context.text.bodyMedium?.copyWith(color: context.mq.ink2),
         ),
         if (result.status == 'rejected' &&
             (result.rejectionReason?.isNotEmpty ?? false)) ...[
-          const SizedBox(height: 24),
-          _quoteBox(scheme, 'سبب الرفض', result.rejectionReason!, config.accent),
+          const SizedBox(height: MqSpacing.xl),
+          _quoteBox(context, 'سبب الرفض', result.rejectionReason!, v.accent),
         ],
         if (result.status == 'needs_more_info' &&
             (result.adminNotes?.isNotEmpty ?? false)) ...[
-          const SizedBox(height: 24),
-          _quoteBox(scheme, 'ملاحظات الإدارة', result.adminNotes!, config.accent),
+          const SizedBox(height: MqSpacing.xl),
+          _quoteBox(context, 'ملاحظات الإدارة', result.adminNotes!, v.accent),
         ],
-        const SizedBox(height: 28),
+        const SizedBox(height: MqSpacing.xl),
         if (result.status == 'rejected' || result.status == 'needs_more_info')
-          SizedBox(
-            height: 50,
-            child: ElevatedButton.icon(
+          Padding(
+            padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+            child: MqButton(
+              label: 'تقديم طلب جديد',
+              icon: Icons.refresh,
               onPressed: () =>
                   Get.off(() => const TeacherApplicationFormScreen()),
-              icon: const Icon(Icons.refresh, size: 20),
-              label: const Text('تقديم طلب جديد'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: scheme.primary,
-                foregroundColor: scheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
             ),
           ),
-        OutlinedButton(
+        MqButton.secondary(
+          label: 'استعلام عن طلب آخر',
           onPressed: _resetToEmail,
-          child: const Text('استعلام عن طلب آخر'),
         ),
       ],
     );
   }
 
-  Widget _errorBox(ColorScheme scheme, String message) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: scheme.errorContainer,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(children: [
-          Icon(Icons.error_outline, color: scheme.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child:
-                Text(message, style: TextStyle(color: scheme.onErrorContainer)),
-          ),
-        ]),
-      ),
-    );
-  }
-
   Widget _quoteBox(
-      ColorScheme scheme, String title, String body, Color accent) {
+      BuildContext context, String title, String body, Color accent) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(MqSpacing.lg),
       decoration: BoxDecoration(
         border: Border.all(color: accent.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(10),
-        color: accent.withValues(alpha: 0.05),
+        borderRadius: MqRadius.brMd,
+        color: accent.withValues(alpha: 0.06),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: TextStyle(
-                  color: accent, fontSize: 13, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
+              style: context.text.labelMedium
+                  ?.copyWith(color: accent, fontWeight: FontWeight.w700)),
+          const SizedBox(height: MqSpacing.xs),
           Text(body,
-              style: TextStyle(
-                  color: scheme.onSurface,
-                  fontSize: 14,
-                  height: 1.5)),
+              style: context.text.bodyMedium
+                  ?.copyWith(color: context.mq.ink, height: 1.5)),
         ],
       ),
     );
   }
 
-  _StatusVisuals _statusVisuals(ColorScheme scheme, String status) {
+  _StatusVisuals _statusVisuals(BuildContext context, String status) {
+    final t = context.teacher;
     switch (status) {
       case 'approved':
         return _StatusVisuals(
@@ -444,14 +324,14 @@ class _CheckApplicationStatusScreenState
           title: 'تمّت الموافقة',
           subtitle:
               'تمت الموافقة على طلبك. يمكنك تسجيل الدخول الآن باستخدام بياناتك.',
-          accent: const Color(0xFF16A34A),
+          accent: t.success,
         );
       case 'rejected':
         return _StatusVisuals(
           icon: Icons.cancel_outlined,
           title: 'تم رفض الطلب',
           subtitle: 'نأسف لإبلاغك بأنه لم تتم الموافقة على طلبك في هذه المرة.',
-          accent: scheme.error,
+          accent: t.danger,
         );
       case 'needs_more_info':
         return _StatusVisuals(
@@ -459,7 +339,7 @@ class _CheckApplicationStatusScreenState
           title: 'مطلوب معلومات إضافية',
           subtitle:
               'يحتاج فريق المراجعة إلى معلومات إضافية لإكمال دراسة طلبك.',
-          accent: const Color(0xFFD97706),
+          accent: t.warning,
         );
       case 'pending':
       default:
@@ -468,7 +348,7 @@ class _CheckApplicationStatusScreenState
           title: 'الطلب قيد المراجعة',
           subtitle:
               'تم استلام طلبك وهو قيد المراجعة من قبل فريق الإدارة. سنتواصل معك قريباً.',
-          accent: scheme.primary,
+          accent: t.info,
         );
     }
   }

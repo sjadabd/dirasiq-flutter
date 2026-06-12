@@ -1,12 +1,12 @@
-// Phase 6 — shared shell for every Course Hub section.
+// Phase 6 — shared shell for every Course Hub section (MulhimIQ design system).
 //
 // Every section card on the unified Hub uses this same outer chrome
-// (icon + title + optional badge + body slot + optional CTA). Keeping
-// the shell here ensures consistent spacing, theming, and ARIA-style
-// semantics across all 8 sections. Section widgets focus on their
-// content + lazy-load lifecycle, not layout.
+// (icon + title + optional badge + body slot + optional CTA). Restyled with
+// the design system so all sections stay consistent with Student Home.
 
 import 'package:flutter/material.dart';
+
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class CourseHubSectionShell extends StatelessWidget {
   const CourseHubSectionShell({
@@ -19,78 +19,50 @@ class CourseHubSectionShell extends StatelessWidget {
     this.action,
   });
 
-  /// Header icon (e.g. ri-megaphone, calendar, ...).
   final IconData icon;
-
-  /// Section title in Arabic (e.g. "الإعلانات", "الجدول الأسبوعي").
   final String title;
-
-  /// Right-aligned chip (e.g. a count). Optional.
   final Widget? badge;
-
-  /// Trailing action button in the header (e.g. "عرض الكل"). Optional.
   final Widget? action;
-
-  /// Override the default primary color for the header icon. Optional.
   final Color? iconColor;
-
-  /// Section body — whatever the section wants to render below the
-  /// header. The shell adds vertical spacing automatically.
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final effectiveIconColor = iconColor ?? cs.primary;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: effectiveIconColor.withValues(alpha: 0.15),
-                child: Icon(icon, color: effectiveIconColor, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+    final mq = context.mq;
+    final c = iconColor ?? mq.accent;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: MqSpacing.md),
+      child: MqCard(
+        padding: const EdgeInsets.all(MqSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: MqRadius.brMd),
+                  child: Icon(icon, color: c, size: MqSize.iconSm),
                 ),
-              ),
-              if (badge != null) ...[
-                const SizedBox(width: 6),
-                badge!,
+                MqSpacing.gapSm,
+                Expanded(child: Text(title, style: context.text.titleSmall)),
+                if (badge != null) ...[MqSpacing.gapXs, badge!],
+                if (action != null) ...[MqSpacing.gapXs, action!],
               ],
-              if (action != null) ...[
-                const SizedBox(width: 6),
-                action!,
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
+            ),
+            MqSpacing.gapMd,
+            child,
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Compact "row" used by several sections — leading icon + title +
-/// optional trailing widget. Tappable.
+/// Compact card-style row — leading icon chip + title + optional subtitle and
+/// trailing (or an auto chevron when tappable). Used by the academic section
+/// and others.
 class CourseHubRow extends StatelessWidget {
   const CourseHubRow({
     super.key,
@@ -109,46 +81,54 @@ class CourseHubRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: cs.onSurfaceVariant),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+    final mq = context.mq;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+      child: Material(
+        color: mq.fill,
+        shape: RoundedRectangleBorder(borderRadius: MqRadius.brMd, side: BorderSide(color: mq.line)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(MqSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: mq.accentSoft, borderRadius: MqRadius.brMd),
+                  child: Icon(icon, size: MqSize.iconSm, color: mq.accent),
+                ),
+                MqSpacing.gapMd,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(label, style: context.text.titleSmall),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(subtitle!, style: context.text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ],
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[MqSpacing.gapXs, trailing!],
+                if (onTap != null) ...[
+                  MqSpacing.gapXs,
+                  Icon(Icons.chevron_left_rounded, size: 20, color: mq.ink3),
                 ],
-              ),
+              ],
             ),
-            if (trailing != null) trailing!,
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Tiny pill used in section badges (e.g. "5 جديد"). Adapts to dark
-/// mode via `surfaceContainerHighest` of the current ColorScheme.
+/// Tiny pill used in section badges (e.g. "5 جديد").
 class CourseHubBadge extends StatelessWidget {
   const CourseHubBadge({super.key, required this.label, this.color});
   final String label;
@@ -156,18 +136,12 @@ class CourseHubBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final c = color ?? cs.primary;
+    final mq = context.mq;
+    final c = color ?? mq.accent;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 11),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: 2),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.14), borderRadius: MqRadius.brPill),
+      child: Text(label, style: context.text.labelSmall?.copyWith(color: c, fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -181,10 +155,11 @@ class CourseHubSectionLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: height,
-      child: const Center(
+      child: Center(
         child: SizedBox(
-          width: 20, height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2, color: context.mq.accent),
         ),
       ),
     );
@@ -199,28 +174,17 @@ class CourseHubSectionError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: cs.errorContainer.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    final mq = context.mq;
+    return MqSurface(
+      tone: MqSurfaceTone.neutral,
+      padding: const EdgeInsets.all(MqSpacing.md),
       child: Row(
         children: [
-          Icon(Icons.error_outline, size: 18, color: cs.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: cs.error, fontSize: 12),
-            ),
-          ),
+          Icon(Icons.error_outline_rounded, size: MqSize.iconSm, color: mq.error),
+          MqSpacing.gapSm,
+          Expanded(child: Text(message, style: context.text.bodySmall?.copyWith(color: mq.error))),
           if (onRetry != null)
-            TextButton(
-              onPressed: onRetry,
-              child: const Text('إعادة المحاولة', style: TextStyle(fontSize: 12)),
-            ),
+            MqButton.text(label: 'إعادة المحاولة', size: MqButtonSize.small, onPressed: onRetry),
         ],
       ),
     );

@@ -78,9 +78,12 @@ class _CourseHubScheduleSectionState extends State<CourseHubScheduleSection> {
   }
 
   Widget _buildSlotRow(Map<String, dynamic> slot) {
-    final dayIndex = (slot['day_of_week'] ?? slot['dayOfWeek'] ?? 0) as int;
-    final start = (slot['start_time'] ?? slot['startTime'] ?? '').toString();
-    final end = (slot['end_time'] ?? slot['endTime'] ?? '').toString();
+    // The API keys the weekday as `weekday` (Postgres EXTRACT(DOW): 0=Sun..6=Sat),
+    // NOT `day_of_week`. Reading the wrong key made every row default to 0 (الأحد).
+    final raw = slot['weekday'] ?? slot['day_of_week'] ?? slot['dayOfWeek'];
+    final dayIndex = (raw is int) ? raw : int.tryParse(raw?.toString() ?? '') ?? -1;
+    final start = _ar12((slot['startTime'] ?? slot['start_time'] ?? '').toString());
+    final end = _ar12((slot['endTime'] ?? slot['end_time'] ?? '').toString());
     final dayLabel = (dayIndex >= 0 && dayIndex < _arWeekday.length)
         ? _arWeekday[dayIndex]
         : '—';
@@ -89,5 +92,16 @@ class _CourseHubScheduleSectionState extends State<CourseHubScheduleSection> {
       label: dayLabel,
       subtitle: start.isNotEmpty && end.isNotEmpty ? '$start – $end' : '',
     );
+  }
+
+  /// Localises the English AM/PM suffix on the backend's 12-hour time strings.
+  static String _ar12(String s) {
+    final t = s.trim();
+    if (t.isEmpty) return '';
+    return t
+        .replaceAll('AM', 'ص')
+        .replaceAll('PM', 'م')
+        .replaceAll('am', 'ص')
+        .replaceAll('pm', 'م');
   }
 }

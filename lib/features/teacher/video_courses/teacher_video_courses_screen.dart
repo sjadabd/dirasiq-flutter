@@ -1,19 +1,20 @@
 // Teacher → "الدورات المرئية" — list view + create dialog.
 //
-// Matches the dashboard's /teacher/video-courses index:
-//   - Status tabs (all / pending_review / approved / hidden / rejected).
-//   - Compact card grid (2 cols on phone, 3 on tablet).
-//   - "Create new course" dialog where subject + teachingStage are
-//     DROPDOWNS sourced from the teacher's own subjects + grades.
-//
-// Per-course tap → teacher_video_course_detail_screen.dart.
+// Teacher Design System pass. Presentation only — fetchMyVideoCourses, the
+// realtime approve/reject subscriptions, and the create flow
+// (VideoCourseFormDialog) are UNCHANGED. Restyled to the teacher design system
+// (hero + MqChip status filters + design-system thumbnail cards).
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
+import '../../../core/utils/money.dart';
 import '../../../shared/widgets/app_network_image.dart';
+import '../shared/design/teacher_design.dart';
+import '../shared/teacher_app_bar.dart';
+import '../shared/teacher_drawer.dart';
 import 'teacher_video_course_detail_screen.dart';
 import 'widgets/video_course_form_dialog.dart';
 
@@ -21,16 +22,17 @@ class TeacherVideoCoursesScreen extends StatefulWidget {
   const TeacherVideoCoursesScreen({super.key});
 
   @override
-  State<TeacherVideoCoursesScreen> createState() => _TeacherVideoCoursesScreenState();
+  State<TeacherVideoCoursesScreen> createState() =>
+      _TeacherVideoCoursesScreenState();
 }
 
 class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
-  static const _statuses = <Map<String, dynamic>>[
-    {'value': 'all',            'label': 'الكل',              'color': Colors.grey},
-    {'value': 'pending_review', 'label': 'بانتظار المراجعة', 'color': Colors.orange},
-    {'value': 'approved',       'label': 'مقبولة',           'color': Colors.green},
-    {'value': 'hidden',         'label': 'مخفية',            'color': Colors.blueGrey},
-    {'value': 'rejected',       'label': 'مرفوضة',           'color': Colors.red},
+  static const _statuses = <(String, String)>[
+    ('all', 'الكل'),
+    ('pending_review', 'بانتظار المراجعة'),
+    ('approved', 'مقبولة'),
+    ('hidden', 'مخفية'),
+    ('rejected', 'مرفوضة'),
   ];
 
   final _api = TeacherApiService();
@@ -40,7 +42,6 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
   List<Map<String, dynamic>> _items = [];
   String _error = '';
 
-  // Unsubscribe handle for the realtime listeners.
   void Function()? _unsubCourseStatus;
 
   @override
@@ -48,10 +49,6 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
     super.initState();
     _fetch();
 
-    // When the admin approves / rejects ANY of this teacher's courses, the
-    // list view should reflect it without a manual refresh. The detail
-    // screen also subscribes and matches by id; here we refetch the whole
-    // list because the row could move between status tabs.
     void onCourseStatusChange(dynamic data, {required bool approved}) {
       if (!mounted) return;
       final course = (data is Map && data['course'] is Map)
@@ -59,10 +56,6 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
           : null;
       if (course == null) return;
       _fetch();
-      // Two-step remove + post-frame show — clearSnackBars alone races
-      // with Material's Hero teardown when identical-text snackbars
-      // arrive back-to-back. See teacher_video_course_detail_screen
-      // _snack() for the full rationale.
       final messenger = ScaffoldMessenger.of(context);
       messenger.removeCurrentSnackBar();
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -84,7 +77,10 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
       'video-course:rejected',
       (d) => onCourseStatusChange(d, approved: false),
     );
-    _unsubCourseStatus = () { approveUnsub(); rejectUnsub(); };
+    _unsubCourseStatus = () {
+      approveUnsub();
+      rejectUnsub();
+    };
   }
 
   @override
@@ -94,7 +90,10 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
   }
 
   Future<void> _fetch() async {
-    setState(() { _loading = true; _error = ''; });
+    setState(() {
+      _loading = true;
+      _error = '';
+    });
     try {
       final res = await _api.fetchMyVideoCourses(status: _status);
       final list = res['data'];
@@ -109,96 +108,204 @@ class _TeacherVideoCoursesScreenState extends State<TeacherVideoCoursesScreen> {
   }
 
   Future<void> _openCreateDialog() async {
-    final id = await showDialog<String?>(
+    final id = await showModalBottomSheet<String?>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => const VideoCourseFormDialog(),
     );
     if (id != null && mounted) {
       await Get.to(() => TeacherVideoCourseDetailScreen(courseId: id));
-      _fetch(); // refresh after returning so any inline edits land
+      _fetch();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: AppBar(
-        title: const Text('دوراتي المرئية'),
-        backgroundColor: scheme.surface,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'تحديث',
-            onPressed: _loading ? null : _fetch,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openCreateDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('دورة جديدة'),
-      ),
-      body: Column(
-        children: [
-          SizedBox(
-            height: 44,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              scrollDirection: Axis.horizontal,
-              itemCount: _statuses.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 6),
-              itemBuilder: (_, i) {
-                final s = _statuses[i];
-                final selected = _status == s['value'];
-                return ChoiceChip(
-                  label: Text(s['label']),
-                  selected: selected,
-                  onSelected: (_) {
-                    setState(() => _status = s['value']);
-                    _fetch();
-                  },
-                );
-              },
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Scaffold(
+            backgroundColor: mq.page,
+            appBar: TeacherAppBar(
+              title: 'الدورات المرئية',
+              actions: [_RefreshAction(loading: _loading, onTap: _fetch)],
             ),
+            drawer: const TeacherDrawer(),
+            floatingActionButton: FloatingActionButton(
+              onPressed: _openCreateDialog,
+              backgroundColor: mq.accent,
+              foregroundColor: mq.onAccent,
+              elevation: 3,
+              tooltip: 'دورة جديدة',
+              shape: const RoundedRectangleBorder(borderRadius: MqRadius.brLg),
+              child: const Icon(Icons.add_rounded),
+            ),
+            body: Column(
+              children: [
+                _hero(context),
+                _filters(context),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _error.isNotEmpty
+                          ? Center(
+                              child: Text(_error,
+                                  style: context.text.bodyMedium
+                                      ?.copyWith(color: mq.error)))
+                          : _items.isEmpty
+                              ? const _EmptyState()
+                              : RefreshIndicator(
+                                  onRefresh: _fetch,
+                                  color: mq.accent,
+                                  child: GridView.builder(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        MqSpacing.lg, 0, MqSpacing.lg, 96),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                                      maxCrossAxisExtent: 220,
+                                      mainAxisExtent: 224,
+                                      crossAxisSpacing: MqSpacing.md,
+                                      mainAxisSpacing: MqSpacing.md,
+                                    ),
+                                    itemCount: _items.length,
+                                    itemBuilder: (_, i) {
+                                      final c = _items[i];
+                                      return _CourseCard(
+                                        course: c,
+                                        onTap: () async {
+                                          await Get.to(() =>
+                                              TeacherVideoCourseDetailScreen(
+                                                  courseId:
+                                                      c['id'].toString()));
+                                          _fetch();
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _hero(BuildContext context) {
+    final t = context.teacher;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.md),
+      child: Container(
+        padding: const EdgeInsets.all(MqSpacing.lg),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [t.heroA, t.heroB],
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
           ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error.isNotEmpty
-                    ? Center(child: Text(_error, style: TextStyle(color: scheme.error)))
-                    : _items.isEmpty
-                        ? const _EmptyState()
-                        : RefreshIndicator(
-                            onRefresh: _fetch,
-                            child: GridView.builder(
-                              padding: const EdgeInsets.all(12),
-                              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 220,
-                                mainAxisExtent: 220,
-                                crossAxisSpacing: 10,
-                                mainAxisSpacing: 10,
-                              ),
-                              itemCount: _items.length,
-                              itemBuilder: (_, i) {
-                                final c = _items[i];
-                                return _CourseCard(
-                                  course: c,
-                                  onTap: () async {
-                                    await Get.to(() => TeacherVideoCourseDetailScreen(
-                                          courseId: c['id'].toString(),
-                                        ));
-                                    _fetch();
-                                  },
-                                );
-                              },
-                            ),
-                          ),
+          borderRadius: MqRadius.brXl,
+          boxShadow: t.shadowLg,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                  color: context.mq.orange, shape: BoxShape.circle),
+              child: const Icon(Icons.video_library_outlined,
+                  color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: MqSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('الدورات المرئية',
+                      style:
+                          context.text.titleMedium?.copyWith(color: t.heroInk)),
+                  const SizedBox(height: 2),
+                  Text('${_items.length} دورة',
+                      style:
+                          context.text.labelSmall?.copyWith(color: t.heroInk2)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filters(BuildContext context) {
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: MqSpacing.lg),
+        scrollDirection: Axis.horizontal,
+        itemCount: _statuses.length,
+        separatorBuilder: (_, _) => const SizedBox(width: MqSpacing.sm),
+        itemBuilder: (_, i) {
+          final (value, label) = _statuses[i];
+          return MqChip(
+            label: label,
+            selected: _status == value,
+            onTap: () {
+              setState(() => _status = value);
+              _fetch();
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sub-widgets
+// ---------------------------------------------------------------------------
+
+class _RefreshAction extends StatelessWidget {
+  const _RefreshAction({required this.loading, required this.onTap});
+  final bool loading;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = context.mq;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.xs),
+      child: Material(
+        color: mq.fill,
+        shape: RoundedRectangleBorder(
+          borderRadius: MqRadius.brMd,
+          side: BorderSide(color: mq.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: loading ? null : () => onTap(),
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: loading
+                ? Padding(
+                    padding: const EdgeInsets.all(11),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: mq.ink3),
+                  )
+                : Icon(Icons.refresh_rounded,
+                    size: MqSize.iconSm, color: mq.ink2),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -208,15 +315,23 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final mq = context.mq;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.video_library_outlined, size: 64, color: scheme.outline),
-          const SizedBox(height: 12),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(color: mq.fill2, shape: BoxShape.circle),
+            child: Icon(Icons.video_library_outlined, size: 34, color: mq.ink3),
+          ),
+          const SizedBox(height: MqSpacing.md),
           Text('لا توجد دورات في هذه الحالة',
-              style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7))),
+              style: context.text.bodyMedium?.copyWith(color: mq.ink2)),
+          const SizedBox(height: MqSpacing.xs),
+          Text('أنشئ دورتك من زر «دورة جديدة»',
+              style: context.text.bodySmall?.copyWith(color: mq.ink3)),
         ],
       ),
     );
@@ -228,33 +343,42 @@ class _CourseCard extends StatelessWidget {
   final Map<String, dynamic> course;
   final VoidCallback onTap;
 
-  Map<String, dynamic> _statusVisuals(String s) {
+  (String, TeacherTone) _statusMeta(String s) {
     switch (s) {
-      case 'pending_review': return {'label': 'بانتظار المراجعة', 'color': Colors.orange};
-      case 'approved':       return {'label': 'مقبولة',           'color': Colors.green};
-      case 'hidden':         return {'label': 'مخفية',            'color': Colors.blueGrey};
-      case 'rejected':       return {'label': 'مرفوضة',           'color': Colors.red};
-      default:               return {'label': s,                  'color': Colors.grey};
+      case 'pending_review':
+        return ('بانتظار المراجعة', TeacherTone.warning);
+      case 'approved':
+        return ('مقبولة', TeacherTone.success);
+      case 'hidden':
+        return ('مخفية', TeacherTone.neutral);
+      case 'rejected':
+        return ('مرفوضة', TeacherTone.danger);
+      default:
+        return (s, TeacherTone.neutral);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final mq = context.mq;
+    final t = context.teacher;
     final cover = course['coverImage']?.toString() ?? '';
-    final status = course['status']?.toString() ?? '';
-    final sv = _statusVisuals(status);
+    final (statusLabel, statusTone) =
+        _statusMeta(course['status']?.toString() ?? '');
+    final statusColor = switch (statusTone) {
+      TeacherTone.warning => t.warning,
+      TeacherTone.success => t.success,
+      TeacherTone.danger => t.danger,
+      _ => mq.ink2,
+    };
     final isFree = course['isFree'] == true;
-    return InkWell(
+
+    return MqCard(
+      padding: EdgeInsets.zero,
+      borderRadius: MqRadius.brLg,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: scheme.outlineVariant),
-        ),
+      child: ClipRRect(
+        borderRadius: MqRadius.brLg,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -263,24 +387,26 @@ class _CourseCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // AppNetworkImage handles empty / loading / failed states
-                  // with a light placeholder — avoids the black-frame bug
-                  // that came from the previous theme-derived fallback.
                   AppNetworkImage(
                     url: cover,
                     fit: BoxFit.cover,
                     fallbackIcon: Icons.movie_outlined,
                   ),
-                  Positioned(
-                    top: 6, right: 6,
+                  PositionedDirectional(
+                    top: 6,
+                    end: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: MqSpacing.sm, vertical: 2),
                       decoration: BoxDecoration(
-                        color: (sv['color'] as Color).withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(4),
+                        color: statusColor,
+                        borderRadius: MqRadius.brPill,
                       ),
-                      child: Text(sv['label'],
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                      child: Text(statusLabel,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -288,7 +414,7 @@ class _CourseCard extends StatelessWidget {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.all(MqSpacing.sm),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -296,33 +422,21 @@ class _CourseCard extends StatelessWidget {
                       course['title']?.toString() ?? '',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      style: context.text.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       '${course['subject'] ?? '—'} · ${course['teachingStage'] ?? '—'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                      style: context.text.labelSmall?.copyWith(color: mq.ink3),
                     ),
                     const Spacer(),
-                    Row(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: (isFree ? Colors.green : Colors.orange).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          isFree ? 'مجاني' : '${course['price'] ?? 0} د.ع',
-                          style: TextStyle(
-                            color: isFree ? Colors.green.shade700 : Colors.orange.shade800,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ]),
+                    MqBadge(
+                      label: isFree ? 'مجاني' : '${fmtMoney(course['price'])} د.ع',
+                      tone: isFree ? MqBadgeTone.success : MqBadgeTone.orange,
+                    ),
                   ],
                 ),
               ),
@@ -332,6 +446,4 @@ class _CourseCard extends StatelessWidget {
       ),
     );
   }
-
 }
-

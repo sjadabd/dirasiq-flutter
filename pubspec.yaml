@@ -35,6 +35,9 @@ dependencies:
   google_fonts: ^6.2.1
   collection: ^1.18.0
   socket_io_client: ^3.1.4
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

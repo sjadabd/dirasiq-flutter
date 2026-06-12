@@ -1,15 +1,20 @@
+// Student → Grades & reports (MulhimIQ design-system pass).
+//
+// Opened from Course Hub → الأكاديمي → الدرجات والتقارير. Backed by the existing
+// endpoint ApiService.fetchStudentExamReportByType(type: 'monthly') — no backend
+// change. The report has no per-item detail route; it's a read-only summary.
+
 import 'package:flutter/material.dart';
-import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
-import 'package:mulhimiq/shared/themes/app_colors.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+
 import 'package:mulhimiq/core/services/api_service.dart';
-import 'package:intl/intl.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class StudentExamGradesScreen extends StatefulWidget {
   const StudentExamGradesScreen({super.key});
 
   @override
-  State<StudentExamGradesScreen> createState() =>
-      _StudentExamGradesScreenState();
+  State<StudentExamGradesScreen> createState() => _StudentExamGradesScreenState();
 }
 
 class _StudentExamGradesScreenState extends State<StudentExamGradesScreen> {
@@ -28,25 +33,12 @@ class _StudentExamGradesScreenState extends State<StudentExamGradesScreen> {
   List<Map<String, dynamic>> _safeListOfMaps(dynamic v) {
     if (v is List) {
       try {
-        return v
-            .whereType<Map<String, dynamic>>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
+        return v.whereType<Map<String, dynamic>>().map((e) => Map<String, dynamic>.from(e)).toList();
       } catch (_) {
         return const [];
       }
     }
     return const [];
-  }
-
-  String _formatDate(String? iso) {
-    if (iso == null || iso.isEmpty) return '-';
-    try {
-      final d = DateTime.parse(iso).toLocal();
-      return DateFormat('dd/MM/yyyy', 'ar').format(d);
-    } catch (_) {
-      return iso;
-    }
   }
 
   Map<String, dynamic> _safeMap(dynamic v) {
@@ -60,6 +52,15 @@ class _StudentExamGradesScreenState extends State<StudentExamGradesScreen> {
     return const {};
   }
 
+  String _formatDate(String? iso) {
+    if (iso == null || iso.isEmpty) return '-';
+    try {
+      return DateFormat('dd/MM/yyyy', 'ar').format(DateTime.parse(iso).toLocal());
+    } catch (_) {
+      return iso;
+    }
+  }
+
   Future<void> _fetchReport() async {
     setState(() {
       _loading = true;
@@ -67,11 +68,10 @@ class _StudentExamGradesScreenState extends State<StudentExamGradesScreen> {
       _report = null;
     });
     try {
-      final List<Map<String, dynamic>> report = await _api
-          .fetchStudentExamReportByType(type: _reportType);
+      final report = await _api.fetchStudentExamReportByType(type: _reportType);
       setState(() => _report = report);
     } catch (e) {
-      setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      setState(() => _error = 'تعذّر تحميل الدرجات');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -80,555 +80,262 @@ class _StudentExamGradesScreenState extends State<StudentExamGradesScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: const GlobalAppBar(title: 'الدرجات الشهرية', centerTitle: true),
-      body: RefreshIndicator(
-        onRefresh: _fetchReport,
-        child: ListView(
-          padding: const EdgeInsets.all(12),
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            _buildHeader(isDark),
-            const SizedBox(height: 12),
-            if (_loading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            else if (_error != null)
-              _buildErrorCard(isDark)
-            else if (_report != null)
-              (_report is List
-                  ? _reportListView(_safeListOfMaps(_report), isDark)
-                  : _reportView(_safeMap(_report), isDark)),
-          ],
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: context.mq.page,
+            appBar: AppBar(title: const Text('الدرجات والتقارير')),
+            body: RefreshIndicator(onRefresh: _fetchReport, child: _body(context)),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(bool isDark) {
+  Widget _body(BuildContext context) {
+    if (_loading) return _skeleton(context);
+    if (_error != null) return _errorView(context);
+
+    final isList = _report is List;
+    final items = isList ? _safeListOfMaps(_report) : const <Map<String, dynamic>>[];
+    final single = !isList ? _safeMap(_report) : const <String, dynamic>{};
+    final empty = _report == null || (isList && items.isEmpty) || (!isList && single.isEmpty);
+
+    if (empty) return _empty(context);
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
+      children: [
+        _header(context),
+        MqSpacing.gapLg,
+        if (isList)
+          for (final it in items)
+            Padding(padding: const EdgeInsets.only(bottom: MqSpacing.sm), child: _gradeCard(context, it))
+        else
+          _reportCard(context, single),
+      ],
+    );
+  }
+
+  Widget _header(BuildContext context) {
+    final mq = context.mq;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(MqSpacing.lg),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [mq.accent, mq.accentDeep]),
+        borderRadius: MqRadius.brXl,
+        boxShadow: [BoxShadow(color: mq.accentShadow, blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.bar_chart_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
+            padding: const EdgeInsets.all(MqSpacing.sm),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: MqRadius.brMd),
+            child: const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 22),
           ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'تقرير الامتحانات الشهرية',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorCard(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
-        border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
-          width: 0.5,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
-          const SizedBox(width: 8),
+          MqSpacing.gapMd,
           Expanded(
-            child: Text(
-              _error!,
-              style: TextStyle(
-                color: AppColors.error,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: Text('تقرير الامتحانات الشهرية',
+                style: context.text.titleSmall?.copyWith(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  Widget _reportListView(List<Map<String, dynamic>> items, bool isDark) {
-    if (items.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(
-                Icons.inbox_outlined,
-                size: 40,
-                color: isDark ? Colors.white38 : Colors.black38,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'لا توجد درجات',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.white54 : Colors.black54,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: items.map((it) => _examGradeCard(it, isDark)).toList(),
-    );
+  ({double? pct, MqBadgeTone tone, String? result}) _result(String score, String maxScore) {
+    final s = double.tryParse(score);
+    final m = double.tryParse(maxScore);
+    if (s == null || m == null || m <= 0) return (pct: null, tone: MqBadgeTone.neutral, result: null);
+    final pct = (s / m) * 100;
+    final pass = pct >= 50;
+    return (pct: pct, tone: pass ? MqBadgeTone.success : MqBadgeTone.error, result: pass ? 'ناجح' : 'دون المعدّل');
   }
 
-  Widget _examGradeCard(Map<String, dynamic> it, bool isDark) {
-    final exam = Map<String, dynamic>.from(it['exam'] ?? {});
-    final grade = (it['grade'] is Map)
-        ? Map<String, dynamic>.from(it['grade'])
-        : <String, dynamic>{};
-
-    final examName = (exam['title']?.toString().trim().isNotEmpty ?? false)
+  Widget _gradeCard(BuildContext context, Map<String, dynamic> it) {
+    final mq = context.mq;
+    final exam = _safeMap(it['exam']);
+    final grade = _safeMap(it['grade']);
+    final name = (exam['title']?.toString().trim().isNotEmpty ?? false)
         ? exam['title'].toString()
         : (exam['description']?.toString().trim().isNotEmpty ?? false)
-        ? exam['description'].toString()
-        : 'امتحان شهري';
-
+            ? exam['description'].toString()
+            : 'امتحان شهري';
     final maxScore = exam['max_score']?.toString() ?? '-';
     final score = grade['score']?.toString() ?? '-';
     final type = (exam['exam_type'] ?? 'monthly').toString();
-    final dateRaw =
-        (exam['exam_date'] ?? exam['date'] ?? exam['created_at'] ?? '')
-            .toString();
+    final course = (exam['course_name'] ?? exam['subject_name'] ?? '').toString();
+    final dateRaw = (exam['exam_date'] ?? exam['date'] ?? exam['created_at'] ?? '').toString();
+    final r = _result(score, maxScore);
 
-    String dateText = '';
-    if (dateRaw.isNotEmpty) {
-      try {
-        dateText = _formatDate(dateRaw);
-      } catch (_) {
-        dateText = dateRaw;
-      }
-    }
-
-    // Calculate score color
-    Color scoreColor = AppColors.info;
-    double? percentage;
-    if (score != '-' && maxScore != '-') {
-      final s = double.tryParse(score) ?? 0;
-      final m = double.tryParse(maxScore) ?? 0;
-      if (m > 0) {
-        percentage = (s / m) * 100;
-        if (percentage >= 50) {
-          scoreColor = AppColors.success;
-        } else {
-          scoreColor = AppColors.error;
-        }
-      }
-    }
-
-    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [surfaceColor, surfaceColor.withValues(alpha: 0.95)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.05),
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: scoreColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.assessment_outlined,
-                    size: 14,
-                    color: scoreColor,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    examName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: scoreColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: scoreColor.withValues(alpha: 0.3),
-                      width: 0.5,
-                    ),
-                  ),
-                  child: Text(
-                    '$score/$maxScore',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: scoreColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _infoChip(Icons.calendar_today_outlined, dateText, isDark),
-                const SizedBox(width: 6),
-                _infoChip(
-                  Icons.category_outlined,
-                  type == 'monthly'
-                      ? 'شهري'
-                      : type == 'daily'
-                      ? 'يومي'
-                      : type,
-                  isDark,
-                ),
-                if (percentage != null) ...[
-                  const SizedBox(width: 6),
-                  _infoChip(
-                    Icons.percent,
-                    '${percentage.toStringAsFixed(0)}%',
-                    isDark,
-                    color: scoreColor,
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _infoChip(IconData icon, String text, bool isDark, {Color? color}) {
-    final chipColor =
-        color ??
-        (isDark
-            ? Colors.white.withValues(alpha: 0.1)
-            : Colors.black.withValues(alpha: 0.05));
-    final textColor = color ?? (isDark ? Colors.white70 : Colors.black54);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: chipColor,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 10, color: textColor),
-          const SizedBox(width: 3),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 9,
-              color: textColor,
-              fontWeight: FontWeight.w500,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(color: mq.accentSoft, borderRadius: MqRadius.brMd),
+                child: Icon(Icons.assessment_outlined, size: MqSize.iconSm, color: mq.accent),
+              ),
+              MqSpacing.gapSm,
+              Expanded(child: Text(name, style: context.text.titleSmall, maxLines: 2, overflow: TextOverflow.ellipsis)),
+              MqSpacing.gapXs,
+              _scorePill(context, score, maxScore, r.tone),
+            ],
+          ),
+          MqSpacing.gapSm,
+          Wrap(
+            spacing: MqSpacing.xs,
+            runSpacing: MqSpacing.xxs,
+            children: [
+              if (r.result != null) MqBadge(label: r.result!, tone: r.tone, solid: true),
+              if (r.pct != null) MqBadge(label: '${r.pct!.toStringAsFixed(0)}%', tone: r.tone),
+              MqBadge(label: type == 'monthly' ? 'شهري' : (type == 'daily' ? 'يومي' : type), tone: MqBadgeTone.neutral),
+              if (course.isNotEmpty) MqBadge(label: course, tone: MqBadgeTone.neutral, icon: Icons.class_outlined),
+              if (dateRaw.isNotEmpty) MqBadge(label: _formatDate(dateRaw), tone: MqBadgeTone.neutral, icon: Icons.event_outlined),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _reportView(Map<String, dynamic> r, bool isDark) {
+  Widget _scorePill(BuildContext context, String score, String maxScore, MqBadgeTone tone) {
+    final mq = context.mq;
+    final c = switch (tone) {
+      MqBadgeTone.success => mq.success,
+      MqBadgeTone.error => mq.error,
+      _ => mq.accent,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: 4),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.14), borderRadius: MqRadius.brPill),
+      child: Text('$score / $maxScore', style: context.text.labelMedium?.copyWith(color: c, fontWeight: FontWeight.w800)),
+    );
+  }
+
+  Widget _reportCard(BuildContext context, Map<String, dynamic> r) {
     final subject = (r['subject_name'] ?? '').toString();
     final course = (r['course_name'] ?? '').toString();
     final maxScore = (r['max_score'] ?? '').toString();
     final studentScore = (r['student_score'] ?? '-').toString();
-    final description = (r['description'] ?? '').toString();
-    final notes = (r['notes'] ?? '').toString();
+    final description = (r['description'] ?? '').toString().trim();
+    final notes = (r['notes'] ?? '').toString().trim();
     final examType = (r['exam_type'] ?? '').toString();
     final dateRaw = (r['exam_date'] ?? r['date'] ?? '').toString();
+    final res = _result(studentScore, maxScore);
 
-    String dateText = '';
-    if (dateRaw.isNotEmpty) {
-      dateText = _formatDate(dateRaw);
-    }
-
-    Color scoreColor = AppColors.info;
-    double? percentage;
-    if (studentScore != '-' && maxScore.isNotEmpty) {
-      final s = double.tryParse(studentScore) ?? 0;
-      final m = double.tryParse(maxScore) ?? 0;
-      if (m > 0) {
-        percentage = (s / m) * 100;
-        scoreColor = percentage >= 50 ? AppColors.success : AppColors.error;
-      }
-    }
-
-    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [surfaceColor, surfaceColor.withValues(alpha: 0.95)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.05),
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: scoreColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.bar_chart_rounded,
-                    color: scoreColor,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    subject.isNotEmpty ? subject : 'تقرير الامتحان',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: scoreColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: scoreColor.withValues(alpha: 0.3),
-                      width: 0.5,
-                    ),
-                  ),
-                  child: Text(
-                    '$studentScore/$maxScore',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: scoreColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (percentage != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: scoreColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.percent, size: 12, color: scoreColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      'النسبة: ${percentage.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: scoreColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 10),
-            if (course.isNotEmpty)
-              _infoRow(Icons.book_outlined, 'الكورس', course, isDark),
-            if (examType.isNotEmpty)
-              _infoRow(
-                Icons.category_outlined,
-                'النوع',
-                examType == 'monthly' ? 'شهري' : examType,
-                isDark,
-              ),
-            if (dateText.isNotEmpty)
-              _infoRow(
-                Icons.calendar_today_outlined,
-                'التاريخ',
-                dateText,
-                isDark,
-              ),
-            if (description.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _sectionTitle('الوصف', isDark),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isDark ? Colors.white70 : Colors.black87,
-                  height: 1.4,
-                ),
-              ),
-            ],
-            if (notes.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _sectionTitle('الملاحظات', isDark),
-              const SizedBox(height: 4),
-              Text(
-                notes,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isDark ? Colors.white60 : Colors.black54,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _infoRow(IconData icon, String label, String value, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+    return MqCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 12, color: isDark ? Colors.white54 : Colors.black54),
-          const SizedBox(width: 6),
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white70 : Colors.black87,
-            ),
+          Row(
+            children: [
+              Expanded(child: Text(subject.isNotEmpty ? subject : 'تقرير الامتحان', style: context.text.titleMedium)),
+              MqSpacing.gapXs,
+              _scorePill(context, studentScore, maxScore, res.tone),
+            ],
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 10,
-                color: isDark ? Colors.white60 : Colors.black54,
-              ),
-            ),
+          MqSpacing.gapSm,
+          Wrap(
+            spacing: MqSpacing.xs,
+            runSpacing: MqSpacing.xxs,
+            children: [
+              if (res.result != null) MqBadge(label: res.result!, tone: res.tone, solid: true),
+              if (res.pct != null) MqBadge(label: 'النسبة ${res.pct!.toStringAsFixed(1)}%', tone: res.tone),
+              if (examType.isNotEmpty) MqBadge(label: examType == 'monthly' ? 'شهري' : examType, tone: MqBadgeTone.neutral),
+              if (course.isNotEmpty) MqBadge(label: course, tone: MqBadgeTone.neutral, icon: Icons.class_outlined),
+              if (dateRaw.isNotEmpty) MqBadge(label: _formatDate(dateRaw), tone: MqBadgeTone.neutral, icon: Icons.event_outlined),
+            ],
           ),
+          if (description.isNotEmpty) ...[
+            const Divider(height: MqSpacing.xl),
+            Text('الوصف', style: context.text.labelMedium),
+            MqSpacing.gapXs,
+            Text(description, style: context.text.bodySmall?.copyWith(height: 1.4)),
+          ],
+          if (notes.isNotEmpty) ...[
+            MqSpacing.gapSm,
+            Text('الملاحظات', style: context.text.labelMedium),
+            MqSpacing.gapXs,
+            Text(notes, style: context.text.bodySmall?.copyWith(height: 1.4)),
+          ],
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String text, bool isDark) {
-    return Row(
+  // ── states ──────────────────────────────────────────────────────────────────
+
+  Widget _empty(BuildContext context) {
+    final mq = context.mq;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
       children: [
-        Container(
-          width: 3,
-          height: 12,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(2),
+        const SizedBox(height: MqSpacing.xxl),
+        Center(child: Column(children: [
+          Container(
+            padding: const EdgeInsets.all(MqSpacing.lg),
+            decoration: BoxDecoration(color: mq.accentSoft, shape: BoxShape.circle),
+            child: Icon(Icons.bar_chart_rounded, size: 44, color: mq.accent),
           ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
+          MqSpacing.gapMd,
+          Text('لا توجد درجات بعد', style: context.text.titleMedium),
+          MqSpacing.gapXs,
+          Text('ستظهر هنا درجاتك في الامتحانات الشهرية.', textAlign: TextAlign.center, style: context.text.bodySmall),
+        ])),
+      ],
+    );
+  }
+
+  Widget _errorView(BuildContext context) {
+    final mq = context.mq;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      children: [
+        const SizedBox(height: MqSpacing.xxl),
+        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.wifi_off_rounded, size: 44, color: mq.error),
+          MqSpacing.gapMd,
+          Text(_error ?? 'حدث خطأ', textAlign: TextAlign.center, style: context.text.bodyMedium),
+          MqSpacing.gapMd,
+          MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: _fetchReport),
+        ])),
+      ],
+    );
+  }
+
+  Widget _skeleton(BuildContext context) {
+    final mq = context.mq;
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.lg),
+      children: [
+        Container(height: 64, decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brXl)),
+        MqSpacing.gapLg,
+        for (var i = 0; i < 4; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+            child: MqCard(
+              padding: const EdgeInsets.all(MqSpacing.md),
+              child: Row(children: [
+                Container(width: 40, height: 40, decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brMd)),
+                MqSpacing.gapSm,
+                Expanded(child: Container(height: 14, decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brSm))),
+              ]),
+            ),
           ),
-        ),
       ],
     );
   }

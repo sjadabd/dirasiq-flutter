@@ -1,4 +1,5 @@
 // Phase 8 — OTP verification step for the email-path teacher application.
+// (Teacher Design System pass — logic unchanged.)
 //
 // Reached AFTER the multi-step form has submitted + files are uploaded for
 // applications where authProvider == 'email'. The backend already created
@@ -9,11 +10,12 @@
 // applicant lands on the success screen.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import 'package:mulhimiq/core/services/teacher_application_api_service.dart';
 
+import '../../teacher/shared/design/teacher_design.dart';
+import '../widgets/join_widgets.dart';
 import 'teacher_application_success_screen.dart';
 
 class TeacherApplicationOtpScreen extends StatefulWidget {
@@ -98,146 +100,79 @@ class _TeacherApplicationOtpScreenState
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: AppBar(
-        title: const Text('تحقق من البريد الإلكتروني'),
-        backgroundColor: scheme.surface,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.mark_email_read_outlined,
-                        size: 44, color: scheme.primary),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'أدخل رمز التحقق',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.onSurface,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Scaffold(
+            backgroundColor: mq.page,
+            appBar: const JoinAppBar(title: 'تحقق من البريد الإلكتروني'),
+            body: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                    MqSpacing.xl, MqSpacing.lg, MqSpacing.xl, MqSpacing.xl),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const JoinHeroIcon(
+                          icon: Icons.mark_email_read_outlined, size: 88),
+                      const SizedBox(height: MqSpacing.xl),
+                      Text('أدخل رمز التحقق',
+                          textAlign: TextAlign.center,
+                          style: context.text.headlineSmall),
+                      const SizedBox(height: MqSpacing.sm),
+                      Text(
+                        'أرسلنا رمزاً مكوّناً من 6 أرقام إلى:\n${widget.email}',
+                        textAlign: TextAlign.center,
+                        style:
+                            context.text.bodyMedium?.copyWith(color: mq.ink2),
                       ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'أرسلنا رمزاً مكوّناً من 6 أرقام إلى:\n${widget.email}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.75),
+                      const SizedBox(height: MqSpacing.xl),
+                      JoinOtpField(
+                        controller: _code,
+                        onSubmitted: (_) => _verify(),
+                        validator: (v) {
+                          final s = (v ?? '').trim();
+                          if (s.length != 6) return 'الرمز يجب أن يكون 6 أرقام.';
+                          return null;
+                        },
                       ),
-                ),
-                const SizedBox(height: 28),
-                TextFormField(
-                  controller: _code,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(6),
-                  ],
-                  style: const TextStyle(
-                      fontSize: 28, letterSpacing: 6, fontWeight: FontWeight.w700),
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'رمز التحقق',
-                    hintText: '------',
-                  ),
-                  validator: (v) {
-                    final s = (v ?? '').trim();
-                    if (s.length != 6) return 'الرمز يجب أن يكون 6 أرقام.';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    onPressed: _verifying ? null : _verify,
-                    icon: _verifying
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2.2),
-                          )
-                        : const Icon(Icons.verified_outlined, size: 20),
-                    label: Text(_verifying ? 'جارٍ التحقق…' : 'تأكيد'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: scheme.primary,
-                      foregroundColor: scheme.onPrimary,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: _resending ? null : _resend,
-                  icon: _resending
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh, size: 18),
-                  label: Text(_resending ? 'جارٍ الإرسال…' : 'إرسال رمز جديد'),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: scheme.errorContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(children: [
-                      Icon(Icons.error_outline, color: scheme.error),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(_error!,
-                            style: TextStyle(color: scheme.onErrorContainer)),
+                      const SizedBox(height: MqSpacing.lg),
+                      MqButton(
+                        label: _verifying ? 'جارٍ التحقق…' : 'تأكيد',
+                        icon: _verifying ? null : Icons.verified_outlined,
+                        loading: _verifying,
+                        onPressed: _verifying ? null : _verify,
                       ),
-                    ]),
-                  ),
-                ],
-                if (_info != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(children: [
-                      Icon(Icons.info_outline, color: scheme.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(_info!,
-                            style: TextStyle(color: scheme.onSurface)),
+                      const SizedBox(height: MqSpacing.sm),
+                      MqButton.text(
+                        label: _resending ? 'جارٍ الإرسال…' : 'إرسال رمز جديد',
+                        icon: _resending ? null : Icons.refresh,
+                        loading: _resending,
+                        expand: true,
+                        onPressed: _resending ? null : _resend,
                       ),
-                    ]),
+                      if (_error != null) ...[
+                        const SizedBox(height: MqSpacing.md),
+                        JoinErrorBox(message: _error!),
+                      ],
+                      if (_info != null) ...[
+                        const SizedBox(height: MqSpacing.md),
+                        JoinInfoBox(message: _info!),
+                      ],
+                    ],
                   ),
-                ],
-              ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        }),
       ),
     );
   }

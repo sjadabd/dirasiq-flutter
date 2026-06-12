@@ -1,22 +1,23 @@
-// Course Hub — Videos section.
+// Course Hub — Videos section (MulhimIQ design system).
 //
 // Hits the Phase 2 endpoint
 //   GET /api/student/courses/:courseId/video-courses
 // to surface the video courses pinned to this live course AND viewable
 // by the student. The single list is split client-side into two rails:
 //
-//   - "الكورسات المرئية المجانية" — free (or owned) for this student.
-//   - "الكورسات المرئية المدفوعة" — paid (marketplace_paid) the student
-//                                     can buy without leaving the hub.
+//   - free (or owned) for this student — no buy step,
+//   - paid (marketplace_paid) the student can buy without leaving the hub.
 //
-// Empty list → "no videos pinned to this course yet" hint. A row with
-// zero items is simply omitted so the hub doesn't grow an empty card.
+// Empty list → "no videos pinned to this course yet" hint. A rail with zero
+// items is omitted. Data fetch + free/paid classification + navigation are
+// UNCHANGED — only the presentation was restyled.
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:mulhimiq/features/course_hub/controllers/course_hub_controller.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_section_shell.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class CourseHubVideosSection extends StatefulWidget {
   const CourseHubVideosSection({super.key});
@@ -36,18 +37,14 @@ class _CourseHubVideosSectionState extends State<CourseHubVideosSection> {
     });
   }
 
-  /// "Free" is interpreted broadly here — the row covers anything the
-  /// student can play right now without a purchase, including videos
-  /// owned through enrollment-bypass or whitelist. This mirrors what the
-  /// student sees on the card: a green "مجاني" or indigo "مملوكة" badge,
-  /// either way no buy step.
+  /// "Free" is interpreted broadly — anything the student can play right now
+  /// without a purchase, including videos owned through enrollment-bypass or
+  /// whitelist (green "مجاني" / owned badge, no buy step).
   bool _isFreeForStudent(Map<String, dynamic> v) {
     if (v['isFree'] == true || v['is_free'] == true) return true;
     final price = v['price'];
     if (price is num && price == 0) return true;
     if (price is String && (price == '0' || price == '0.00')) return true;
-    // Discovery shape that already comes back from the marketplace
-    // endpoint sometimes carries `hasAccess` / `isOwned` for the student.
     if (v['hasAccess'] == true || v['has_access'] == true) return true;
     if (v['isOwned'] == true || v['is_owned'] == true) return true;
     return false;
@@ -55,7 +52,7 @@ class _CourseHubVideosSectionState extends State<CourseHubVideosSection> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final m = context.mq;
     return Obx(() {
       Widget body;
       final loading = _c.videosLoading.value && _c.videos.isEmpty;
@@ -69,11 +66,9 @@ class _CourseHubVideosSectionState extends State<CourseHubVideosSection> {
         );
       } else if (_c.videos.isEmpty) {
         body = Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Text(
-            'لا توجد كورسات مرئية مرتبطة بهذه الدورة بعد.',
-            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-          ),
+          padding: const EdgeInsets.symmetric(vertical: MqSpacing.xs),
+          child: Text('لا توجد كورسات مرئية مرتبطة بهذه الدورة بعد.',
+              style: context.text.bodySmall),
         );
       } else {
         final free = _c.videos.where(_isFreeForStudent).toList();
@@ -83,15 +78,15 @@ class _CourseHubVideosSectionState extends State<CourseHubVideosSection> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (free.isNotEmpty) ...[
-              _subHeader(cs, 'المجانية', free.length, Colors.green),
-              const SizedBox(height: 6),
-              _buildCarousel(free, cs),
-              if (paid.isNotEmpty) const SizedBox(height: 12),
+              _subHeader(context, 'المجانية', free.length, MqBadgeTone.success),
+              MqSpacing.gapSm,
+              _buildCarousel(context, free),
+              if (paid.isNotEmpty) MqSpacing.gapMd,
             ],
             if (paid.isNotEmpty) ...[
-              _subHeader(cs, 'المدفوعة', paid.length, Colors.orange),
-              const SizedBox(height: 6),
-              _buildCarousel(paid, cs),
+              _subHeader(context, 'المدفوعة', paid.length, MqBadgeTone.orange),
+              MqSpacing.gapSm,
+              _buildCarousel(context, paid),
             ],
           ],
         );
@@ -99,67 +94,40 @@ class _CourseHubVideosSectionState extends State<CourseHubVideosSection> {
 
       return CourseHubSectionShell(
         icon: Icons.play_circle_outline,
-        iconColor: Colors.deepPurple,
+        iconColor: m.accent,
         title: 'الكورسات المرئية لهذه الدورة',
         badge: _c.videos.isNotEmpty
-            ? CourseHubBadge(
-                label: '${_c.videos.length}', color: Colors.deepPurple)
+            ? CourseHubBadge(label: '${_c.videos.length}')
             : null,
         child: body,
       );
     });
   }
 
-  Widget _subHeader(ColorScheme cs, String label, int count, Color accent) {
+  Widget _subHeader(BuildContext context, String label, int count, MqBadgeTone tone) {
     return Row(
       children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: cs.onSurface,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            '$count',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: accent,
-            ),
-          ),
-        ),
+        Text(label, style: context.text.titleSmall),
+        MqSpacing.gapXs,
+        MqBadge(label: '$count', tone: tone),
       ],
     );
   }
 
-  Widget _buildCarousel(List<Map<String, dynamic>> items, ColorScheme cs) {
+  Widget _buildCarousel(BuildContext context, List<Map<String, dynamic>> items) {
     return SizedBox(
-      height: 140,
+      height: 150,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, i) => _buildVideoCard(items[i], cs),
+        separatorBuilder: (_, _) => const SizedBox(width: MqSpacing.sm),
+        itemBuilder: (context, i) => _buildVideoCard(context, items[i]),
       ),
     );
   }
 
-  Widget _buildVideoCard(Map<String, dynamic> v, ColorScheme cs) {
+  Widget _buildVideoCard(BuildContext context, Map<String, dynamic> v) {
+    final m = context.mq;
     final title = (v['title'] ?? '').toString();
     final cover = (v['coverImage'] ?? v['cover_image'] ?? '').toString();
     final fullCover = cover.isEmpty
@@ -174,18 +142,13 @@ class _CourseHubVideosSectionState extends State<CourseHubVideosSection> {
             ? price
             : '';
 
-    return InkWell(
-      onTap: id.isEmpty
-          ? null
-          : () => Get.toNamed('/student/video-course-details', arguments: id),
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        width: 180,
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
-        ),
+    return SizedBox(
+      width: 180,
+      child: MqCard(
+        padding: EdgeInsets.zero,
+        onTap: id.isEmpty
+            ? null
+            : () => Get.toNamed('/student/video-course-details', arguments: id),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -194,58 +157,37 @@ class _CourseHubVideosSectionState extends State<CourseHubVideosSection> {
                 fit: StackFit.expand,
                 children: [
                   ClipRRect(
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(10)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                     child: fullCover.isEmpty
                         ? Container(
-                            color: cs.surfaceContainerHighest,
-                            child: Icon(Icons.play_circle_outline,
-                                size: 32, color: cs.onSurfaceVariant),
+                            color: m.fill2,
+                            child: Icon(Icons.play_circle_outline, size: 30, color: m.ink3),
                           )
                         : Image.network(
                             fullCover,
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) => Container(
-                              color: cs.surfaceContainerHighest,
-                              child: Icon(Icons.broken_image_outlined,
-                                  color: cs.onSurfaceVariant),
+                              color: m.fill2,
+                              child: Icon(Icons.broken_image_outlined, color: m.ink3),
                             ),
                           ),
                   ),
                   Positioned(
                     top: 6,
                     right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (isFree ? Colors.green : Colors.orange)
-                            .withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isFree
-                            ? 'مجاني'
-                            : (priceLabel.isEmpty ? 'مدفوع' : priceLabel),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                    child: MqBadge(
+                      label: isFree ? 'مجاني' : (priceLabel.isEmpty ? 'مدفوع' : priceLabel),
+                      tone: isFree ? MqBadgeTone.success : MqBadgeTone.orange,
+                      solid: true,
                     ),
                   ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: MqSpacing.xs),
+              child: Text(title,
+                  style: context.text.labelMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
             ),
           ],
         ),

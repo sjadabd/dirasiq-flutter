@@ -83,8 +83,12 @@ class _CourseHubAttendanceSectionState extends State<CourseHubAttendanceSection>
     if (!ok || !mounted) return;
     setState(() => _busy = true);
     try {
+      // QrScanScreen pops with the teacherId as a plain String.
       final result = await Get.to(() => const QrScanScreen());
-      final teacherId = (result is Map ? result['teacherId'] : null)?.toString();
+      final teacherId = (result is String
+              ? result
+              : (result is Map ? result['teacherId'] : null))
+          ?.toString();
       if (teacherId == null || teacherId.isEmpty) return;
       try {
         await ApiService().checkInAttendance(

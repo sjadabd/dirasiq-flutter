@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// v2 home — "My Teachers" focused. Keeps the old HomeScreen import out of the
-// way (we don't reference it anymore but the file still exists for safety).
-import 'package:mulhimiq/features/home/screens/student_my_teachers_home.dart';
+// v3 home — design-system Student Home, embedded so RootShell owns the chrome.
+// The previous v2 home (StudentMyTeachersHome) stays on disk for rollback.
+import 'package:mulhimiq/features/student_home/presentation/pages/student_home_screen.dart';
 import 'package:mulhimiq/features/courses/screens/suggested_courses_screen.dart';
 import 'package:mulhimiq/features/bookings/screens/bookings_list_screen.dart';
 import 'package:mulhimiq/features/enrollments/screens/enrollments_screen.dart';
 import 'package:mulhimiq/features/invoices/screens/student_invoices_screen.dart';
+import 'package:mulhimiq/features/root/widgets/student_bottom_nav.dart';
 
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
@@ -26,7 +27,7 @@ class _RootShellState extends State<RootShell> {
   void initState() {
     super.initState();
     _pages = [
-      const StudentMyTeachersHome(),
+      const StudentHomeScreen(embedded: true),
       const SuggestedCoursesScreen(),
       const EnrollmentsScreen(),
       const StudentInvoicesScreen(),
@@ -51,8 +52,6 @@ class _RootShellState extends State<RootShell> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -87,47 +86,14 @@ class _RootShellState extends State<RootShell> {
       },
       child: Scaffold(
         body: SafeArea(top: false, bottom: true, child: _buildCurrentPage()),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          minimum: const EdgeInsets.only(bottom: 6),
-          child: NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (i) {
-              setState(() {
-                _currentIndex = i;
-                _tabVersion[i]++;
-              });
-            },
-            backgroundColor: cs.surface,
-            indicatorColor: cs.primary.withValues(alpha: 0.12),
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'الرئيسية',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.menu_book_outlined),
-                selectedIcon: Icon(Icons.menu_book),
-                label: 'الدورات',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.school_outlined),
-                selectedIcon: Icon(Icons.school),
-                label: 'دوراتي',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.receipt_long_outlined),
-                selectedIcon: Icon(Icons.receipt_long),
-                label: 'فواتيري',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.event_note_outlined),
-                selectedIcon: Icon(Icons.event_note),
-                label: 'حجوزاتي',
-              ),
-            ],
-          ),
+        bottomNavigationBar: StudentBottomNav(
+          currentIndex: _currentIndex,
+          onTap: (i) {
+            setState(() {
+              _currentIndex = i;
+              _tabVersion[i]++;
+            });
+          },
         ),
       ),
     );

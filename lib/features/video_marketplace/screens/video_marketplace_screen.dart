@@ -1,35 +1,45 @@
-// Phase 7 — Video Marketplace screen.
+// Student → Video courses marketplace (MulhimIQ design-system pass).
 //
-// Surfaces curated sections (My Library first, then Trending / Popular /
-// Newest / Recommended) in one vertical scroll. Filter chip lives in the
-// app bar; tapping it opens [FiltersSheet]. Pull-to-refresh re-fetches
-// every section. Errors are surfaced per-surface (marketplace vs library)
-// so one bad query doesn't blank the whole screen.
+// Opened from the Student Home "عرض الكل" on the recommended-videos rail
+// (route /student/video-marketplace). Backed by the existing
+// VideoMarketplaceController (fetchVideoMarketplace + fetchMyVideoLibrary).
+// The data fetch, the owned/free/paid access routing, and the purchase flow
+// are UNCHANGED — only the presentation was restyled into a single
+// filter-driven "الدورات المرئية" page:
 //
-// Tapping a card routes to the existing course detail screen
-// ([StudentVideoCourseDetailScreen]) which is responsible for the
-// access-aware playback gating: free / owned → lesson list + player;
-// paid + unowned → opens the [PurchaseBottomSheet] from this screen.
+//   • "مكتبتي" continue-watching row (shown only when the student owns
+//     courses — progress + "متابعة المشاهدة" come from the card).
+//   • Filter chips (الكل / مجانية / مدفوعة / جديدة / الأكثر مشاهدة) selecting
+//     which view of the marketplace data to show. مجانية/مدفوعة filter by
+//     price client-side; جديدة = the backend `newest` set; الأكثر مشاهدة =
+//     the backend `trending` set — no new API params, no fake data.
+//   • Client-side search over the active list (no search param on the API).
+//
+// Tapping a card: owned/free → StudentVideoCourseDetailScreen; paid+unowned →
+// PurchaseBottomSheet (both preserved from the original screen).
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 import '../../student/video_courses/student_video_course_detail_screen.dart';
 import '../controllers/video_marketplace_controller.dart';
-import '../widgets/filters_sheet.dart';
 import '../widgets/marketplace_section_carousel.dart';
 import '../widgets/purchase_bottom_sheet.dart';
+import '../widgets/video_course_card.dart';
 
 class VideoMarketplaceScreen extends StatefulWidget {
   const VideoMarketplaceScreen({super.key});
 
   @override
-  State<VideoMarketplaceScreen> createState() =>
-      _VideoMarketplaceScreenState();
+  State<VideoMarketplaceScreen> createState() => _VideoMarketplaceScreenState();
 }
 
 class _VideoMarketplaceScreenState extends State<VideoMarketplaceScreen> {
   late final VideoMarketplaceController _c;
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+  String _filter = 'all'; // all | free | paid | new | popular
 
   @override
   void initState() {
@@ -39,257 +49,153 @@ class _VideoMarketplaceScreenState extends State<VideoMarketplaceScreen> {
 
   @override
   void dispose() {
+    _searchCtrl.dispose();
     Get.delete<VideoMarketplaceController>(tag: 'video-marketplace');
     super.dispose();
   }
 
-  Future<void> _openFilters() async {
-    final next = await showModalBottomSheet<VideoMarketplaceFilters>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => FiltersSheet(
-        initial: _c.filters.value,
-        gradeOptions: const [],
-        subjectOptions: const [],
-      ),
-    );
-    if (next != null) await _c.applyFilters(next);
-  }
+  // ─── access routing (preserved) ─────────────────────────────────────────────
+
+  bool _isOwned(Map<String, dynamic> c) =>
+      c['isOwned'] == true || c['is_owned'] == true || c['hasAccess'] == true || c['has_access'] == true;
+  bool _isFree(Map<String, dynamic> c) => c['isFree'] == true || c['is_free'] == true || c['price'] == 0;
 
   Future<void> _onTapCourse(Map<String, dynamic> course) async {
     final id = (course['id'] ?? '').toString();
     if (id.isEmpty) return;
-
-    final isOwned = course['isOwned'] == true ||
-        course['is_owned'] == true ||
-        course['hasAccess'] == true ||
-        course['has_access'] == true;
-    final isFree = course['isFree'] == true ||
-        course['is_free'] == true ||
-        course['price'] == 0;
-
-    if (isOwned || isFree) {
+    if (_isOwned(course) || _isFree(course)) {
       await Get.to(() => StudentVideoCourseDetailScreen(courseId: id));
-      // Refresh library on return — a just-watched course might now be
-      // tracked in a future progress endpoint, and the badge state is
-      // cheap to recompute.
       await _c.refreshAll();
       return;
     }
-
-    // Paid + unowned → purchase sheet.
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => PurchaseBottomSheet(course: course, controller: _c),
     );
-    // After the user returns from Wayl, re-fetch so a newly-paid course
-    // moves into My Library.
     await _c.refreshAll();
   }
 
+  // ─── list composition ───────────────────────────────────────────────────────
+
+  List<Map<String, dynamic>> _merged() {
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final list in [_c.recommended, _c.trending, _c.newest, _c.popular]) {
+      for (final c in list) {
+        final id = (c['id'] ?? '').toString();
+        if (id.isEmpty || seen.contains(id)) continue;
+        seen.add(id);
+        out.add(c);
+      }
+    }
+    return out;
+  }
+
+  List<Map<String, dynamic>> _activeList() {
+    List<Map<String, dynamic>> base = switch (_filter) {
+      'new' => _c.newest.toList(),
+      'popular' => _c.trending.toList(),
+      'free' => _merged().where(_isFree).toList(),
+      'paid' => _merged().where((c) => !_isFree(c)).toList(),
+      _ => _merged(),
+    };
+    final q = _query.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      base = base.where((c) {
+        final t = (c['title'] ?? c['name'] ?? '').toString().toLowerCase();
+        final teacher = (c['teacherName'] ?? c['teacher_name'] ?? '').toString().toLowerCase();
+        final subject = (c['subject'] ?? c['subjectName'] ?? c['subject_name'] ?? '').toString().toLowerCase();
+        return t.contains(q) || teacher.contains(q) || subject.contains(q);
+      }).toList();
+    }
+    return base;
+  }
+
+  // ─── build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('الدورات المرئية'),
-        actions: [
-          Obx(() {
-            final count = _c.filters.value.activeCount;
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  onPressed: _openFilters,
-                  icon: const Icon(Icons.tune),
-                  tooltip: 'تصفية',
-                ),
-                if (count > 0)
-                  Positioned(
-                    top: 6, right: 6,
-                    child: Container(
-                      width: 16, height: 16,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: cs.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$count',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          }),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _c.refreshAll,
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            Obx(() {
-              if (_c.filters.value.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) => GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: Scaffold(
+              backgroundColor: context.mq.page,
+              appBar: AppBar(
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    for (final chip in _activeFilterChips(_c.filters.value))
-                      Chip(
-                        label: Text(chip,
-                            style: const TextStyle(fontSize: 11)),
-                        backgroundColor:
-                            cs.primary.withValues(alpha: 0.1),
-                        side: BorderSide(
-                            color: cs.primary.withValues(alpha: 0.3)),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ActionChip(
-                      label: const Text('مسح الكل',
-                          style: TextStyle(fontSize: 11)),
-                      avatar: const Icon(Icons.close, size: 14),
-                      onPressed: _c.clearFilters,
-                    ),
+                    const Text('الدورات المرئية'),
+                    Text('اكتشف الدورات التعليمية المرئية', style: context.text.bodySmall),
                   ],
                 ),
-              );
-            }),
-            Obx(() {
-              if (_c.libraryLoading.value && _c.myLibrary.isEmpty) {
-                return _buildSkeletonSection('مكتبتي');
-              }
-              if (_c.libraryError.value.isNotEmpty && _c.myLibrary.isEmpty) {
-                return _buildSectionError(
-                  title: 'مكتبتي',
-                  message: _c.libraryError.value,
-                  onRetry: _c.refreshAll,
-                );
-              }
-              return MarketplaceSectionCarousel(
-                title: 'مكتبتي',
-                subtitle: 'الدورات التي تملكها أو لديك وصول إليها',
-                icon: Icons.library_books_outlined,
-                accent: Colors.indigo,
-                items: _c.myLibrary,
-                showOwnedBadge: true,
-                emptyMessage: 'لم تشترِ أو تنضم لأي دورة مرئية بعد.',
-                onTapCourse: _onTapCourse,
-              );
-            }),
-            Obx(() {
-              if (_c.marketplaceLoading.value &&
-                  _c.trending.isEmpty &&
-                  _c.popular.isEmpty &&
-                  _c.newest.isEmpty &&
-                  _c.recommended.isEmpty) {
-                return Column(
-                  children: [
-                    _buildSkeletonSection('الرائج'),
-                    _buildSkeletonSection('الأكثر شعبية'),
-                  ],
-                );
-              }
-              if (_c.marketplaceError.value.isNotEmpty &&
-                  _c.trending.isEmpty &&
-                  _c.popular.isEmpty &&
-                  _c.newest.isEmpty &&
-                  _c.recommended.isEmpty) {
-                return _buildSectionError(
-                  title: 'المتجر',
-                  message: _c.marketplaceError.value,
-                  onRetry: _c.refreshAll,
-                );
-              }
-              return Column(
-                children: [
-                  MarketplaceSectionCarousel(
-                    title: 'الرائج الآن',
-                    subtitle: 'الأكثر مشاهدة هذا الأسبوع',
-                    icon: Icons.local_fire_department_outlined,
-                    accent: Colors.deepOrange,
-                    items: _c.trending,
-                    onTapCourse: _onTapCourse,
-                  ),
-                  MarketplaceSectionCarousel(
-                    title: 'الأكثر شعبية',
-                    subtitle: 'الدورات الأعلى تقييماً',
-                    icon: Icons.star_outline,
-                    accent: Colors.amber.shade700,
-                    items: _c.popular,
-                    onTapCourse: _onTapCourse,
-                  ),
-                  MarketplaceSectionCarousel(
-                    title: 'الأحدث',
-                    subtitle: 'أُضيفت مؤخراً',
-                    icon: Icons.fiber_new_outlined,
-                    accent: Colors.teal,
-                    items: _c.newest,
-                    onTapCourse: _onTapCourse,
-                  ),
-                  MarketplaceSectionCarousel(
-                    title: 'مقترحة لك',
-                    subtitle: 'مبنية على مرحلتك ومواد كورساتك',
-                    icon: Icons.recommend_outlined,
-                    accent: Colors.deepPurple,
-                    items: _c.recommended,
-                    onTapCourse: _onTapCourse,
-                  ),
-                ],
-              );
-            }),
-          ],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(96),
+                  child: _searchAndFilters(context),
+                ),
+              ),
+              body: RefreshIndicator(onRefresh: _c.refreshAll, child: Obx(() => _body(context))),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  List<String> _activeFilterChips(VideoMarketplaceFilters f) {
-    final out = <String>[];
-    if (f.gradeId != null && f.gradeId!.isNotEmpty) out.add('المرحلة');
-    if (f.subject != null && f.subject!.isNotEmpty) out.add('المادة: ${f.subject}');
-    if (f.teacherId != null && f.teacherId!.isNotEmpty) out.add('معلّم محدد');
-    if (f.minPrice != null) out.add('من ${f.minPrice}');
-    if (f.maxPrice != null) out.add('حتى ${f.maxPrice}');
-    return out;
-  }
-
-  Widget _buildSkeletonSection(String title) {
-    final cs = Theme.of(context).colorScheme;
+  Widget _searchAndFilters(BuildContext context) {
+    final m = context.mq;
+    const chips = [
+      ('all', 'الكل'),
+      ('free', 'مجانية'),
+      ('paid', 'مدفوعة'),
+      ('new', 'جديدة'),
+      ('popular', 'الأكثر مشاهدة'),
+    ];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, 0, MqSpacing.lg, MqSpacing.sm),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
+          TextField(
+            controller: _searchCtrl,
+            style: context.text.bodyMedium,
+            onChanged: (v) => setState(() => _query = v),
+            decoration: InputDecoration(
+              hintText: 'ابحث في الدورات المرئية…',
+              prefixIcon: Icon(Icons.search_rounded, size: 20, color: m.ink3),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              filled: true,
+              fillColor: m.fill,
+              border: OutlineInputBorder(borderRadius: MqRadius.brMd, borderSide: BorderSide(color: m.line)),
+              enabledBorder: OutlineInputBorder(borderRadius: MqRadius.brMd, borderSide: BorderSide(color: m.line)),
+              focusedBorder: OutlineInputBorder(borderRadius: MqRadius.brMd, borderSide: BorderSide(color: m.accent)),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      onPressed: () { _searchCtrl.clear(); setState(() => _query = ''); },
+                    ),
+            ),
+          ),
+          MqSpacing.gapSm,
           SizedBox(
-            height: 200,
+            height: MqSize.chipHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: 3,
-              separatorBuilder: (_, _) => const SizedBox(width: 10),
-              itemBuilder: (_, _) => Container(
-                width: 180,
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+              itemCount: chips.length,
+              separatorBuilder: (_, _) => const SizedBox(width: MqSpacing.xs),
+              itemBuilder: (_, i) => MqChip(
+                label: chips[i].$2,
+                selected: _filter == chips[i].$1,
+                onTap: () => setState(() => _filter = chips[i].$1),
               ),
             ),
           ),
@@ -298,39 +204,118 @@ class _VideoMarketplaceScreenState extends State<VideoMarketplaceScreen> {
     );
   }
 
-  Widget _buildSectionError({
-    required String title,
-    required String message,
-    required Future<void> Function() onRetry,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: cs.errorContainer.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(10),
+  Widget _body(BuildContext context) {
+    final allEmpty = _c.trending.isEmpty && _c.popular.isEmpty && _c.newest.isEmpty && _c.recommended.isEmpty;
+    if (_c.marketplaceLoading.value && allEmpty && _c.myLibrary.isEmpty) return _skeleton(context);
+    if (_c.marketplaceError.value.isNotEmpty && allEmpty) return _errorView(context);
+
+    final list = _activeList();
+    final showLibrary = _c.myLibrary.isNotEmpty && _query.isEmpty;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: MqSpacing.xxxl + MqSpacing.xl),
+      children: [
+        if (showLibrary)
+          MarketplaceSectionCarousel(
+            title: 'مكتبتي',
+            subtitle: 'تابع المشاهدة من حيث توقفت',
+            icon: Icons.library_books_outlined,
+            items: _c.myLibrary,
+            onTapCourse: _onTapCourse,
+          ),
+        if (showLibrary)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xs),
+            child: Text('كل الدورات المرئية', style: context.text.titleSmall),
+          ),
+        if (list.isEmpty)
+          _empty(context)
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            primary: false,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.md),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 220,
+              mainAxisExtent: 250,
+              crossAxisSpacing: MqSpacing.sm,
+              mainAxisSpacing: MqSpacing.sm,
             ),
-            child: Row(children: [
-              Icon(Icons.error_outline, color: cs.error),
-              const SizedBox(width: 8),
-              Expanded(child: Text(message)),
-              TextButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh, size: 14),
-                label: const Text('إعادة'),
-              ),
+            itemCount: list.length,
+            itemBuilder: (_, i) => VideoCourseCard(course: list[i], onTap: () => _onTapCourse(list[i])),
+          ),
+      ],
+    );
+  }
+
+  // ─── states ─────────────────────────────────────────────────────────────────
+
+  Widget _empty(BuildContext context) {
+    final m = context.mq;
+    final filtering = _query.isNotEmpty || _filter != 'all';
+    return Padding(
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      child: Center(child: Column(children: [
+        const SizedBox(height: MqSpacing.xl),
+        Container(
+          padding: const EdgeInsets.all(MqSpacing.lg),
+          decoration: BoxDecoration(color: m.accentSoft, shape: BoxShape.circle),
+          child: Icon(Icons.video_library_outlined, size: 44, color: m.accent),
+        ),
+        MqSpacing.gapMd,
+        Text(filtering ? 'لا توجد دورات مطابقة' : 'لا توجد دورات مرئية بعد', style: context.text.titleMedium),
+        MqSpacing.gapXs,
+        Text(filtering ? 'جرّب تعديل البحث أو الفلاتر.' : 'سيتم عرض الدورات المرئية المناسبة قريباً.',
+            textAlign: TextAlign.center, style: context.text.bodySmall),
+      ])),
+    );
+  }
+
+  Widget _errorView(BuildContext context) {
+    final m = context.mq;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      children: [
+        const SizedBox(height: MqSpacing.xxl),
+        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.wifi_off_rounded, size: 44, color: m.error),
+          MqSpacing.gapMd,
+          Text(_c.marketplaceError.value, textAlign: TextAlign.center, style: context.text.bodyMedium),
+          MqSpacing.gapMd,
+          MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: _c.refreshAll),
+        ])),
+      ],
+    );
+  }
+
+  Widget _skeleton(BuildContext context) {
+    final m = context.mq;
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.md, MqSpacing.lg, MqSpacing.lg),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 220,
+        mainAxisExtent: 250,
+        crossAxisSpacing: MqSpacing.sm,
+        mainAxisSpacing: MqSpacing.sm,
+      ),
+      itemCount: 6,
+      itemBuilder: (_, _) => MqCard(
+        padding: EdgeInsets.zero,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          AspectRatio(aspectRatio: 16 / 9, child: Container(color: m.fill2)),
+          Padding(
+            padding: const EdgeInsets.all(MqSpacing.sm),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(height: 12, width: double.infinity, color: m.fill2),
+              const SizedBox(height: 6),
+              Container(height: 10, width: 80, color: m.fill2),
             ]),
           ),
-        ],
+        ]),
       ),
     );
   }

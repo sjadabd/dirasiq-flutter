@@ -1,39 +1,31 @@
-// Create-course dialog — Flutter mirror of the dashboard's AddCourse.vue.
+// Create-course sheet — Flutter mirror of the dashboard's AddCourse.vue.
 //
-// What it captures (matches POST /api/teacher/courses Zod schema verbatim):
-//   - course_name              (required, string)
-//   - study_year               (computed from device clock, "YYYY-YYYY")
-//   - grade_id                 (UUID from /grades/my-grades)
-//   - subject_id               (UUID from /teacher/subjects)
-//   - description              (string)
-//   - start_date / end_date    (ISO date)
-//   - price                    (number ≥ 10000 IQD — dashboard rule)
-//   - seats_count              (int ≥ 1)
-//   - has_reservation          (bool)
-//   - reservation_amount       (number, required when has_reservation)
-//   - course_images            (array of data-URL base64 strings, optional)
+// Restyled to the Teacher Design System as an animated bottom sheet. All data
+// logic is UNCHANGED — it captures the exact POST /api/teacher/courses Zod
+// payload (course_name, study_year, grade_id, subject_id, description,
+// start/end dates, price ≥ 10000, seats ≥ 1, has_reservation,
+// reservation_amount, course_images as base64 data-URLs) and returns the new
+// course id (String) via Navigator.pop on success.
 //
-// Image pipeline: image_picker (gallery, multi) → read bytes → base64 →
-// data URL → POST as `course_images: [<data-url>, …]`. Same shape the
-// dashboard sends via FileReader.readAsDataURL.
-//
-// Returns the new course id (String) on success — caller uses it to
-// refetch / scroll-to-new.
+// Open it with `showModalBottomSheet<String?>(... builder: (_) =>
+// const TeacherCourseFormDialog())`.
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../../core/services/teacher_api_service.dart';
+import '../../shared/design/teacher_design.dart';
 
 class TeacherCourseFormDialog extends StatefulWidget {
   const TeacherCourseFormDialog({super.key});
 
   @override
-  State<TeacherCourseFormDialog> createState() => _TeacherCourseFormDialogState();
+  State<TeacherCourseFormDialog> createState() =>
+      _TeacherCourseFormDialogState();
 }
 
 class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
@@ -46,23 +38,19 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
   final _seats = TextEditingController(text: '20');
   final _reservation = TextEditingController();
 
-  // Catalog state
   List<Map<String, dynamic>> _grades = [];
   List<Map<String, dynamic>> _subjects = [];
   bool _loadingCatalogs = true;
 
-  // Selections
   String? _gradeId;
   String? _subjectId;
   DateTime? _startDate;
   DateTime? _endDate;
   bool _hasReservation = false;
 
-  // Images
   final List<File> _images = [];
   bool _picking = false;
 
-  // Submit state
   bool _submitting = false;
   String _error = '';
 
@@ -90,9 +78,6 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
     super.dispose();
   }
 
-  /// Compute "YYYY-YYYY" from the device clock — matches the dashboard's
-  /// September-rollover heuristic in src/pages/teacher/invoices/manage.vue.
-  /// Sep–Dec → currentYear-(currentYear+1); Jan–Aug → (prev)-(current).
   String _currentStudyYear() {
     final now = DateTime.now();
     final start = now.month >= 9 ? now.year : now.year - 1;
@@ -118,10 +103,6 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
     }
   }
 
-  /// `/grades/my-grades` returns junction rows shaped as
-  ///   `{ id: <teacher_grades.id>, gradeId: <grades.id>, gradeName, ... }`
-  /// We need the REAL grades.id (the `gradeId` key) — sending the junction
-  /// row's `id` triggers an FK violation server-side.
   String _gradeUuid(Map g) => (g['gradeId'] ?? g['id'])?.toString() ?? '';
   String _gradeLabel(Map g) =>
       (g['gradeName'] ?? g['name'] ?? g['title'])?.toString() ?? '';
@@ -156,9 +137,6 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
     final out = <String>[];
     for (final f in _images) {
       final bytes = await f.readAsBytes();
-      // Guess a mime type from the extension — server-side image.service
-      // accepts the data-URL prefix as a hint but re-detects via magic
-      // bytes, so a wrong guess won't break the upload.
       final ext = f.path.split('.').last.toLowerCase();
       final mime = (ext == 'png')
           ? 'image/png'
@@ -177,6 +155,7 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
       initialDate: initial,
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
+      locale: const Locale('ar'),
     );
     if (picked == null) return;
     _safeSetState(() {
@@ -192,14 +171,14 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
     if (v == null || v.trim().isEmpty) return 'مطلوب';
     final n = num.tryParse(v.replaceAll(',', ''));
     if (n == null) return 'قيمة غير صحيحة';
-    if (n < 10000) return 'يجب ألا يقل عن 10,000 د.ع';
+    if (n < 10000) return 'يجب ألا يقل عن 10,000';
     return null;
   }
 
   String? _validateSeats(String? v) {
     if (v == null || v.trim().isEmpty) return 'مطلوب';
     final n = int.tryParse(v);
-    if (n == null || n < 1) return 'عدد المقاعد ≥ 1';
+    if (n == null || n < 1) return '≥ 1';
     return null;
   }
 
@@ -207,22 +186,38 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
     if (!_hasReservation) return null;
     if (v == null || v.trim().isEmpty) return 'مطلوب';
     final n = num.tryParse(v.replaceAll(',', ''));
-    if (n == null || n < 10000) return 'يجب ألا يقل عن 10,000 د.ع';
+    if (n == null || n < 10000) return 'يجب ألا يقل عن 10,000';
     return null;
   }
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_gradeId == null) { _safeSetState(() => _error = 'يجب اختيار المرحلة'); return; }
-    if (_subjectId == null) { _safeSetState(() => _error = 'يجب اختيار المادة'); return; }
-    if (_startDate == null) { _safeSetState(() => _error = 'تاريخ البداية مطلوب'); return; }
-    if (_endDate == null) { _safeSetState(() => _error = 'تاريخ النهاية مطلوب'); return; }
+    if (_gradeId == null) {
+      _safeSetState(() => _error = 'يجب اختيار المرحلة');
+      return;
+    }
+    if (_subjectId == null) {
+      _safeSetState(() => _error = 'يجب اختيار المادة');
+      return;
+    }
+    if (_startDate == null) {
+      _safeSetState(() => _error = 'تاريخ البداية مطلوب');
+      return;
+    }
+    if (_endDate == null) {
+      _safeSetState(() => _error = 'تاريخ النهاية مطلوب');
+      return;
+    }
     if (_endDate!.isBefore(_startDate!)) {
-      _safeSetState(() => _error = 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية');
+      _safeSetState(
+          () => _error = 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية');
       return;
     }
 
-    _safeSetState(() { _submitting = true; _error = ''; });
+    _safeSetState(() {
+      _submitting = true;
+      _error = '';
+    });
     try {
       final images = await _encodeImagesToDataUrls();
       final isoFmt = DateFormat('yyyy-MM-dd');
@@ -231,7 +226,8 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
         'grade_id': _gradeId,
         'subject_id': _subjectId,
         'course_name': _name.text.trim(),
-        'description': _description.text.trim().isEmpty ? null : _description.text.trim(),
+        'description':
+            _description.text.trim().isEmpty ? null : _description.text.trim(),
         'start_date': isoFmt.format(_startDate!),
         'end_date': isoFmt.format(_endDate!),
         'price': num.parse(_price.text.replaceAll(',', '')),
@@ -243,8 +239,8 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
         if (images.isNotEmpty) 'course_images': images,
       };
       final res = await _api.createCourse(payload);
-      final id = res['data']?['id']?.toString()
-          ?? res['data']?['course']?['id']?.toString();
+      final id = res['data']?['id']?.toString() ??
+          res['data']?['course']?['id']?.toString();
       if (!mounted) return;
       Navigator.of(context).pop(id);
     } catch (e) {
@@ -260,274 +256,356 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    if (_loadingCatalogs) {
-      return AlertDialog(
-        title: const Text('إضافة كورس جديد'),
-        content: const SizedBox(
-          height: 120,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    final hint = _grades.isEmpty || _subjects.isEmpty
-        ? 'لم تضِف بعد ${_grades.isEmpty ? "مراحل" : ""}${_grades.isEmpty && _subjects.isEmpty ? " ولا " : ""}${_subjects.isEmpty ? "مواد" : ""}. أضِفها قبل إنشاء كورس.'
-        : '';
-
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.add_circle_outline, color: scheme.primary),
-          const SizedBox(width: 8),
-          const Text('إضافة كورس جديد'),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: SizedBox(
-          width: 480,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (hint.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(hint, style: const TextStyle(fontSize: 12)),
-                  ),
-                TextFormField(
-                  controller: _name,
-                  decoration: const InputDecoration(
-                    labelText: 'اسم الكورس *',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: mq.card,
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(MqRadius.xl)),
                 ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: _gradeId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'المرحلة الدراسية *',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: _grades
-                      .map((g) {
-                        final id = _gradeUuid(g);
-                        final label = _gradeLabel(g);
-                        if (id.isEmpty || label.isEmpty) return null;
-                        return DropdownMenuItem<String>(value: id, child: Text(label));
-                      })
-                      .whereType<DropdownMenuItem<String>>()
-                      .toList(),
-                  onChanged: _grades.isEmpty ? null : (v) => _safeSetState(() => _gradeId = v),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: _subjectId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'المادة *',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: _subjects
-                      .map((s) {
-                        final id = _subjectUuid(s);
-                        final label = _subjectLabel(s);
-                        if (id.isEmpty || label.isEmpty) return null;
-                        return DropdownMenuItem<String>(value: id, child: Text(label));
-                      })
-                      .whereType<DropdownMenuItem<String>>()
-                      .toList(),
-                  onChanged: _subjects.isEmpty ? null : (v) => _safeSetState(() => _subjectId = v),
-                ),
-                const SizedBox(height: 10),
-                Row(children: [
-                  Expanded(child: _DatePickerField(
-                    label: 'تاريخ البداية *',
-                    value: _startDate,
-                    onTap: () => _pickDate(isStart: true),
-                  )),
-                  const SizedBox(width: 8),
-                  Expanded(child: _DatePickerField(
-                    label: 'تاريخ النهاية *',
-                    value: _endDate,
-                    onTap: () => _pickDate(isStart: false),
-                  )),
-                ]),
-                const SizedBox(height: 10),
-                Row(children: [
-                  Expanded(child: TextFormField(
-                    controller: _price,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'السعر (د.ع) *',
-                      hintText: 'مثال: 250000',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    validator: _validatePrice,
-                  )),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextFormField(
-                    controller: _seats,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'عدد المقاعد *',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    validator: _validateSeats,
-                  )),
-                ]),
-                const SizedBox(height: 6),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: const Text('يوجد عربون'),
-                  value: _hasReservation,
-                  onChanged: (v) => _safeSetState(() => _hasReservation = v),
-                ),
-                if (_hasReservation)
-                  TextFormField(
-                    controller: _reservation,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'مبلغ العربون (د.ع)',
-                      hintText: 'مثال: 100000',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    validator: _validateReservation,
-                  ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _description,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'وصف الكورس',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildImagesPicker(scheme),
-                if (_error.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: scheme.errorContainer,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(children: [
-                      Icon(Icons.error_outline, color: scheme.error, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(_error,
-                            style: TextStyle(color: scheme.onErrorContainer, fontSize: 12)),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _handle(context),
+                      _header(context),
+                      Flexible(
+                        child: _loadingCatalogs
+                            ? const Padding(
+                                padding: EdgeInsets.all(MqSpacing.xxl),
+                                child: Center(child: CircularProgressIndicator()),
+                              )
+                            : _formBody(context),
                       ),
-                    ]),
+                      _saveBar(context),
+                    ],
                   ),
-                ],
-              ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        }),
       ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.of(context).pop(null),
-          child: const Text('إلغاء'),
-        ),
-        FilledButton.icon(
-          onPressed: (_submitting || _grades.isEmpty || _subjects.isEmpty) ? null : _submit,
-          icon: _submitting
-              ? const SizedBox(
-                  width: 14, height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Icon(Icons.save_outlined, size: 16),
-          label: const Text('حفظ'),
-        ),
-      ],
     );
   }
 
-  Widget _buildImagesPicker(ColorScheme scheme) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(10),
+  Widget _handle(BuildContext context) => Center(
+        child: Container(
+          width: 40,
+          height: 4,
+          margin: const EdgeInsets.only(top: MqSpacing.sm, bottom: MqSpacing.sm),
+          decoration: BoxDecoration(
+              color: context.mq.line, borderRadius: MqRadius.brPill),
+        ),
+      );
+
+  Widget _header(BuildContext context) {
+    final mq = context.mq;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          MqSpacing.lg, 0, MqSpacing.lg, MqSpacing.sm),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration:
+                BoxDecoration(color: mq.accentSoft, borderRadius: MqRadius.brSm),
+            child:
+                Icon(Icons.add_rounded, size: MqSize.iconSm, color: mq.accent),
+          ),
+          const SizedBox(width: MqSpacing.sm),
+          Expanded(
+            child: Text('إضافة كورس جديد', style: context.text.titleMedium),
+          ),
+          InkWell(
+            onTap: () => Navigator.of(context).pop(null),
+            customBorder: const CircleBorder(),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.close_rounded, color: mq.ink3),
+            ),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(10),
+    );
+  }
+
+  Widget _formBody(BuildContext context) {
+    final mq = context.mq;
+    final missingCatalog = _grades.isEmpty || _subjects.isEmpty;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+          MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.lg),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (missingCatalog)
+              Padding(
+                padding: const EdgeInsets.only(bottom: MqSpacing.md),
+                child: MqSurface(
+                  tone: MqSurfaceTone.orange,
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          size: 18, color: mq.orangeDeep),
+                      const SizedBox(width: MqSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'أضِف ${_grades.isEmpty ? 'مراحل' : ''}'
+                          '${_grades.isEmpty && _subjects.isEmpty ? ' و' : ''}'
+                          '${_subjects.isEmpty ? 'مواد' : ''} أولاً قبل إنشاء كورس.',
+                          style: context.text.bodySmall
+                              ?.copyWith(color: mq.ink2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            TextFormField(
+              controller: _name,
+              decoration: const InputDecoration(
+                labelText: 'اسم الكورس *',
+                prefixIcon: Icon(Icons.book_outlined),
+                isDense: true,
+              ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+            ),
+            const SizedBox(height: MqSpacing.md),
+            DropdownButtonFormField<String>(
+              initialValue: _gradeId,
+              isExpanded: true,
+              dropdownColor: mq.card,
+              decoration: const InputDecoration(
+                labelText: 'المرحلة الدراسية *',
+                prefixIcon: Icon(Icons.school_outlined),
+                isDense: true,
+              ),
+              items: _grades
+                  .map((g) {
+                    final id = _gradeUuid(g);
+                    final label = _gradeLabel(g);
+                    if (id.isEmpty || label.isEmpty) return null;
+                    return DropdownMenuItem<String>(
+                        value: id, child: Text(label));
+                  })
+                  .whereType<DropdownMenuItem<String>>()
+                  .toList(),
+              onChanged: _grades.isEmpty
+                  ? null
+                  : (v) => _safeSetState(() => _gradeId = v),
+            ),
+            const SizedBox(height: MqSpacing.md),
+            DropdownButtonFormField<String>(
+              initialValue: _subjectId,
+              isExpanded: true,
+              dropdownColor: mq.card,
+              decoration: const InputDecoration(
+                labelText: 'المادة *',
+                prefixIcon: Icon(Icons.menu_book_outlined),
+                isDense: true,
+              ),
+              items: _subjects
+                  .map((s) {
+                    final id = _subjectUuid(s);
+                    final label = _subjectLabel(s);
+                    if (id.isEmpty || label.isEmpty) return null;
+                    return DropdownMenuItem<String>(
+                        value: id, child: Text(label));
+                  })
+                  .whereType<DropdownMenuItem<String>>()
+                  .toList(),
+              onChanged: _subjects.isEmpty
+                  ? null
+                  : (v) => _safeSetState(() => _subjectId = v),
+            ),
+            const SizedBox(height: MqSpacing.md),
+            Row(children: [
+              Expanded(
+                child: _DatePickerField(
+                  label: 'تاريخ البداية *',
+                  value: _startDate,
+                  onTap: () => _pickDate(isStart: true),
+                ),
+              ),
+              const SizedBox(width: MqSpacing.sm),
+              Expanded(
+                child: _DatePickerField(
+                  label: 'تاريخ النهاية *',
+                  value: _endDate,
+                  onTap: () => _pickDate(isStart: false),
+                ),
+              ),
+            ]),
+            const SizedBox(height: MqSpacing.md),
+            Row(children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _price,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'السعر (د.ع) *',
+                    isDense: true,
+                  ),
+                  validator: _validatePrice,
+                ),
+              ),
+              const SizedBox(width: MqSpacing.sm),
+              Expanded(
+                child: TextFormField(
+                  controller: _seats,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'المقاعد *',
+                    isDense: true,
+                  ),
+                  validator: _validateSeats,
+                ),
+              ),
+            ]),
+            const SizedBox(height: MqSpacing.sm),
+            MqSurface(
+              tone: MqSurfaceTone.neutral,
+              padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm),
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                activeTrackColor: mq.accent,
+                title: Text('يوجد عربون', style: context.text.bodyMedium),
+                value: _hasReservation,
+                onChanged: (v) => _safeSetState(() => _hasReservation = v),
+              ),
+            ),
+            if (_hasReservation) ...[
+              const SizedBox(height: MqSpacing.md),
+              TextFormField(
+                controller: _reservation,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'مبلغ العربون (د.ع)',
+                  prefixIcon: Icon(Icons.savings_outlined),
+                  isDense: true,
+                ),
+                validator: _validateReservation,
+              ),
+            ],
+            const SizedBox(height: MqSpacing.md),
+            TextFormField(
+              controller: _description,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'وصف الكورس',
+                hintText: 'وصف اختياري...',
+              ),
+            ),
+            const SizedBox(height: MqSpacing.md),
+            _imagesPicker(context),
+            if (_error.isNotEmpty) ...[
+              const SizedBox(height: MqSpacing.md),
+              MqSurface(
+                tone: MqSurfaceTone.neutral,
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline_rounded, size: 18, color: mq.error),
+                    const SizedBox(width: MqSpacing.sm),
+                    Expanded(
+                      child: Text(_error,
+                          style: context.text.bodySmall
+                              ?.copyWith(color: mq.error)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _imagesPicker(BuildContext context) {
+    final mq = context.mq;
+    return Container(
+      padding: const EdgeInsets.all(MqSpacing.md),
+      decoration: BoxDecoration(
+        color: mq.fill,
+        borderRadius: MqRadius.brMd,
+        border: Border.all(color: mq.line),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(children: [
-            Icon(Icons.image_outlined, size: 18, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                _images.isEmpty
-                    ? 'صور الكورس (اختياري — JPG / PNG / WEBP)'
-                    : '${_images.length} صورة مختارة',
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          Row(
+            children: [
+              Icon(Icons.image_outlined, size: 18, color: mq.ink3),
+              const SizedBox(width: MqSpacing.sm),
+              Expanded(
+                child: Text(
+                  _images.isEmpty
+                      ? 'صور الكورس (اختياري)'
+                      : '${_images.length} صورة مختارة',
+                  style: context.text.labelMedium?.copyWith(color: mq.ink2),
+                ),
               ),
-            ),
-            TextButton.icon(
-              onPressed: _submitting ? null : _pickImages,
-              icon: const Icon(Icons.add_a_photo_outlined, size: 16),
-              label: const Text('إضافة', style: TextStyle(fontSize: 12)),
-              style: TextButton.styleFrom(
-                minimumSize: const Size(0, 32),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+              MqButton.text(
+                label: 'إضافة',
+                icon: Icons.add_a_photo_outlined,
+                size: MqButtonSize.small,
+                onPressed: _submitting ? null : _pickImages,
               ),
-            ),
-          ]),
+            ],
+          ),
           if (_images.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: MqSpacing.sm),
             SizedBox(
-              height: 80,
+              height: 76,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: _images.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (ctx, i) => Stack(children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(_images[i], width: 80, height: 80, fit: BoxFit.cover),
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: InkWell(
-                      onTap: _submitting ? null : () => _removeImage(i),
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.redAccent,
-                          shape: BoxShape.circle,
+                separatorBuilder: (_, _) => const SizedBox(width: MqSpacing.sm),
+                itemBuilder: (ctx, i) => Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: MqRadius.brSm,
+                      child: Image.file(_images[i],
+                          width: 76, height: 76, fit: BoxFit.cover),
+                    ),
+                    PositionedDirectional(
+                      top: 2,
+                      end: 2,
+                      child: InkWell(
+                        onTap: _submitting ? null : () => _removeImage(i),
+                        child: Container(
+                          decoration: BoxDecoration(
+                              color: mq.error, shape: BoxShape.circle),
+                          padding: const EdgeInsets.all(2),
+                          child: const Icon(Icons.close,
+                              size: 13, color: Colors.white),
                         ),
-                        padding: const EdgeInsets.all(2),
-                        child: const Icon(Icons.close, size: 14, color: Colors.white),
                       ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ),
             ),
           ],
@@ -535,10 +613,29 @@ class _TeacherCourseFormDialogState extends State<TeacherCourseFormDialog> {
       ),
     );
   }
+
+  Widget _saveBar(BuildContext context) {
+    final mq = context.mq;
+    final disabled = _submitting || _grades.isEmpty || _subjects.isEmpty;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+          MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.md),
+      decoration: BoxDecoration(
+        color: mq.card,
+        border: Border(top: BorderSide(color: mq.line)),
+      ),
+      child: MqButton(
+        label: _submitting ? 'جارٍ الحفظ…' : 'حفظ الكورس',
+        icon: _submitting ? null : Icons.check_rounded,
+        loading: _submitting,
+        onPressed: disabled ? null : _submit,
+      ),
+    );
+  }
 }
 
-/// Small helper that renders a `TextFormField`-shaped read-only field +
-/// opens a date picker on tap.
+/// Read-only date field that opens a date picker on tap (design-system styled
+/// via the active [InputDecorationTheme]).
 class _DatePickerField extends StatelessWidget {
   const _DatePickerField({
     required this.label,
@@ -555,16 +652,16 @@ class _DatePickerField extends StatelessWidget {
     final fmt = DateFormat('yyyy-MM-dd');
     return InkWell(
       onTap: onTap,
+      borderRadius: MqRadius.brMd,
       child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
+        decoration: const InputDecoration(
           isDense: true,
-          suffixIcon: const Icon(Icons.calendar_today_outlined, size: 16),
+          suffixIcon: Icon(Icons.calendar_today_outlined, size: 16),
         ),
         child: Text(
-          value == null ? '—' : fmt.format(value!),
-          style: const TextStyle(fontSize: 13),
+          value == null ? label : fmt.format(value!),
+          style: context.text.bodyMedium?.copyWith(
+              color: value == null ? context.mq.ink3 : context.mq.ink),
         ),
       ),
     );

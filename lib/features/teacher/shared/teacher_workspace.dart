@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../attendance_qr/teacher_attendance_qr_screen.dart';
 import '../bookings/teacher_bookings_screen.dart';
 import '../chat/screens/teacher_conversations_screen.dart';
 import '../courses/teacher_courses_screen.dart';
@@ -15,7 +16,9 @@ import '../sessions/teacher_sessions_screen.dart';
 import '../subjects/teacher_subjects_screen.dart';
 import '../video_courses/teacher_video_courses_screen.dart';
 import '../wallet/teacher_wallet_screen.dart';
+import 'design/teacher_design.dart';
 import 'teacher_app_bar.dart';
+import 'teacher_bottom_nav.dart';
 
 /// The single Scaffold owner for the entire teacher area.
 ///
@@ -62,9 +65,27 @@ class TeacherWorkspace extends StatefulWidget {
   static int? currentIndexOf(BuildContext context) {
     return context.findAncestorStateOfType<TeacherWorkspaceState>()?._currentIndex;
   }
+
+  /// Switch the workspace to [index] from ANYWHERE — including a route pushed
+  /// ABOVE the workspace (e.g. the app-bar bell's `/notifications`). If the
+  /// caller is inside the workspace tree we just switch the tab; otherwise we
+  /// pop back to the workspace first, then switch the live instance's tab.
+  static void jumpTo(BuildContext context, int index) {
+    final inTree = context.findAncestorStateOfType<TeacherWorkspaceState>();
+    if (inTree != null) {
+      inTree.goTo(index);
+      return;
+    }
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    TeacherWorkspaceState.active?.goTo(index);
+  }
 }
 
 class TeacherWorkspaceState extends State<TeacherWorkspace> {
+  /// The live workspace instance, for deep links originating from a route
+  /// pushed above it (see [TeacherWorkspace.jumpTo]).
+  static TeacherWorkspaceState? active;
+
   // -- Page registry ----------------------------------------------------------
   // Order matches the drawer + bottom nav. Keep in sync with TeacherRoutes
   // (used by deep-link lookups elsewhere). The first 5 are also the bottom-nav
@@ -84,6 +105,7 @@ class TeacherWorkspaceState extends State<TeacherWorkspace> {
   static const int notificationsIdx       = 11;
   static const int profileIdx             = 12;
   static const int chatsIdx               = 13;
+  static const int attendanceQrIdx        = 14;
 
   late final List<Widget> _pages = const [
     TeacherHomeScreen(),                  // 0
@@ -100,6 +122,7 @@ class TeacherWorkspaceState extends State<TeacherWorkspace> {
     TeacherNotificationsScreen(),         // 11
     TeacherProfileScreen(),               // 12
     TeacherConversationsScreen(),         // 13 — chat (Phase 6)
+    TeacherAttendanceQrScreen(),          // 14 — attendance QR
   ];
 
   // -- State ------------------------------------------------------------------
@@ -113,9 +136,16 @@ class TeacherWorkspaceState extends State<TeacherWorkspace> {
   @override
   void initState() {
     super.initState();
+    active = this;
     _currentIndex = widget.initialIndex;
     _history[0] = _currentIndex;
     _visited.add(_currentIndex);
+  }
+
+  @override
+  void dispose() {
+    if (active == this) active = null;
+    super.dispose();
   }
 
   /// Switch to a page. Same-index taps are no-ops (so re-tapping the active
@@ -162,23 +192,35 @@ class TeacherWorkspaceState extends State<TeacherWorkspace> {
 
   @override
   Widget build(BuildContext context) {
+    // The bottom nav lives HERE (not per page) so it stays mounted across tab
+    // switches — that's what lets the floating circle slide between tabs.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pageBg = isDark ? MqColors.dark.page : MqColors.light.page;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         await _onWillPop();
       },
-      child: IndexedStack(
-        index: _currentIndex,
-        children: [
-          for (var i = 0; i < _pages.length; i++)
-            // Lazy mount: pages not yet visited render a minimal placeholder.
-            // First visit replaces the placeholder with the real widget, and
-            // from then on IndexedStack keeps it mounted (state preserved).
-            _visited.contains(i)
-                ? _pages[i]
-                : const _LazyPlaceholder(),
-        ],
+      child: Scaffold(
+        backgroundColor: pageBg,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            for (var i = 0; i < _pages.length; i++)
+              // Lazy mount: pages not yet visited render a minimal placeholder.
+              // First visit replaces the placeholder with the real widget, and
+              // from then on IndexedStack keeps it mounted (state preserved).
+              _visited.contains(i)
+                  ? _pages[i]
+                  : const _LazyPlaceholder(),
+          ],
+        ),
+        bottomNavigationBar: TeacherBottomNav(
+          currentIndex: _currentIndex,
+          onTap: goTo,
+        ),
       ),
     );
   }

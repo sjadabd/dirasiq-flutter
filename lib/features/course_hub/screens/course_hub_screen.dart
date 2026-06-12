@@ -21,7 +21,7 @@ import 'package:mulhimiq/features/course_hub/widgets/course_hub_other_teacher_co
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_overview_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_schedule_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_videos_section.dart';
-import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class CourseHubScreen extends StatefulWidget {
   const CourseHubScreen({
@@ -70,30 +70,56 @@ class _CourseHubScreenState extends State<CourseHubScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: GlobalAppBar(
-        title: widget.courseName ?? 'بيئة الدورة',
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _controller.refreshAll,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: const [
-              CourseHubOverviewSection(),
-              CourseHubAnnouncementsSection(),
-              CourseHubAcademicSection(),
-              CourseHubAttendanceSection(),
-              CourseHubScheduleSection(),
-              CourseHubMaterialsSection(),
-              CourseHubVideosSection(),
-              CourseHubBillingSection(),
-              // Discovery tail — same teacher's other catalog. Self-hides
-              // when empty so the hub stays clean for single-course teachers.
-              CourseHubOtherTeacherCoursesSection(),
-            ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
+
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: context.mq.page,
+            appBar: AppBar(
+              title: Text(
+                widget.courseName ?? 'بيئة الدورة',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              actions: [
+                // Preserves the old app bar's notifications entry point
+                // (course announcements arrive via the notifications feed).
+                IconButton(
+                  tooltip: 'الإشعارات',
+                  icon: const Icon(Icons.notifications_outlined),
+                  onPressed: () => Get.toNamed('/notifications'),
+                ),
+              ],
+            ),
+            body: SafeArea(
+              top: false,
+              child: RefreshIndicator(
+                onRefresh: _controller.refreshAll,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                      MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    CourseHubOverviewSection(),
+                    CourseHubAnnouncementsSection(),
+                    CourseHubAcademicSection(),
+                    CourseHubAttendanceSection(),
+                    CourseHubScheduleSection(),
+                    CourseHubMaterialsSection(),
+                    CourseHubVideosSection(),
+                    CourseHubBillingSection(),
+                    // Discovery tail — same teacher's other catalog. Self-hides
+                    // when empty so the hub stays clean for single-course teachers.
+                    CourseHubOtherTeacherCoursesSection(),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),

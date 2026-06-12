@@ -1,9 +1,22 @@
-import 'package:mulhimiq/core/config/app_config.dart';
+// Student → Booking details (MulhimIQ design-system pass). Route
+// /booking-details (arg: bookingId).
+//
+// Backed by ApiService.fetchBookingDetails → GET /student/bookings/:id. The
+// cancel (cancelBooking) and reactivate (reactivateBooking) flows, the booking
+// status semantics, and navigation are UNCHANGED — only the presentation was
+// restyled. There is no payment-status field and no course-hub / payment
+// action in the booking object, so "إكمال الدفع" / "دخول بيئة الدورة" are not
+// shown (never invent actions). Every field/section renders only when the
+// backend provides it.
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mulhimiq/shared/themes/app_colors.dart';
+
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
-import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/core/utils/money.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
+import 'package:mulhimiq/shared/widgets/app_network_image.dart';
 
 class BookingDetailsScreen extends StatefulWidget {
   final String? bookingId;
@@ -28,9 +41,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _load();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
@@ -53,14 +64,16 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
         _data = res['data'] ?? res;
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = 'تعذّر تحميل تفاصيل الحجز';
         _loading = false;
       });
     }
   }
+
+  // ─── actions (UNCHANGED endpoints) ──────────────────────────────────────────
 
   Future<void> _cancel() async {
     final id = _data?['id']?.toString();
@@ -71,22 +84,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       await _api.cancelBooking(bookingId: id, reason: reason);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('تم إلغاء الحجز', style: TextStyle(fontSize: 11)),
-          backgroundColor: AppColors.success,
-        ),
+        const SnackBar(content: Text('تم إلغاء الحجز'), behavior: SnackBarBehavior.floating),
       );
       _load();
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'فشل الإلغاء: $e',
-            style: const TextStyle(fontSize: 11),
-          ),
-          backgroundColor: AppColors.error,
-        ),
+        const SnackBar(content: Text('تعذّر إلغاء الحجز'), behavior: SnackBarBehavior.floating),
       );
     }
   }
@@ -99,10 +103,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       if (!mounted) return;
       final msg = (res['message'] ?? 'تم إعادة إرسال الطلب').toString();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg, style: const TextStyle(fontSize: 11)),
-          backgroundColor: AppColors.success,
-        ),
+        SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
       );
       final warning = res['warning'];
       if (warning is Map<String, dynamic>) {
@@ -111,58 +112,18 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
         await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            backgroundColor: Theme.of(context).brightness == Brightness.dark
-                ? AppColors.darkSurface
-                : AppColors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              wMsg,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.textPrimary,
-              ),
-            ),
-            content: note != null
-                ? Text(
-                    note,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.textSecondary,
-                    ),
-                  )
-                : null,
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(
-                  'حسناً',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
+            title: Text(wMsg),
+            content: note != null ? Text(note) : null,
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('حسناً'))],
           ),
         );
       }
       if (!mounted) return;
       _load();
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString(), style: const TextStyle(fontSize: 11)),
-          backgroundColor: AppColors.error,
-        ),
+        const SnackBar(content: Text('تعذّر إعادة إرسال الطلب'), behavior: SnackBarBehavior.floating),
       );
     }
   }
@@ -173,73 +134,21 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? AppColors.darkSurface
-            : AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'سبب الإلغاء',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? AppColors.darkTextPrimary
-                : AppColors.textPrimary,
-          ),
-        ),
+        title: const Text('سبب الإلغاء'),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          style: TextStyle(
-            fontSize: 12,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? AppColors.darkTextPrimary
-                : AppColors.textPrimary,
-          ),
-          decoration: InputDecoration(
-            hintText: 'اذكر سبب الإلغاء',
-            hintStyle: TextStyle(
-              fontSize: 11,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.textSecondary,
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            contentPadding: const EdgeInsets.all(10),
-          ),
+          decoration: const InputDecoration(hintText: 'اذكر سبب الإلغاء'),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'إلغاء',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? AppColors.darkTextSecondary
-                    : AppColors.textSecondary,
-              ),
-            ),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('تراجع')),
           ElevatedButton(
             onPressed: () {
               if (controller.text.trim().isEmpty) return;
               result = controller.text.trim();
               Navigator.pop(ctx);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'تأكيد',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
+            child: const Text('تأكيد'),
           ),
         ],
       ),
@@ -247,979 +156,418 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     return result;
   }
 
-  String _formatDateTime(String? dateStr) {
-    if (dateStr == null) return 'غير محدد';
+  // ─── helpers ────────────────────────────────────────────────────────────────
+
+  String _fmtDateTime(String? s) {
+    if (s == null || s.isEmpty) return '';
     try {
-      final date = DateTime.parse(dateStr);
-      return '${date.day}/${date.month}/${date.year} - ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return dateStr;
+      final d = DateTime.parse(s).toLocal();
+      return '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')} • '
+          '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return s;
     }
   }
 
-  String _getStatusText(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 'قيد الانتظار';
-      case 'pre_approved':
-        return 'موافقة أولية';
-      case 'confirmed':
-        return 'تم التأكيد';
-      case 'approved':
-        return 'موافق نهائياً';
-      case 'rejected':
-        return 'مرفوض';
-      case 'cancelled':
-        return 'ملغي';
-      case 'canceled':
-        return 'ملغي';
-      default:
-        return status;
+  String _fmtDate(String? s) {
+    if (s == null || s.isEmpty) return '';
+    try {
+      final d = DateTime.parse(s).toLocal();
+      return '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return s;
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
+  (String, MqBadgeTone, IconData) _statusMeta(String s) {
+    switch (s.toLowerCase()) {
       case 'pending':
-        return AppColors.warning;
+        return ('قيد الانتظار', MqBadgeTone.orange, Icons.schedule_rounded);
       case 'pre_approved':
-        return AppColors.info;
+        return ('موافقة أولية', MqBadgeTone.accent, Icons.task_alt_rounded);
       case 'confirmed':
-        return Colors.blue;
+        return ('تم التأكيد', MqBadgeTone.success, Icons.verified_rounded);
       case 'approved':
-        return AppColors.success;
+        return ('موافق نهائياً', MqBadgeTone.success, Icons.check_circle_rounded);
       case 'rejected':
-        return AppColors.error;
+        return ('مرفوض', MqBadgeTone.error, Icons.cancel_rounded);
       case 'cancelled':
-        return Theme.of(context).brightness == Brightness.dark
-            ? AppColors.darkTextSecondary
-            : AppColors.textSecondary;
       case 'canceled':
-        return Theme.of(context).brightness == Brightness.dark
-            ? AppColors.darkTextSecondary
-            : AppColors.textSecondary;
+        return ('ملغي', MqBadgeTone.neutral, Icons.block_rounded);
       default:
-        return Theme.of(context).brightness == Brightness.dark
-            ? AppColors.darkTextSecondary
-            : AppColors.textSecondary;
+        return (s, MqBadgeTone.neutral, Icons.help_outline_rounded);
     }
   }
+
+  Color _toneColor(BuildContext context, MqBadgeTone tone) {
+    final m = context.mq;
+    return switch (tone) {
+      MqBadgeTone.orange => m.orange,
+      MqBadgeTone.accent => m.accent,
+      MqBadgeTone.success => m.success,
+      MqBadgeTone.error => m.error,
+      MqBadgeTone.neutral => m.ink3,
+    };
+  }
+
+  String _nextStep(String s) => switch (s.toLowerCase()) {
+        'pending' => 'بانتظار مراجعة الأستاذ لطلبك',
+        'pre_approved' => 'تمت الموافقة المبدئية — بانتظار التأكيد',
+        'confirmed' => 'تم تأكيد حجزك',
+        'approved' => 'تم قبولك في الدورة',
+        'rejected' => 'تم رفض الطلب',
+        'cancelled' || 'canceled' => 'تم إلغاء الطلب',
+        _ => '',
+      };
+
+  // ─── build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    if (_data == null && _error == null && _loading) {
-      // Initial load is triggered from initState via addPostFrameCallback
-    }
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
-      appBar: const GlobalAppBar(title: 'تفاصيل الحجز', centerTitle: true),
-      body: _buildBody(isDark),
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: context.mq.page,
+            appBar: AppBar(title: const Text('تفاصيل الحجز')),
+            body: _loading
+                ? _skeleton(context)
+                : _error != null
+                    ? _errorView(context)
+                    : _data == null
+                        ? _errorView(context)
+                        : RefreshIndicator(onRefresh: _load, child: _content(context, _data!)),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildBody(bool isDark) {
-    if (_loading) {
-      return Center(
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: AppColors.primary,
-          ),
-        ),
-      );
-    }
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.error_outline_rounded,
-                  size: 40,
-                  color: AppColors.error,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () => _load(),
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text(
-                  'إعادة المحاولة',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+  Widget _content(BuildContext context, Map<String, dynamic> b) {
+    final status = (b['status'] ?? '').toString();
+    final course = b['course'] is Map ? Map<String, dynamic>.from(b['course']) : null;
+    final teacher = b['teacher'] is Map ? Map<String, dynamic>.from(b['teacher']) : null;
 
-    final booking = _data!;
-    final status = (booking['status'] ?? '').toString();
-    final student = booking['student'] as Map<String, dynamic>?;
-    final course = booking['course'] as Map<String, dynamic>?;
-    final teacher = booking['teacher'] as Map<String, dynamic>?;
+    final notes = _noteWidgets(context, b);
+    final timeline = _timelineRows(context, b);
 
     return ListView(
-      padding: const EdgeInsets.all(12),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
       children: [
-        _buildStatusCard(booking, status, isDark),
-        const SizedBox(height: 10),
-
-        if (course != null) _buildCourseCard(course, isDark),
-        const SizedBox(height: 10),
-
-        if (student != null) _buildStudentCard(student, isDark),
-        const SizedBox(height: 10),
-
-        if (teacher != null) _buildTeacherCard(teacher, isDark),
-        const SizedBox(height: 10),
-
-        _buildMessagesCard(booking, isDark),
-        const SizedBox(height: 10),
-
-        _buildTimelineCard(booking, isDark),
-        const SizedBox(height: 10),
-
-        _buildActionButtons(status, booking, isDark),
-        const SizedBox(height: 10),
+        _statusCard(context, b, status),
+        if (course != null) ...[MqSpacing.gapMd, _courseCard(context, course)],
+        if (teacher != null) ...[MqSpacing.gapMd, _teacherCard(context, teacher)],
+        if (notes.isNotEmpty) ...[MqSpacing.gapMd, _sectionCard(context, 'الملاحظات والتواصل', Icons.message_outlined, notes)],
+        if (timeline.isNotEmpty) ...[MqSpacing.gapMd, _sectionCard(context, 'التسلسل الزمني', Icons.timeline_rounded, timeline)],
+        MqSpacing.gapMd,
+        _actions(context, status, b),
       ],
     );
   }
 
-  Widget _buildStatusCard(
-    Map<String, dynamic> booking,
-    String status,
-    bool isDark,
-  ) {
-    final statusColor = _getStatusColor(status);
+  Widget _statusCard(BuildContext context, Map<String, dynamic> b, String status) {
+    final (label, tone, icon) = _statusMeta(status);
+    final color = _toneColor(context, tone);
+    final id = (b['id'] ?? '').toString();
+    final shortId = id.length > 8 ? id.substring(id.length - 8) : id;
+    final date = _fmtDate(b['bookingDate']?.toString() ?? b['createdAt']?.toString());
+    final next = _nextStep(status);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withValues(alpha: 0.2), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: statusColor.withValues(alpha: 0.06),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.bookmark_rounded,
-                  color: statusColor,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'حالة الحجز',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _getStatusText(status),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
+          Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: MqRadius.brMd),
+              child: Icon(icon, color: color, size: MqSize.iconMd),
             ),
-            child: Column(
-              children: [
-                _row(
-                  Icons.school_rounded,
-                  'السنة الدراسية',
-                  booking['studyYear']?.toString() ?? 'غير محدد',
-                  AppColors.primary,
-                ),
-                const SizedBox(height: 6),
-                _row(
-                  Icons.event_rounded,
-                  'تاريخ الحجز',
-                  _formatDateTime(booking['bookingDate']?.toString()),
-                  AppColors.info,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCourseCard(Map<String, dynamic> course, bool isDark) {
-    final images = course['courseImages'] as List<dynamic>?;
-    final hasReservation = course['hasReservation'];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.school_rounded,
-                  color: AppColors.primary,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'معلومات الكورس',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (images != null && images.isNotEmpty) ...[
-            SizedBox(
-              height: 90,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: images.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    width: 90,
-                    margin: const EdgeInsets.only(left: 6),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      image: DecorationImage(
-                        image: NetworkImage(
-                          '${AppConfig.serverBaseUrl}${images[index]}',
-                        ),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  );
-                },
+            MqSpacing.gapMd,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('حجز #$shortId', style: context.text.titleSmall),
+                  if (date.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text('تاريخ الطلب: $date', style: context.text.labelSmall),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 10),
+            MqBadge(label: label, tone: tone),
+          ]),
+          if (next.isNotEmpty) ...[
+            MqSpacing.gapSm,
+            MqSurface(
+              tone: MqSurfaceTone.neutral,
+              padding: const EdgeInsets.all(MqSpacing.sm),
+              child: Row(children: [
+                Icon(Icons.flag_outlined, size: 14, color: color),
+                MqSpacing.gapXs,
+                Expanded(child: Text(next, style: context.text.bodySmall)),
+              ]),
+            ),
           ],
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                _row(
-                  Icons.book_rounded,
-                  'اسم الكورس',
-                  course['courseName']?.toString() ?? 'غير محدد',
-                  AppColors.primary,
-                ),
-                const SizedBox(height: 6),
-                _row(
-                  Icons.description_rounded,
-                  'الوصف',
-                  course['description']?.toString() ?? 'غير متوفر',
-                  AppColors.info,
-                ),
-                const SizedBox(height: 6),
-                _row(
-                  Icons.attach_money_rounded,
-                  'السعر',
-                  '${course['price'] ?? '0'} دينار',
-                  AppColors.success,
-                ),
-                if (hasReservation == true ||
-                    hasReservation?.toString() == 'true') ...[
-                  const SizedBox(height: 6),
-                  _row(
-                    Icons.payment_rounded,
-                    'مبلغ الحجز',
-                    '${course['reservationAmount'] ?? '0'} دينار',
-                    AppColors.warning,
-                  ),
-                ],
-                const SizedBox(height: 6),
-                _row(
-                  Icons.event_seat_rounded,
-                  'عدد المقاعد',
-                  course['seatsCount']?.toString() ?? 'غير محدد',
-                  AppColors.primary,
-                ),
-                const SizedBox(height: 6),
-                _row(
-                  Icons.play_circle_rounded,
-                  'تاريخ البداية',
-                  _formatDateTime(course['startDate']?.toString()),
-                  AppColors.success,
-                ),
-                const SizedBox(height: 6),
-                _row(
-                  Icons.stop_circle_rounded,
-                  'تاريخ النهاية',
-                  _formatDateTime(course['endDate']?.toString()),
-                  AppColors.error,
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildStudentCard(Map<String, dynamic> student, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.info.withValues(alpha: 0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.info.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
+  Widget _courseCard(BuildContext context, Map<String, dynamic> c) {
+    final m = context.mq;
+    final images = c['courseImages'] as List?;
+    final imgPath = (images != null && images.isNotEmpty) ? images.first.toString() : '';
+    final imgUrl = imgPath.isEmpty ? '' : (imgPath.startsWith('http') ? imgPath : '${AppConfig.serverBaseUrl}$imgPath');
+    final hasReservation = c['hasReservation'] == true || c['hasReservation']?.toString() == 'true';
+    final desc = (c['description'] ?? '').toString().trim();
+    final start = _fmtDate(c['startDate']?.toString());
+    final end = _fmtDate(c['endDate']?.toString());
+
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.info.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.person_rounded,
-                  color: AppColors.info,
-                  size: 16,
-                ),
+          _cardHeader(context, 'معلومات الدورة', Icons.school_outlined),
+          MqSpacing.gapSm,
+          if (imgUrl.isNotEmpty) ...[
+            ClipRRect(
+              borderRadius: MqRadius.brMd,
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: AppNetworkImage(url: imgUrl, fit: BoxFit.cover, fallbackIcon: Icons.school_rounded),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'معلومات الطالب',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
             ),
-            child: Column(
-              children: [
-                _row(
-                  Icons.badge_rounded,
-                  'الاسم',
-                  student['name']?.toString() ?? 'غير محدد',
-                  AppColors.info,
-                ),
-                const SizedBox(height: 6),
-                _row(
-                  Icons.email_rounded,
-                  'البريد الإلكتروني',
-                  student['email']?.toString() ?? 'غير محدد',
-                  AppColors.primary,
-                ),
+            MqSpacing.gapSm,
+          ],
+          Text(c['courseName']?.toString() ?? 'غير محدد', style: context.text.titleSmall),
+          if (desc.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(desc, style: context.text.bodySmall, maxLines: 3, overflow: TextOverflow.ellipsis),
+          ],
+          MqSpacing.gapSm,
+          Wrap(spacing: MqSpacing.xs, runSpacing: MqSpacing.xs, children: [
+            if (c['price'] != null) MqBadge(label: '${fmtMoney(c['price'])} د.ع', tone: MqBadgeTone.success, icon: Icons.payments_outlined),
+            if (hasReservation && c['reservationAmount'] != null)
+              MqBadge(label: 'حجز: ${fmtMoney(c['reservationAmount'])} د.ع', tone: MqBadgeTone.orange, icon: Icons.account_balance_wallet_outlined),
+            if (c['seatsCount'] != null) MqBadge(label: '${c['seatsCount']} مقعد', tone: MqBadgeTone.neutral, icon: Icons.event_seat_outlined),
+          ]),
+          if (start.isNotEmpty || end.isNotEmpty) ...[
+            MqSpacing.gapSm,
+            Row(children: [
+              if (start.isNotEmpty) ...[
+                Icon(Icons.play_circle_outline_rounded, size: 13, color: m.ink3),
+                MqSpacing.gapXxs,
+                Text(start, style: context.text.labelSmall),
               ],
-            ),
-          ),
+              if (end.isNotEmpty) ...[
+                MqSpacing.gapMd,
+                Icon(Icons.flag_outlined, size: 13, color: m.ink3),
+                MqSpacing.gapXxs,
+                Text(end, style: context.text.labelSmall),
+              ],
+            ]),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildTeacherCard(Map<String, dynamic> teacher, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.2),
-          width: 1,
+  Widget _teacherCard(BuildContext context, Map<String, dynamic> t) {
+    final m = context.mq;
+    final name = (t['name'] ?? 'غير محدد').toString();
+    final email = (t['email'] ?? '').toString();
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.md),
+      child: Row(children: [
+        Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(color: m.accentSoft, shape: BoxShape.circle),
+          child: Icon(Icons.person_rounded, color: m.accent, size: 28),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.success.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        MqSpacing.gapMd,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('الأستاذ', style: context.text.labelSmall),
+              Text(name, style: context.text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (email.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(email, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ],
           ),
-        ],
+        ),
+      ]),
+    );
+  }
+
+  List<Widget> _noteWidgets(BuildContext context, Map<String, dynamic> b) {
+    final out = <Widget>[];
+    void add(String title, dynamic value, MqBadgeTone tone, IconData icon) {
+      final v = value?.toString().trim() ?? '';
+      if (v.isEmpty) return;
+      out.add(_noteBox(context, title, v, tone, icon));
+    }
+
+    add('رسالة الطالب', b['studentMessage'], MqBadgeTone.accent, Icons.message_outlined);
+    add('رد الأستاذ', b['teacherResponse'], MqBadgeTone.success, Icons.reply_rounded);
+    add('سبب الرفض', b['rejectionReason'], MqBadgeTone.error, Icons.cancel_outlined);
+    add('سبب الإلغاء', b['cancellationReason'], MqBadgeTone.orange, Icons.block_outlined);
+    return out;
+  }
+
+  Widget _noteBox(BuildContext context, String title, String message, MqBadgeTone tone, IconData icon) {
+    final color = _toneColor(context, tone);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+      child: MqSurface(
+        tone: MqSurfaceTone.neutral,
+        padding: const EdgeInsets.all(MqSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(icon, size: 14, color: color),
+              MqSpacing.gapXs,
+              Text(title, style: context.text.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 4),
+            Text(message, style: context.text.bodySmall),
+          ],
+        ),
       ),
-      padding: const EdgeInsets.all(12),
+    );
+  }
+
+  List<Widget> _timelineRows(BuildContext context, Map<String, dynamic> b) {
+    final rows = <Widget>[];
+    void add(IconData icon, String label, dynamic value, {bool dateTime = true}) {
+      final raw = value?.toString();
+      if (raw == null || raw.isEmpty) return;
+      final v = dateTime ? _fmtDateTime(raw) : raw;
+      rows.add(_kvRow(context, icon, label, v));
+    }
+
+    add(Icons.add_circle_outline_rounded, 'تاريخ الإنشاء', b['createdAt']);
+    add(Icons.update_rounded, 'آخر تحديث', b['updatedAt']);
+    add(Icons.check_circle_outline_rounded, 'تاريخ الموافقة', b['approvedAt']);
+    add(Icons.cancel_outlined, 'تاريخ الرفض', b['rejectedAt']);
+    add(Icons.block_outlined, 'تاريخ الإلغاء', b['cancelledAt']);
+    add(Icons.restart_alt_rounded, 'تاريخ إعادة التفعيل', b['reactivatedAt']);
+    add(Icons.person_outline_rounded, 'أُلغي بواسطة', b['cancelledBy'], dateTime: false);
+    return rows;
+  }
+
+  Widget _kvRow(BuildContext context, IconData icon, String label, String value) {
+    final m = context.mq;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: MqSpacing.xs),
+      child: Row(children: [
+        Icon(icon, size: 14, color: m.ink3),
+        MqSpacing.gapXs,
+        Text('$label: ', style: context.text.labelSmall),
+        Expanded(child: Text(value, style: context.text.labelSmall?.copyWith(color: m.ink, fontWeight: FontWeight.w600))),
+      ]),
+    );
+  }
+
+  Widget _cardHeader(BuildContext context, String title, IconData icon) {
+    return Row(children: [
+      Icon(icon, size: MqSize.iconSm, color: context.mq.accent),
+      MqSpacing.gapXs,
+      Text(title, style: context.text.titleSmall),
+    ]);
+  }
+
+  Widget _sectionCard(BuildContext context, String title, IconData icon, List<Widget> children) {
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.person_outline_rounded,
-                  color: AppColors.success,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'معلومات المدرس',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                _row(
-                  Icons.badge_rounded,
-                  'الاسم',
-                  teacher['name']?.toString() ?? 'غير محدد',
-                  AppColors.success,
-                ),
-                const SizedBox(height: 6),
-                _row(
-                  Icons.email_rounded,
-                  'البريد الإلكتروني',
-                  teacher['email']?.toString() ?? 'غير محدد',
-                  AppColors.primary,
-                ),
-              ],
-            ),
-          ),
+          _cardHeader(context, title, icon),
+          MqSpacing.gapSm,
+          ...children,
         ],
       ),
     );
   }
 
-  Widget _buildMessagesCard(Map<String, dynamic> booking, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.message_rounded,
-                  color: AppColors.primary,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'الرسائل والتواصل',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (booking['studentMessage'] != null)
-            _messageBox(
-              'رسالة الطالب',
-              booking['studentMessage'].toString(),
-              AppColors.info,
-              Icons.message_rounded,
-            ),
-          if (booking['teacherResponse'] != null)
-            _messageBox(
-              'رد المدرس',
-              booking['teacherResponse'].toString(),
-              AppColors.success,
-              Icons.reply_rounded,
-            ),
-          if (booking['rejectionReason'] != null)
-            _messageBox(
-              'سبب الرفض',
-              booking['rejectionReason'].toString(),
-              AppColors.error,
-              Icons.cancel_rounded,
-            ),
-          if (booking['cancellationReason'] != null)
-            _messageBox(
-              'سبب الإلغاء',
-              booking['cancellationReason'].toString(),
-              AppColors.warning,
-              Icons.block_rounded,
-            ),
-          if (booking['studentMessage'] == null &&
-              booking['teacherResponse'] == null &&
-              booking['rejectionReason'] == null &&
-              booking['cancellationReason'] == null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'لا توجد رسائل',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+  Widget _actions(BuildContext context, String status, Map<String, dynamic> b) {
+    final m = context.mq;
+    final s = status.toLowerCase();
+    final rejectedByTeacher = b['rejectedBy']?.toString().toLowerCase() == 'teacher';
+    final canCancel = s == 'pending' || s == 'approved';
+    final canReactivate = (s == 'rejected' || s == 'cancelled' || s == 'canceled') && !rejectedByTeacher;
 
-  Widget _buildTimelineCard(Map<String, dynamic> booking, bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.timeline_rounded,
-                  color: AppColors.primary,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'التسلسل الزمني',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                _row(
-                  Icons.add_circle_rounded,
-                  'تاريخ الإنشاء',
-                  _formatDateTime(booking['createdAt']?.toString()),
-                  AppColors.primary,
-                ),
-                const SizedBox(height: 6),
-                _row(
-                  Icons.update_rounded,
-                  'آخر تحديث',
-                  _formatDateTime(booking['updatedAt']?.toString()),
-                  AppColors.info,
-                ),
-                if (booking['approvedAt'] != null) ...[
-                  const SizedBox(height: 6),
-                  _row(
-                    Icons.check_circle_rounded,
-                    'تاريخ الموافقة',
-                    _formatDateTime(booking['approvedAt'].toString()),
-                    AppColors.success,
-                  ),
-                ],
-                if (booking['rejectedAt'] != null) ...[
-                  const SizedBox(height: 6),
-                  _row(
-                    Icons.cancel_rounded,
-                    'تاريخ الرفض',
-                    _formatDateTime(booking['rejectedAt'].toString()),
-                    AppColors.error,
-                  ),
-                ],
-                if (booking['cancelledAt'] != null) ...[
-                  const SizedBox(height: 6),
-                  _row(
-                    Icons.block_rounded,
-                    'تاريخ الإلغاء',
-                    _formatDateTime(booking['cancelledAt'].toString()),
-                    AppColors.warning,
-                  ),
-                ],
-                if (booking['reactivatedAt'] != null) ...[
-                  const SizedBox(height: 6),
-                  _row(
-                    Icons.restart_alt_rounded,
-                    'تاريخ إعادة التفعيل',
-                    _formatDateTime(booking['reactivatedAt'].toString()),
-                    AppColors.success,
-                  ),
-                ],
-                if (booking['cancelledBy'] != null) ...[
-                  const SizedBox(height: 6),
-                  _row(
-                    Icons.person_rounded,
-                    'ألغي بواسطة',
-                    booking['cancelledBy'].toString(),
-                    AppColors.textSecondary,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(
-    String status,
-    Map<String, dynamic> booking,
-    bool isDark,
-  ) {
-    final rejectedBy = booking['rejectedBy']?.toString().toLowerCase();
-    final rejectedByTeacher = rejectedBy == 'teacher';
+    final buttons = <Widget>[];
+    if (canCancel) {
+      buttons.add(Expanded(
+        child: MqButton(label: 'إلغاء الحجز', icon: Icons.cancel_outlined, variant: MqButtonVariant.secondary, onPressed: _cancel),
+      ));
+    }
+    if (canReactivate) {
+      if (buttons.isNotEmpty) buttons.add(MqSpacing.gapSm);
+      buttons.add(Expanded(
+        child: MqButton(label: 'إعادة الإرسال', icon: Icons.restart_alt_rounded, onPressed: _reactivate),
+      ));
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            if (status == 'pending' || status == 'approved')
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _cancel,
-                  icon: const Icon(Icons.cancel_rounded, size: 16),
-                  label: const Text(
-                    'إلغاء الحجز',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            if ((status == 'rejected' ||
-                    status == 'canceled' ||
-                    status == 'cancelled') &&
-                !rejectedByTeacher) ...[
-              if (status == 'pending' || status == 'approved')
-                const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _reactivate,
-                  icon: Icon(
-                    Icons.restart_alt_rounded,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                  label: Text(
-                    'إعادة الإرسال',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    side: BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        if (status == 'rejected' && rejectedByTeacher) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppColors.warning.withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  color: AppColors.warning,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'تم رفض طلبك من قبل المدرس. يرجى مراجعة الأستاذ لمعرفة أسباب الرفض.',
-                    style: TextStyle(
-                      color: AppColors.warning,
-                      fontSize: 10,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+        if (buttons.isNotEmpty) Row(children: buttons),
+        if (s == 'rejected' && rejectedByTeacher)
+          MqSurface(
+            tone: MqSurfaceTone.orange,
+            padding: const EdgeInsets.all(MqSpacing.sm),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.info_outline_rounded, color: m.orange, size: MqSize.iconSm),
+              MqSpacing.gapXs,
+              Expanded(child: Text('تم رفض طلبك من قبل الأستاذ. يرجى مراجعته لمعرفة الأسباب.', style: context.text.bodySmall)),
+            ]),
           ),
-        ],
       ],
     );
   }
 
-  Widget _messageBox(String title, String message, Color color, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 10,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.textSecondary,
-              height: 1.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ─── states ─────────────────────────────────────────────────────────────────
 
-  Widget _row(IconData icon, String label, String value, Color color) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _errorView(BuildContext context) {
+    final m = context.mq;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
       children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 10,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? AppColors.darkTextSecondary
-                : AppColors.textSecondary,
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 10,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.darkTextPrimary
-                  : AppColors.textPrimary,
-            ),
-          ),
-        ),
+        const SizedBox(height: MqSpacing.xxxl),
+        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.wifi_off_rounded, size: 44, color: m.error),
+          MqSpacing.gapMd,
+          Text(_error ?? 'تعذّر تحميل الحجز', textAlign: TextAlign.center, style: context.text.bodyMedium),
+          MqSpacing.gapMd,
+          MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: _load),
+        ])),
       ],
+    );
+  }
+
+  Widget _skeleton(BuildContext context) {
+    final m = context.mq;
+    Widget block(double h) => Container(height: h, decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brLg));
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      children: [block(96), MqSpacing.gapMd, block(160), MqSpacing.gapMd, block(80), MqSpacing.gapMd, block(110)],
     );
   }
 }

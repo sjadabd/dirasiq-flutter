@@ -1,12 +1,15 @@
-// Join-as-Teacher landing page (Phase 6).
+// Join-as-Teacher landing page (Teacher Design System pass).
 //
 // First touchpoint for a prospective teacher. Sells the program in a few
-// lines and routes to the multi-step application form. Intentionally
-// minimal — the heavy lifting lives in the form screen.
+// lines and routes to the multi-step application form. Pre-auth — uses the
+// base MulhimIQ design system + teacher hero tokens, but no teacher-session
+// chrome (the applicant has no account yet).
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../teacher/shared/design/teacher_design.dart';
+import '../widgets/join_widgets.dart';
 import 'check_application_status_screen.dart';
 import 'teacher_application_form_screen.dart';
 
@@ -15,109 +18,106 @@ class JoinAsTeacherScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: AppBar(
-        title: const Text('انضم كأستاذ'),
-        backgroundColor: scheme.surface,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 12),
-              Center(
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.school_outlined,
-                      size: 48, color: scheme.primary),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          final t = context.teacher;
+          return Scaffold(
+            backgroundColor: mq.page,
+            appBar: const JoinAppBar(title: 'انضم كأستاذ'),
+            body: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                    MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(MqSpacing.xl),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [t.heroA, t.heroB],
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
+                        ),
+                        borderRadius: MqRadius.brXl,
+                        boxShadow: t.shadowLg,
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 84,
+                            height: 84,
+                            decoration: BoxDecoration(
+                              color: t.heroTile,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: t.heroLine),
+                            ),
+                            child: Icon(Icons.school_outlined,
+                                size: 42, color: t.heroInk),
+                          ),
+                          const SizedBox(height: MqSpacing.lg),
+                          Text('انضم إلى مُلهِم IQ كأستاذ',
+                              textAlign: TextAlign.center,
+                              style: context.text.titleLarge
+                                  ?.copyWith(color: t.heroInk)),
+                          const SizedBox(height: MqSpacing.sm),
+                          Text(
+                            'قدّم طلب الانضمام، أرفق مستنداتك، وسيتواصل معك فريق الإدارة فور المراجعة.',
+                            textAlign: TextAlign.center,
+                            style: context.text.bodyMedium
+                                ?.copyWith(color: t.heroInk2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: MqSpacing.xl),
+                    const _Bullet(
+                      icon: Icons.assignment_outlined,
+                      title: 'تقديم سريع وبسيط',
+                      subtitle: 'املأ النموذج على 4 خطوات قصيرة.',
+                    ),
+                    const _Bullet(
+                      icon: Icons.verified_user_outlined,
+                      title: 'مراجعة من الإدارة',
+                      subtitle: 'يتم مراجعة طلبك خلال 24–72 ساعة عمل.',
+                    ),
+                    const _Bullet(
+                      icon: Icons.notifications_active_outlined,
+                      title: 'إشعار فوري بالنتيجة',
+                      subtitle: 'ستصلك رسالة بالبريد فور البتّ في الطلب.',
+                    ),
+                    const SizedBox(height: MqSpacing.xl),
+                    MqButton(
+                      label: 'ابدأ تقديم الطلب',
+                      icon: Icons.arrow_forward_rounded,
+                      onPressed: () =>
+                          Get.to(() => const TeacherApplicationFormScreen()),
+                    ),
+                    const SizedBox(height: MqSpacing.sm),
+                    MqButton.secondary(
+                      label: 'سبق وقدّمت — تحقّق من حالة طلبي',
+                      icon: Icons.search_outlined,
+                      onPressed: () =>
+                          Get.to(() => const CheckApplicationStatusScreen()),
+                    ),
+                    const SizedBox(height: MqSpacing.md),
+                    Text(
+                      'إنشاء حسابات المعلمين يتمّ حصراً من قبل الإدارة بعد قبول الطلب.',
+                      textAlign: TextAlign.center,
+                      style: context.text.bodySmall?.copyWith(color: mq.ink3),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              Text(
-                'انضم إلى مُلهِم IQ كأستاذ',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'قدّم طلب الانضمام، أرفق مستنداتك، وسيتواصل معك فريق الإدارة فور المراجعة.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
-              const SizedBox(height: 28),
-              _Bullet(
-                icon: Icons.assignment_outlined,
-                title: 'تقديم سريع وبسيط',
-                subtitle: 'املأ النموذج على 4 خطوات قصيرة.',
-                color: scheme.primary,
-              ),
-              _Bullet(
-                icon: Icons.verified_user_outlined,
-                title: 'مراجعة من الإدارة',
-                subtitle: 'يتم مراجعة طلبك خلال 24–72 ساعة عمل.',
-                color: scheme.primary,
-              ),
-              _Bullet(
-                icon: Icons.notifications_active_outlined,
-                title: 'إشعار فوري بالنتيجة',
-                subtitle: 'ستصلك رسالة بالبريد فور البتّ في الطلب.',
-                color: scheme.primary,
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                  label: const Text('ابدأ تقديم الطلب',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: scheme.primary,
-                    foregroundColor: scheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  onPressed: () => Get.to(() => const TeacherApplicationFormScreen()),
-                ),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.search_outlined, size: 18),
-                label: const Text('سبق وقدّمت — تحقّق من حالة طلبي'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () =>
-                    Get.to(() => const CheckApplicationStatusScreen()),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'إنشاء حسابات المعلمين يتمّ حصراً من قبل الإدارة بعد قبول الطلب.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.55),
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -128,47 +128,45 @@ class _Bullet extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
+    final mq = context.mq;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+      padding: const EdgeInsets.only(bottom: MqSpacing.md),
+      child: MqCard(
+        padding: const EdgeInsets.all(MqSpacing.md),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: mq.accentSoft,
+                borderRadius: MqRadius.brSm,
+              ),
+              child: Icon(icon, color: mq.accent, size: 20),
             ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    )),
-              ],
+            const SizedBox(width: MqSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: context.text.titleSmall),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style:
+                          context.text.bodySmall?.copyWith(color: mq.ink2)),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

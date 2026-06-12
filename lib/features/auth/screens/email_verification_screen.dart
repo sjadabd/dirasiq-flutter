@@ -1,5 +1,15 @@
+// Auth → Email / OTP verification (MulhimIQ design-system pass).
+//
+// Presentation only. The verify (AuthService.verifyEmail → LoginScreen) and
+// resend (AuthService.resendVerification) flows are UNCHANGED; a local resend
+// cooldown timer + submitting flag were added for UX (no API change).
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import 'package:mulhimiq/core/services/auth_service.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 import 'login_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
@@ -7,238 +17,158 @@ class EmailVerificationScreen extends StatefulWidget {
   const EmailVerificationScreen({super.key, required this.email});
 
   @override
-  State<EmailVerificationScreen> createState() =>
-      _EmailVerificationScreenState();
+  State<EmailVerificationScreen> createState() => _EmailVerificationScreenState();
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   final _codeController = TextEditingController();
   final AuthService _authService = AuthService();
   bool _loading = false;
+  int _cooldown = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCooldown(); // a code was just sent before reaching this screen
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  void _startCooldown([int seconds = 60]) {
+    _timer?.cancel();
+    setState(() => _cooldown = seconds);
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return t.cancel();
+      if (_cooldown <= 1) {
+        t.cancel();
+        setState(() => _cooldown = 0);
+      } else {
+        setState(() => _cooldown--);
+      }
+    });
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
+  }
 
   Future<void> _verify() async {
     final code = _codeController.text.trim();
     if (code.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("أدخل رمز التحقق")));
+      _snack('أدخل رمز التحقق');
       return;
     }
-
     setState(() => _loading = true);
     final error = await _authService.verifyEmail(widget.email, code);
+    if (!mounted) return;
     setState(() => _loading = false);
-
     if (error == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("تم التحقق بنجاح")));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => LoginScreen()),
-      );
+      _snack('تم التحقق بنجاح');
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
     } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      _snack(error);
     }
   }
 
   Future<void> _resend() async {
+    if (_cooldown > 0 || _loading) return;
     setState(() => _loading = true);
     final error = await _authService.resendVerification(widget.email);
+    if (!mounted) return;
     setState(() => _loading = false);
-
     if (error == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("تم إرسال رمز جديد إلى بريدك الإلكتروني")),
-      );
+      _snack('تم إرسال رمز جديد إلى بريدك الإلكتروني');
+      _startCooldown();
     } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      _snack(error);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text("التحقق من البريد الإلكتروني"),
-        backgroundColor: scheme.surface,
-        foregroundColor: scheme.onSurface,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(24),
-              sliver: SliverFillRemaining(
-                hasScrollBody: false,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 40),
-
-                    // 🔹 Icon
-                    Container(
-                      width: 90,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: scheme.primary.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) {
+            final m = context.mq;
+            return Scaffold(
+              backgroundColor: m.page,
+              appBar: AppBar(title: const Text('التحقق من البريد الإلكتروني')),
+              body: SafeArea(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.all(MqSpacing.lg),
+                  child: Column(
+                    children: [
+                      MqSpacing.gapXl,
+                      Container(
+                        width: 84, height: 84,
+                        decoration: BoxDecoration(color: m.accentSoft, shape: BoxShape.circle),
+                        child: Icon(Icons.mark_email_unread_rounded, color: m.accent, size: 42),
                       ),
-                      child: Icon(
-                        Icons.mark_email_unread_rounded,
-                        color: scheme.primary,
-                        size: 44,
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // 🔹 Title
-                    Text(
-                      "تحقق من بريدك الإلكتروني",
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: scheme.onSurface,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // 🔹 Subtitle
-                    Text(
-                      "لقد أرسلنا رمز تحقق إلى عنوان البريد الإلكتروني:",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      widget.email,
-                      style: TextStyle(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // 🔹 Input field
-                    TextField(
-                      controller: _codeController,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        letterSpacing: 6,
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: "رمز التحقق",
-                        labelStyle: TextStyle(
-                          color: scheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                        filled: true,
-                        fillColor: isDark
-                            ? scheme.surfaceContainerHighest.withValues(
-                                alpha: 0.3,
-                              )
-                            : scheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: scheme.outline),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: scheme.primary,
-                            width: 1.6,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // 🔹 Buttons
-                    _loading
-                        ? CircularProgressIndicator(color: scheme.primary)
-                        : Column(
-                            children: [
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton(
-                                  onPressed: _verify,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: scheme.primary,
-                                    foregroundColor: scheme.onPrimary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: const Text(
-                                    "تأكيد الرمز",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
+                      MqSpacing.gapLg,
+                      Text('تحقّق من بريدك الإلكتروني', style: context.text.titleLarge, textAlign: TextAlign.center),
+                      MqSpacing.gapXs,
+                      Text('أرسلنا رمز تحقّق إلى', textAlign: TextAlign.center, style: context.text.bodySmall),
+                      Text(widget.email,
+                          textAlign: TextAlign.center,
+                          style: context.text.bodyMedium?.copyWith(color: m.accent, fontWeight: FontWeight.w700)),
+                      MqSpacing.gapLg,
+                      MqCard(
+                        padding: const EdgeInsets.all(MqSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextField(
+                              controller: _codeController,
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              style: MqTypography.mono(color: m.ink, size: 22, weight: FontWeight.w700)
+                                  .copyWith(letterSpacing: 8),
+                              decoration: InputDecoration(
+                                hintText: '— — — — — —',
+                                hintStyle: context.text.titleMedium?.copyWith(color: m.ink3, letterSpacing: 6),
+                                filled: true,
+                                fillColor: m.fill,
+                                contentPadding: const EdgeInsets.symmetric(vertical: MqSpacing.md),
+                                border: OutlineInputBorder(borderRadius: MqRadius.brMd, borderSide: BorderSide(color: m.line)),
+                                enabledBorder: OutlineInputBorder(borderRadius: MqRadius.brMd, borderSide: BorderSide(color: m.line)),
+                                focusedBorder: OutlineInputBorder(borderRadius: MqRadius.brMd, borderSide: BorderSide(color: m.accent, width: 1.6)),
                               ),
-                              const SizedBox(height: 12),
-                              TextButton(
-                                onPressed: _resend,
-                                child: Text(
-                                  "إعادة إرسال الرمز",
-                                  style: TextStyle(
-                                    color: scheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                    const Spacer(),
-
-                    // 🔹 Small Footer
-                    Text(
-                      "تأكد من فحص مجلد البريد غير الهام (Spam)",
-                      style: TextStyle(
-                        color: scheme.onSurface.withValues(alpha: 0.5),
-                        fontSize: 12,
+                            ),
+                            MqSpacing.gapMd,
+                            MqButton(label: 'تأكيد الرمز', icon: Icons.verified_rounded, loading: _loading, onPressed: _verify),
+                            MqSpacing.gapXs,
+                            Center(
+                              child: _cooldown > 0
+                                  ? Text('إعادة الإرسال خلال $_cooldown ث', style: context.text.labelSmall)
+                                  : MqButton.text(label: 'إعادة إرسال الرمز', icon: Icons.refresh_rounded,
+                                      onPressed: _loading ? null : _resend),
+                            ),
+                          ],
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                      MqSpacing.gapMd,
+                      Text('تأكّد من فحص مجلد البريد غير الهام (Spam)', textAlign: TextAlign.center, style: context.text.labelSmall),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

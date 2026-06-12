@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/config/initial_bindings.dart';
@@ -9,6 +10,7 @@ import 'core/services/notification_service.dart';
 import 'core/services/realtime_service.dart';
 import 'shared/themes/app_colors.dart';
 import 'shared/controllers/theme_controller.dart';
+import 'shared/design_system/design_system.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 // ✅ الشاشات
@@ -41,6 +43,7 @@ import 'features/teachers/screens/teacher_details_screen.dart';
 import 'features/teacher/shared/teacher_routes.dart';
 import 'features/teacher/shared/teacher_workspace.dart';
 import 'features/student/chat/screens/student_conversations_screen.dart';
+import 'features/student_home/presentation/pages/student_home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -121,6 +124,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: scheme,
+          fontFamily: GoogleFonts.cairo().fontFamily,
           scaffoldBackgroundColor: AppColors.background,
           appBarTheme: AppBarTheme(
             centerTitle: true,
@@ -170,6 +174,7 @@ class MyApp extends StatelessWidget {
         darkTheme: ThemeData(
           useMaterial3: true,
           colorScheme: dark,
+          fontFamily: GoogleFonts.cairo().fontFamily,
           scaffoldBackgroundColor: AppColors.darkBackground,
           appBarTheme: AppBarTheme(
             centerTitle: true,
@@ -384,6 +389,12 @@ class MyApp extends StatelessWidget {
             name: "/chat/conversations",
             page: () => const StudentConversationsScreen(),
           ),
+          // Phase 1 — standalone QA route for the new design-system Student
+          // Home. Not yet wired into RootShell; reach via Get.toNamed.
+          GetPage(
+            name: "/student-home",
+            page: () => const StudentHomeScreen(),
+          ),
         ],
       ),
     );
@@ -405,6 +416,17 @@ class _WhatsAppSupportOverlayState extends State<_WhatsAppSupportOverlay> {
   Offset? _offset;
   final String _localNumber = '07724275947';
   final String _countryCode = '964';
+
+  // True while the user is actively scrolling — used to subtly fade the
+  // support button. A ValueNotifier (not setState) so scrolling rebuilds only
+  // the small button, never the whole app subtree below this overlay.
+  final ValueNotifier<bool> _scrolling = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _scrolling.dispose();
+    super.dispose();
+  }
 
   String _normalizedNumber() {
     final digits = _localNumber.replaceAll(RegExp(r'[^0-9+]'), '');
@@ -437,7 +459,7 @@ class _WhatsAppSupportOverlayState extends State<_WhatsAppSupportOverlay> {
       final mq = MediaQuery.of(context);
       final size = mq.size;
       final padding = mq.padding;
-      const btnSize = 56.0;
+      const btnSize = 50.0;
       const margin = 16.0;
       final dxDefault = size.width - btnSize - margin;
       final dyDefault = size.height - btnSize - padding.bottom - margin - 80;
@@ -454,7 +476,7 @@ class _WhatsAppSupportOverlayState extends State<_WhatsAppSupportOverlay> {
     final mq = MediaQuery.of(context);
     final size = mq.size;
     final padding = mq.padding;
-    final btnSize = 56.0;
+    final btnSize = 50.0;
     final margin = 16.0;
     final pos =
         _offset ??
@@ -463,9 +485,29 @@ class _WhatsAppSupportOverlayState extends State<_WhatsAppSupportOverlay> {
           size.height - btnSize - padding.bottom - margin - 80,
         );
 
-    return Stack(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Pin the overlay to physical LTR so `Positioned(left:)` (and the drag
+    // maths) stay absolute — the app inherits the MaterialApp's RTL, which
+    // would otherwise mirror the button to the visual left. The wrapped child
+    // keeps its own Directionality.rtl, so page content is unaffected.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
       children: [
-        widget.child,
+        // Passive scroll listener — never consumes (returns false) and never
+        // calls setState, so it can't affect scrolling or rebuild the app.
+        NotificationListener<ScrollNotification>(
+          onNotification: (n) {
+            if (n is ScrollStartNotification || n is ScrollUpdateNotification) {
+              _scrolling.value = true;
+            } else if (n is ScrollEndNotification) {
+              _scrolling.value = false;
+            }
+            return false;
+          },
+          child: widget.child,
+        ),
         Positioned(
           left: pos.dx.clamp(margin, size.width - btnSize - margin),
           top: pos.dy.clamp(
@@ -482,23 +524,110 @@ class _WhatsAppSupportOverlayState extends State<_WhatsAppSupportOverlay> {
                 );
               });
             },
-            child: Material(
-              color: Colors.transparent,
-              child: SizedBox(
-                width: btnSize,
-                height: btnSize,
-                child: FloatingActionButton(
-                  heroTag: 'wa_support_fab',
-                  backgroundColor: const Color(0xFF25D366),
-                  foregroundColor: Colors.white,
-                  onPressed: _openWhatsApp,
-                  child: const Icon(Icons.support_agent),
-                ),
-              ),
+            child: _WaSupportButton(
+              size: btnSize,
+              isDark: isDark,
+              scrolling: _scrolling,
+              onTap: _openWhatsApp,
             ),
           ),
         ),
       ],
+      ),
+    );
+  }
+}
+
+/// Floating WhatsApp support button (MulhimIQ design system). Presentation +
+/// micro-interactions only — the tap delegates to the overlay's unchanged
+/// `_openWhatsApp` launcher. White card in light mode / dark navy card in dark
+/// mode, WhatsApp-green icon, subtle border + soft shadow, a smooth fade/slide
+/// entrance, a gentle press scale, and a subtle opacity dip while scrolling.
+class _WaSupportButton extends StatefulWidget {
+  const _WaSupportButton({
+    required this.size,
+    required this.isDark,
+    required this.scrolling,
+    required this.onTap,
+  });
+
+  final double size;
+  final bool isDark;
+  final ValueNotifier<bool> scrolling;
+  final VoidCallback onTap;
+
+  @override
+  State<_WaSupportButton> createState() => _WaSupportButtonState();
+}
+
+class _WaSupportButtonState extends State<_WaSupportButton> {
+  static const Color _whatsappGreen = Color(0xFF25D366);
+  bool _pressed = false;
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _shown = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dsTheme = widget.isDark ? MqTheme.dark() : MqTheme.light();
+    return Theme(
+      data: dsTheme,
+      child: Builder(
+        builder: (context) {
+          final m = context.mq;
+          return ValueListenableBuilder<bool>(
+            valueListenable: widget.scrolling,
+            builder: (context, scrolling, _) {
+              return AnimatedSlide(
+                offset: _shown ? Offset.zero : const Offset(0.25, 0),
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeOutCubic,
+                child: AnimatedOpacity(
+                  opacity: _shown ? (scrolling ? 0.5 : 1.0) : 0.0,
+                  duration: const Duration(milliseconds: 240),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (_) => setState(() => _pressed = true),
+                    onTapUp: (_) => setState(() => _pressed = false),
+                    onTapCancel: () => setState(() => _pressed = false),
+                    onTap: widget.onTap,
+                    child: AnimatedScale(
+                      scale: _pressed ? 0.9 : 1.0,
+                      duration: const Duration(milliseconds: 120),
+                      curve: Curves.easeOut,
+                      child: Container(
+                        width: widget.size,
+                        height: widget.size,
+                        decoration: BoxDecoration(
+                          color: m.card,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: m.line),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: widget.isDark ? 0.4 : 0.12),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.support_agent_rounded, color: _whatsappGreen, size: 24),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

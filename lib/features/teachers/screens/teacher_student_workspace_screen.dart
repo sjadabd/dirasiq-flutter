@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/api_service.dart';
+import '../../../core/utils/money.dart';
 import '../../../shared/widgets/status_views.dart';
 
 /// Per-teacher workspace for the student.
@@ -378,7 +379,7 @@ class _AlertsCard extends StatelessWidget {
     final kind = (a['kind'] ?? '').toString();
     switch (kind) {
       case 'overdue_invoice':
-        return 'فاتورة متأخّرة بقيمة ${a['amount']} د.ع';
+        return 'فاتورة متأخّرة بقيمة ${fmtMoney(a['amount'])} د.ع';
       case 'assignment_due_soon':
         return 'واجب موعده يقترب';
       case 'upcoming_exam':

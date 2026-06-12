@@ -45,6 +45,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import 'playback_progress_storage.dart';
+import 'video_watermark.dart';
 
 class UnifiedVideoPlayer extends StatefulWidget {
   const UnifiedVideoPlayer({
@@ -58,6 +59,7 @@ class UnifiedVideoPlayer extends StatefulWidget {
     this.startAt,
     this.aspectRatio = 16 / 9,
     this.onCompleted,
+    this.ownerLabel,
   });
 
   /// HLS `.m3u8` manifest URL or direct video URL. Signed URLs are fine —
@@ -87,6 +89,11 @@ class UnifiedVideoPlayer extends StatefulWidget {
   /// Fires once when the position first reaches the duration. Useful for
   /// "next lesson" auto-advance in callers.
   final VoidCallback? onCompleted;
+
+  /// Ownership label for the anti-piracy watermark — typically the course
+  /// teacher's name. The watermark is rendered regardless; this only enriches
+  /// the ownership line.
+  final String? ownerLabel;
 
   @override
   State<UnifiedVideoPlayer> createState() => _UnifiedVideoPlayerState();
@@ -391,6 +398,10 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer>
               onTap: _toggleControls,
             ),
           ),
+          // Always-on anti-piracy watermark — visible whether or not the
+          // controls are showing, on free AND paid playback. Non-interactive,
+          // so it never blocks the tap-to-toggle gesture above.
+          Positioned.fill(child: VideoWatermark(ownerLabel: widget.ownerLabel)),
           if (_initialized && _showControls) _buildControlsOverlay(),
           if (!_initialized && !_hasError) _buildLoadingOverlay(),
           if (_hasError) _buildErrorOverlay(),

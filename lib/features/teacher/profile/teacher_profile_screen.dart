@@ -6,16 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/teacher_api_service.dart';
+import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
+import 'widgets/teacher_location_picker.dart';
 
-/// Teacher profile — view + edit + logout.
+/// Teacher profile — view + edit + logout (Teacher Design System pass).
 ///
-/// Mirrors the dashboard's profile-setup.vue fields:
-///   • name, phone, address, bio, experienceYears
-///   • gradeIds (multi-select from /teacher/academic-years grades)
-///   • studyYear
-///   • optional: gender, birthDate
-///
+/// Presentation only — `updateProfile`, `syncMyTeacherGrades`, the academic-
+/// years / grades loading, the edit/save flow, and the logout are UNCHANGED.
 /// Logout lives here — and ONLY here.
 class TeacherProfileScreen extends StatefulWidget {
   const TeacherProfileScreen({super.key});
@@ -38,7 +36,6 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   String? _activeStudyYear;
   List<String> _years = [];
 
-  // Form controllers
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
@@ -48,6 +45,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   Set<String> _selectedGradeIds = {};
   String? _gender;
   DateTime? _birthDate;
+  double? _latitude;
+  double? _longitude;
 
   @override
   void initState() {
@@ -69,8 +68,6 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     setState(() => _loading = true);
     try {
       await _loadUser();
-      // Academic-years lookup feeds the study-year dropdown; grades catalog
-      // + the teacher's current set are independent — fetch in parallel.
       await Future.wait([
         _loadAcademicYears(),
         _loadGradesCatalog(),
@@ -94,16 +91,19 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   Future<void> _loadAcademicYears() async {
     try {
       final res = await _api.fetchAcademicYears();
-      final data = (res['data'] is Map) ? Map<String, dynamic>.from(res['data']) : {};
+      final data =
+          (res['data'] is Map) ? Map<String, dynamic>.from(res['data']) : {};
       final years = (data['years'] is List) ? (data['years'] as List) : [];
-      _years = years.map((y) => (y is Map ? (y['year']?.toString() ?? '') : y.toString())).where((s) => s.isNotEmpty).toList().cast<String>();
-      _activeStudyYear = (data['active'] is Map) ? data['active']['year']?.toString() : null;
+      _years = years
+          .map((y) => (y is Map ? (y['year']?.toString() ?? '') : y.toString()))
+          .where((s) => s.isNotEmpty)
+          .toList()
+          .cast<String>();
+      _activeStudyYear =
+          (data['active'] is Map) ? data['active']['year']?.toString() : null;
     } catch (_) {}
   }
 
-  // Full active grade catalog from the super-admin-managed `grades` table.
-  // This populates the chip set the teacher picks from. Auth-required —
-  // /grades/all returns [{id, name, ...}].
   Future<void> _loadGradesCatalog() async {
     try {
       final res = await _api.fetchAllGrades();
@@ -121,27 +121,26 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     }
   }
 
-  // Current set the teacher already declared for the active academic year.
-  // Used to preselect chips. The server returns
-  //   { studyYear, grades: [{ id, gradeId, gradeName, ... }] }
-  // — we keep just the gradeIds for the FilterChip state.
   Future<void> _loadMyGrades() async {
     try {
       final res = await _api.fetchMyTeacherGrades();
-      final data = res['data'] is Map ? Map<String, dynamic>.from(res['data']) : {};
+      final data =
+          res['data'] is Map ? Map<String, dynamic>.from(res['data']) : {};
       final yr = data['studyYear']?.toString();
       if (yr != null && yr.isNotEmpty) {
         _activeStudyYear = yr;
       }
-      final grades = (data['grades'] is List) ? data['grades'] as List : const [];
+      final grades =
+          (data['grades'] is List) ? data['grades'] as List : const [];
       _selectedGradeIds = grades
           .whereType<Map>()
           .map((g) => (g['gradeId'] ?? g['id'] ?? '').toString())
           .where((s) => s.isNotEmpty)
           .toSet();
     } catch (_) {
-      // Fall back to whatever the cached user blob carries.
-      final list = (_user['teacherGrades'] is List) ? (_user['teacherGrades'] as List) : const [];
+      final list = (_user['teacherGrades'] is List)
+          ? (_user['teacherGrades'] as List)
+          : const [];
       _selectedGradeIds = list
           .whereType<Map>()
           .map((g) => (g['gradeId'] ?? g['id'] ?? '').toString())
@@ -153,7 +152,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   void _hydrateForm() {
     _name.text = (_user['name'] ?? '').toString();
     _phone.text = (_user['phone'] ?? '').toString();
-    _address.text = (_user['address'] ?? _user['formattedAddress'] ?? '').toString();
+    _address.text =
+        (_user['address'] ?? _user['formattedAddress'] ?? '').toString();
     _bio.text = (_user['bio'] ?? '').toString();
     final yr = _user['experienceYears'];
     _experienceYears.text = yr == null ? '' : yr.toString();
@@ -163,15 +163,22 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       _birthDate = DateTime.tryParse(bd);
     }
 
-    // Default study year: any existing teacherGrade.studyYear, else active.
     final tg = _user['teacherGrades'];
     if (tg is List && tg.isNotEmpty) {
       final first = tg.first;
       if (first is Map) _studyYear = first['studyYear']?.toString();
     }
     _studyYear ??= _activeStudyYear ?? (_years.isNotEmpty ? _years.first : null);
-    // _selectedGradeIds is populated by _loadMyGrades() against the live
-    // teacher_grades row set — never derive it from _allGrades (the catalog).
+
+    final loc = _user['location'] is Map ? _user['location'] as Map : null;
+    _latitude = _toDouble(_user['latitude'] ?? loc?['latitude']);
+    _longitude = _toDouble(_user['longitude'] ?? loc?['longitude']);
+  }
+
+  double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
   }
 
   String? _required(String? v, String label) {
@@ -182,42 +189,48 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
     if (_selectedGradeIds.isEmpty) {
-      Get.snackbar('خطأ', 'اختر صفاً واحداً على الأقل', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('خطأ', 'اختر صفاً واحداً على الأقل',
+          snackPosition: SnackPosition.BOTTOM);
       return;
     }
     if (_studyYear == null || _studyYear!.isEmpty) {
-      Get.snackbar('خطأ', 'اختر السنة الدراسية', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar('خطأ', 'اختر السنة الدراسية',
+          snackPosition: SnackPosition.BOTTOM);
       return;
     }
 
     setState(() => _saving = true);
     try {
-      // updateProfile() owns the user-row columns (name/phone/bio/etc.).
-      // gradeIds are intentionally NOT in this payload — the backend's
-      // updateProfile silently drops them. Grades are synced separately
-      // through PUT /teacher/my-grades below.
       final payload = <String, dynamic>{
         'name': _name.text.trim(),
         'phone': _phone.text.trim(),
         'bio': _bio.text.trim(),
         'experienceYears': int.tryParse(_experienceYears.text.trim()) ?? 0,
+        // The teacher update-profile schema REQUIRES these two even though the
+        // handler ignores them for teachers (grades persist via
+        // syncMyTeacherGrades below). Omitting them → 400 VALIDATION_ERROR.
+        'gradeIds': _selectedGradeIds.toList(),
+        'studyYear': _studyYear,
       };
-      if (_address.text.trim().isNotEmpty) payload['address'] = _address.text.trim();
+      if (_address.text.trim().isNotEmpty) {
+        payload['address'] = _address.text.trim();
+      }
       if (_gender != null && _gender!.isNotEmpty) payload['gender'] = _gender;
       if (_birthDate != null) {
         payload['birthDate'] = _birthDate!.toIso8601String().substring(0, 10);
       }
+      if (_latitude != null && _longitude != null) {
+        payload['latitude'] = _latitude;
+        payload['longitude'] = _longitude;
+      }
 
       final result = await _auth.updateProfile(payload);
       if (result['success'] != true) {
-        Get.snackbar('خطأ', result['message']?.toString() ?? 'تعذّر الحفظ', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar('خطأ', result['message']?.toString() ?? 'تعذّر الحفظ',
+            snackPosition: SnackPosition.BOTTOM);
         return;
       }
 
-      // Replace-set sync of teacher_grades for the active study year. Any
-      // DioException is surfaced as a snackbar without rolling back the
-      // user-row update (the two writes are independent — the profile
-      // text fields were already saved successfully).
       try {
         await _api.syncMyTeacherGrades(_selectedGradeIds.toList());
       } catch (e) {
@@ -247,7 +260,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         title: const Text('تأكيد تسجيل الخروج'),
         content: const Text('هل تريد تسجيل الخروج من حسابك؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء')),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -277,215 +292,108 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('الملف الشخصي'),
-        actions: [
-          if (!_editing && !_loading)
-            IconButton(
-              onPressed: () => setState(() => _editing = true),
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'تعديل',
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Scaffold(
+            backgroundColor: mq.page,
+            appBar: TeacherAppBar(
+              title: 'الملف الشخصي',
+              actions: [
+                if (!_editing && !_loading)
+                  _ActionChip(
+                      icon: Icons.edit_outlined,
+                      onTap: () => setState(() => _editing = true)),
+              ],
             ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Form(
-                  key: _form,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header avatar + name
-                      _HeaderCard(name: _name.text.isNotEmpty ? _name.text : (_user['name'] ?? '').toString(), email: (_user['email'] ?? '').toString()),
-                      const SizedBox(height: 16),
-
-                      _Section(title: 'البيانات الأساسية'),
-                      _TextRow(controller: _name,            label: 'الاسم *',         enabled: _editing, validator: (v) => _required(v, 'الاسم'), icon: Icons.person_outline),
-                      _TextRow(controller: _phone,           label: 'رقم الهاتف *',    enabled: _editing, validator: (v) => _required(v, 'الهاتف'), icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
-                      _TextRow(controller: _address,         label: 'العنوان',         enabled: _editing, icon: Icons.location_on_outlined),
-                      _TextRow(controller: _experienceYears, label: 'سنوات الخبرة *', enabled: _editing, validator: (v) => _required(v, 'سنوات الخبرة'), icon: Icons.workspace_premium_outlined, keyboardType: TextInputType.number),
-
-                      const SizedBox(height: 12),
-                      _Section(title: 'النبذة الشخصية'),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        child: TextFormField(
-                          controller: _bio,
-                          enabled: _editing,
-                          minLines: 3, maxLines: 6,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'نبذة عن خبرتك التدريسية...',
-                          ),
-                          validator: (v) => _required(v, 'النبذة'),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-                      _Section(title: 'البيانات الأكاديمية'),
-
-                      // Study year
-                      if (_years.isNotEmpty)
-                        DropdownButtonFormField<String>(
-                          initialValue: _studyYear,
-                          decoration: const InputDecoration(
-                            labelText: 'السنة الدراسية *',
-                            prefixIcon: Icon(Icons.calendar_today_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          items: _years.map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
-                          onChanged: _editing ? (v) => setState(() => _studyYear = v) : null,
-                        ),
-                      const SizedBox(height: 12),
-
-                      // Grades (chips)
-                      Text('الصفوف المُدرَّسة', style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8, runSpacing: 8,
-                        children: _allGrades.isEmpty
-                            ? [Text('لا توجد مراحل متاحة حالياً', style: TextStyle(color: cs.onSurfaceVariant))]
-                            : _allGrades.map((g) {
-                                // /grades/all rows are {id, name, ...} — use id, not gradeId.
-                                final id = (g['id'] ?? g['gradeId'] ?? '').toString();
-                                final name = (g['name'] ?? g['gradeName'] ?? '').toString();
-                                if (id.isEmpty) return const SizedBox.shrink();
-                                final selected = _selectedGradeIds.contains(id);
-                                return FilterChip(
-                                  label: Text(name),
-                                  selected: selected,
-                                  onSelected: _editing
-                                      ? (v) => setState(() {
-                                            v ? _selectedGradeIds.add(id) : _selectedGradeIds.remove(id);
-                                          })
-                                      : null,
-                                );
-                              }).toList(),
-                      ),
-
-                      const SizedBox(height: 16),
-                      _Section(title: 'بيانات إضافية'),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _gender,
-                              decoration: const InputDecoration(
-                                labelText: 'الجنس',
-                                prefixIcon: Icon(Icons.person_pin_outlined),
-                                border: OutlineInputBorder(),
-                              ),
-                              items: const [
-                                DropdownMenuItem(value: 'male', child: Text('ذكر')),
-                                DropdownMenuItem(value: 'female', child: Text('أنثى')),
-                              ],
-                              onChanged: _editing ? (v) => setState(() => _gender = v) : null,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: InkWell(
-                              onTap: _editing ? _pickBirthDate : null,
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'تاريخ الميلاد',
-                                  prefixIcon: Icon(Icons.cake_outlined),
-                                  border: OutlineInputBorder(),
-                                ),
-                                child: Text(_fmtDate(_birthDate)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Save / cancel
-                      if (_editing)
-                        Row(
+            body: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : SafeArea(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(MqSpacing.lg,
+                          MqSpacing.lg, MqSpacing.lg, MqSpacing.xl),
+                      child: Form(
+                        key: _form,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: _saving ? null : () { setState(() { _editing = false; _hydrateForm(); }); },
-                                child: const Text('إلغاء'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: _saving ? null : _save,
-                                icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_outlined),
-                                label: const Text('حفظ التعديلات'),
-                              ),
-                            ),
+                            _header(context),
+                            const SizedBox(height: MqSpacing.lg),
+                            _basicCard(context),
+                            const SizedBox(height: MqSpacing.md),
+                            _bioCard(context),
+                            const SizedBox(height: MqSpacing.md),
+                            _academicCard(context),
+                            const SizedBox(height: MqSpacing.md),
+                            _extraCard(context),
+                            const SizedBox(height: MqSpacing.md),
+                            _locationCard(context),
+                            const SizedBox(height: MqSpacing.lg),
+                            if (_editing) _editActions(context),
+                            const SizedBox(height: MqSpacing.lg),
+                            _logoutButton(context),
                           ],
                         ),
-
-                      const SizedBox(height: 32),
-                      // Logout — the ONLY place it lives.
-                      OutlinedButton.icon(
-                        onPressed: _confirmLogout,
-                        icon: const Icon(Icons.logout, color: Colors.red),
-                        label: const Text('تسجيل الخروج', style: TextStyle(color: Colors.red)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
                       ),
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ),
+          );
+        }),
+      ),
     );
   }
-}
 
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({required this.name, required this.email});
-  final String name, email;
-  @override
-  Widget build(BuildContext context) {
+  // ---- header ---------------------------------------------------------------
+
+  Widget _header(BuildContext context) {
+    final t = context.teacher;
+    final name = _name.text.isNotEmpty
+        ? _name.text
+        : (_user['name'] ?? 'أستاذ').toString();
+    final email = (_user['email'] ?? '').toString();
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(MqSpacing.lg),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B2545), Color(0xFF163E72)],
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        gradient: LinearGradient(
+          colors: [t.heroA, t.heroB],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: MqRadius.brXl,
+        boxShadow: t.shadowLg,
       ),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 32, backgroundColor: const Color(0xFFFF8A00),
-            child: Text(
-              name.isNotEmpty ? name.characters.first : '?',
-              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
-            ),
+            radius: 32,
+            backgroundColor: context.mq.orange,
+            child: Text(name.isNotEmpty ? name.characters.first : '؟',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: MqSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name.isEmpty ? 'أستاذ' : name,
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Text(email, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.titleLarge?.copyWith(color: t.heroInk)),
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.labelSmall
+                          ?.copyWith(color: t.heroInk2)),
+                ],
               ],
             ),
           ),
@@ -493,21 +401,301 @@ class _HeaderCard extends StatelessWidget {
       ),
     );
   }
-}
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title});
-  final String title;
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 10),
+  // ---- cards ----------------------------------------------------------------
+
+  Widget _basicCard(BuildContext context) {
+    return _SectionCard(
+      title: 'البيانات الأساسية',
+      icon: Icons.badge_outlined,
+      child: Column(
+        children: [
+          _TextRow(
+              controller: _name,
+              label: 'الاسم *',
+              enabled: _editing,
+              validator: (v) => _required(v, 'الاسم'),
+              icon: Icons.person_outline),
+          _TextRow(
+              controller: _phone,
+              label: 'رقم الهاتف *',
+              enabled: _editing,
+              validator: (v) => _required(v, 'الهاتف'),
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone),
+          _TextRow(
+              controller: _address,
+              label: 'العنوان',
+              enabled: _editing,
+              icon: Icons.location_on_outlined),
+          _TextRow(
+              controller: _experienceYears,
+              label: 'سنوات الخبرة *',
+              enabled: _editing,
+              validator: (v) => _required(v, 'سنوات الخبرة'),
+              icon: Icons.workspace_premium_outlined,
+              keyboardType: TextInputType.number,
+              last: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _bioCard(BuildContext context) {
+    return _SectionCard(
+      title: 'النبذة الشخصية',
+      icon: Icons.description_outlined,
+      child: TextFormField(
+        controller: _bio,
+        enabled: _editing,
+        minLines: 3,
+        maxLines: 6,
+        decoration: const InputDecoration(
+          hintText: 'نبذة عن خبرتك التدريسية...',
+        ),
+        validator: (v) => _required(v, 'النبذة'),
+      ),
+    );
+  }
+
+  Widget _academicCard(BuildContext context) {
+    final mq = context.mq;
+    return _SectionCard(
+      title: 'البيانات الأكاديمية',
+      icon: Icons.school_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_years.isNotEmpty)
+            DropdownButtonFormField<String>(
+              initialValue: _studyYear,
+              dropdownColor: mq.card,
+              decoration: const InputDecoration(
+                labelText: 'السنة الدراسية *',
+                prefixIcon: Icon(Icons.calendar_today_outlined),
+              ),
+              items: _years
+                  .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                  .toList(),
+              onChanged:
+                  _editing ? (v) => setState(() => _studyYear = v) : null,
+            ),
+          const SizedBox(height: MqSpacing.md),
+          Text('الصفوف المُدرَّسة',
+              style: context.text.labelMedium?.copyWith(color: mq.ink2)),
+          const SizedBox(height: MqSpacing.sm),
+          if (_allGrades.isEmpty)
+            Text('لا توجد مراحل متاحة حالياً',
+                style: context.text.bodySmall?.copyWith(color: mq.ink3))
+          else
+            Wrap(
+              spacing: MqSpacing.sm,
+              runSpacing: MqSpacing.sm,
+              children: _allGrades.map((g) {
+                final id = (g['id'] ?? g['gradeId'] ?? '').toString();
+                final name = (g['name'] ?? g['gradeName'] ?? '').toString();
+                if (id.isEmpty) return const SizedBox.shrink();
+                final selected = _selectedGradeIds.contains(id);
+                return MqChip(
+                  label: name,
+                  selected: selected,
+                  onTap: _editing
+                      ? () => setState(() {
+                            selected
+                                ? _selectedGradeIds.remove(id)
+                                : _selectedGradeIds.add(id);
+                          })
+                      : () {},
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _extraCard(BuildContext context) {
+    final mq = context.mq;
+    return _SectionCard(
+      title: 'بيانات إضافية',
+      icon: Icons.tune_rounded,
       child: Row(
         children: [
-          Container(width: 4, height: 16, color: cs.primary),
-          const SizedBox(width: 8),
-          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: cs.onSurface)),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              initialValue: _gender,
+              dropdownColor: mq.card,
+              decoration: const InputDecoration(
+                labelText: 'الجنس',
+                prefixIcon: Icon(Icons.person_pin_outlined),
+                isDense: true,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'male', child: Text('ذكر')),
+                DropdownMenuItem(value: 'female', child: Text('أنثى')),
+              ],
+              onChanged: _editing ? (v) => setState(() => _gender = v) : null,
+            ),
+          ),
+          const SizedBox(width: MqSpacing.sm),
+          Expanded(
+            child: InkWell(
+              onTap: _editing ? _pickBirthDate : null,
+              borderRadius: MqRadius.brMd,
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'تاريخ الميلاد',
+                  prefixIcon: Icon(Icons.cake_outlined),
+                  isDense: true,
+                ),
+                child: Text(_fmtDate(_birthDate),
+                    style: context.text.bodyMedium),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _locationCard(BuildContext context) {
+    return _SectionCard(
+      title: 'الموقع الجغرافي',
+      icon: Icons.map_outlined,
+      child: TeacherLocationPicker(
+        latitude: _latitude,
+        longitude: _longitude,
+        enabled: _editing,
+        onChanged: (lat, lng) {
+          _latitude = lat;
+          _longitude = lng;
+        },
+      ),
+    );
+  }
+
+  Widget _editActions(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: MqButton.secondary(
+            label: 'إلغاء',
+            onPressed: _saving
+                ? null
+                : () {
+                    setState(() {
+                      _editing = false;
+                      _hydrateForm();
+                    });
+                  },
+          ),
+        ),
+        const SizedBox(width: MqSpacing.md),
+        Expanded(
+          child: MqButton(
+            label: _saving ? 'جارٍ الحفظ…' : 'حفظ التعديلات',
+            icon: _saving ? null : Icons.save_outlined,
+            loading: _saving,
+            onPressed: _saving ? null : _save,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _logoutButton(BuildContext context) {
+    final mq = context.mq;
+    return Material(
+      color: mq.error.withValues(alpha: 0.10),
+      borderRadius: MqRadius.brMd,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _confirmLogout,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: MqSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: MqRadius.brMd,
+            border: Border.all(color: mq.error.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout_rounded, size: 18, color: mq.error),
+              const SizedBox(width: MqSpacing.sm),
+              Text('تسجيل الخروج',
+                  style: context.text.labelLarge?.copyWith(
+                      color: mq.error, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sub-widgets
+// ---------------------------------------------------------------------------
+
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = context.mq;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.xs),
+      child: Material(
+        color: mq.fill,
+        shape: RoundedRectangleBorder(
+          borderRadius: MqRadius.brMd,
+          side: BorderSide(color: mq.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Icon(icon, size: MqSize.iconSm, color: mq.ink2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard(
+      {required this.title, required this.icon, required this.child});
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = context.mq;
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                    color: mq.accentSoft, borderRadius: MqRadius.brSm),
+                child: Icon(icon, size: MqSize.iconSm, color: mq.accent),
+              ),
+              const SizedBox(width: MqSpacing.sm),
+              Text(title, style: context.text.titleSmall),
+            ],
+          ),
+          const SizedBox(height: MqSpacing.md),
+          child,
         ],
       ),
     );
@@ -516,8 +704,13 @@ class _Section extends StatelessWidget {
 
 class _TextRow extends StatelessWidget {
   const _TextRow({
-    required this.controller, required this.label,
-    this.enabled = true, this.validator, this.icon, this.keyboardType,
+    required this.controller,
+    required this.label,
+    this.enabled = true,
+    this.validator,
+    this.icon,
+    this.keyboardType,
+    this.last = false,
   });
   final TextEditingController controller;
   final String label;
@@ -525,10 +718,12 @@ class _TextRow extends StatelessWidget {
   final String? Function(String?)? validator;
   final IconData? icon;
   final TextInputType? keyboardType;
+  final bool last;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: last ? 0 : MqSpacing.md),
       child: TextFormField(
         controller: controller,
         enabled: enabled,
@@ -536,7 +731,7 @@ class _TextRow extends StatelessWidget {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon == null ? null : Icon(icon),
-          border: const OutlineInputBorder(),
+          isDense: true,
         ),
         validator: validator,
       ),

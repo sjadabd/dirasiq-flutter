@@ -1,6 +1,6 @@
-// Teacher application — multi-step form (Phase 6).
+// Teacher application — multi-step form (Teacher Design System pass).
 //
-// Single Stepper-driven screen with 4 steps:
+// Single screen with 4 steps:
 //   1. Basic info     (name, contact, password, gender, birth, location)
 //   2. Teaching info  (subject, stage, experience, workplace, capacity)
 //   3. Profile        (bio + social handles, all optional)
@@ -10,7 +10,12 @@
 //   - validate form
 //   - POST /api/teacher-applications → get applicationId + uploadToken
 //   - for each chosen file: POST /api/teacher-applications/:id/files
-//   - navigate to the success screen
+//   - navigate to the success/OTP screen
+//
+// The submit/upload pipeline, validation, catalog loading and Google
+// identity flow are UNCHANGED — this pass only restyles the shell (custom
+// step indicator + design-system cards/fields in place of the Material
+// Stepper).
 //
 // File pickers:
 //   - profile_image, national_id_image    → image_picker (gallery)
@@ -24,15 +29,24 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:mulhimiq/core/services/google_auth_service.dart';
 import 'package:mulhimiq/core/services/notification_service.dart';
 import 'package:mulhimiq/core/services/teacher_application_api_service.dart';
 
+import '../../teacher/shared/design/teacher_design.dart';
+import '../widgets/join_widgets.dart';
 import 'teacher_application_otp_screen.dart';
 import 'teacher_application_success_screen.dart';
 
 const String _kOtherOption = 'أخرى';
+
+const List<String> _kStepTitles = [
+  'المعلومات الأساسية',
+  'معلومات التدريس',
+  'الملف الشخصي',
+  'المستندات والإرسال',
+];
 
 class TeacherApplicationFormScreen extends StatefulWidget {
   const TeacherApplicationFormScreen({super.key});
@@ -458,240 +472,298 @@ class _TeacherApplicationFormScreenState
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: AppBar(
-        title: const Text('طلب الانضمام كأستاذ'),
-        backgroundColor: scheme.surface,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: Stepper(
-          type: StepperType.vertical,
-          currentStep: _currentStep,
-          onStepTapped: _submitting ? null : (i) => setState(() => _currentStep = i),
-          onStepContinue: _submitting ? null : _next,
-          onStepCancel: _submitting ? null : _prev,
-          controlsBuilder: (ctx, details) {
-            final isLast = _currentStep == 3;
-            return Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Row(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Scaffold(
+            backgroundColor: mq.page,
+            appBar: const JoinAppBar(title: 'طلب الانضمام كأستاذ'),
+            body: SafeArea(
+              top: false,
+              child: Column(
                 children: [
+                  _stepIndicator(context),
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: details.onStepContinue,
-                      icon: Icon(
-                        isLast ? Icons.send_rounded : Icons.arrow_back_ios_new_rounded,
-                        size: 18,
-                      ),
-                      label: Text(_submitting
-                          ? 'جاري الإرسال…'
-                          : (isLast ? 'إرسال الطلب' : 'التالي')),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: scheme.primary,
-                        foregroundColor: scheme.onPrimary,
-                        minimumSize: const Size.fromHeight(46),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(MqSpacing.lg),
+                      child: _stepBody(context),
                     ),
                   ),
-                  if (_currentStep > 0) ...[
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: details.onStepCancel,
-                      child: const Text('السابق'),
-                    ),
-                  ],
                 ],
               ),
-            );
-          },
-          steps: [
-            _buildBasicStep(),
-            _buildTeachingStep(),
-            _buildProfileStep(),
-            _buildUploadsStep(scheme),
-          ],
-        ),
+            ),
+            bottomNavigationBar: _bottomBar(context),
+          );
+        }),
       ),
     );
   }
 
-  Step _buildBasicStep() => Step(
-        title: const Text('المعلومات الأساسية'),
-        isActive: _currentStep >= 0,
-        content: Form(
-          key: _stepKeys[0],
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _authMethodToggle(),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(child: _tf(_firstName, 'الاسم الأول', isRequired: true)),
-                const SizedBox(width: 8),
-                Expanded(child: _tf(_lastName, 'الاسم الأخير', isRequired: true)),
-              ]),
-              _tf(_phone, 'رقم الهاتف (10–15 رقم)', isRequired: true, keyboard: TextInputType.phone),
-              if (_authProvider == 'email') ...[
-                _tf(_email, 'البريد الإلكتروني', isRequired: true, keyboard: TextInputType.emailAddress),
-                _tf(_password, 'كلمة المرور (6 أحرف على الأقل)', isRequired: true, obscure: true, minLen: 6),
-              ] else
-                _googleIdentityRow(),
-              _genderDropdown(),
-              _datePickerField(),
-              Row(children: [
-                Expanded(child: _tf(_city, 'المدينة', isRequired: true)),
-                const SizedBox(width: 8),
-                Expanded(child: _tf(_area, 'المنطقة', isRequired: true)),
-              ]),
-            ],
-          ),
-        ),
-      );
-
-  Step _buildTeachingStep() => Step(
-        title: const Text('معلومات التدريس'),
-        isActive: _currentStep >= 1,
-        content: Form(
-          key: _stepKeys[1],
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_catalogError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    _catalogError!,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFFB45309)),
-                  ),
+  Widget _stepIndicator(BuildContext context) {
+    final mq = context.mq;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: MqSpacing.lg, vertical: MqSpacing.md),
+      decoration: BoxDecoration(
+        color: mq.card,
+        border: Border(bottom: BorderSide(color: mq.line)),
+      ),
+      child: Row(
+        children: [
+          for (int i = 0; i < 4; i++) ...[
+            _stepDot(context, i),
+            if (i < 3)
+              Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  color: i < _currentStep ? mq.accent : mq.line,
                 ),
-              _catalogDropdown(
-                label: 'المادة التي تُدرّسها',
-                value: _selectedSubject,
-                items: _subjectsCatalog,
-                onChanged: (v) => setState(() {
-                  _selectedSubject = v;
-                  if (v != _kOtherOption) _customSubject.clear();
-                }),
               ),
-              if (_selectedSubject == _kOtherOption)
-                _tf(_customSubject, 'حدّد المادة', isRequired: true),
-              _gradesMultiSelect(),
-              Row(children: [
-                Expanded(child: _tf(_yearsExp, 'سنوات الخبرة', isRequired: true, keyboard: TextInputType.number)),
-                const SizedBox(width: 8),
-                Expanded(child: _tf(_estStudents, 'عدد الطلاب المتوقّع', keyboard: TextInputType.number)),
-              ]),
-              _tf(_currentWorkplace, 'مكان العمل الحالي (اختياري)'),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('أُقدّم كورسات حضورية'),
-                value: _hasPhysical,
-                onChanged: (v) => setState(() => _hasPhysical = v),
-              ),
-            ],
-          ),
-        ),
-      );
+          ],
+        ],
+      ),
+    );
+  }
 
-  Step _buildProfileStep() => Step(
-        title: const Text('الملف الشخصي'),
-        isActive: _currentStep >= 2,
-        content: Form(
-          key: _stepKeys[2],
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _stepDot(BuildContext context, int i) {
+    final mq = context.mq;
+    final done = i < _currentStep;
+    final active = i == _currentStep;
+    final bg = done || active ? mq.accent : mq.fill;
+    final fg = done || active ? mq.onAccent : mq.ink3;
+    return GestureDetector(
+      onTap: _submitting ? null : () => setState(() => _currentStep = i),
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: bg,
+          shape: BoxShape.circle,
+          border: active ? Border.all(color: mq.accentLine, width: 3) : null,
+        ),
+        child: done
+            ? Icon(Icons.check, size: 16, color: fg)
+            : Text('${i + 1}',
+                style: context.text.labelMedium
+                    ?.copyWith(color: fg, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _stepBody(BuildContext context) {
+    return MqCard(
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              _tf(_bio, 'نبذة عنك (اختياري)', maxLines: 4),
-              _tf(_facebook, 'Facebook (اختياري)', keyboard: TextInputType.url),
-              _tf(_instagram, 'Instagram (اختياري)', keyboard: TextInputType.url),
-              _tf(_telegram, 'Telegram (اختياري)'),
-              _tf(_tiktok, 'TikTok (اختياري)', keyboard: TextInputType.url),
-              _tf(_youtube, 'YouTube (اختياري)', keyboard: TextInputType.url),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                    color: context.mq.accentSoft, borderRadius: MqRadius.brSm),
+                child: Icon(_stepIcon(_currentStep),
+                    size: MqSize.iconSm, color: context.mq.accent),
+              ),
+              const SizedBox(width: MqSpacing.sm),
+              Expanded(
+                child: Text(_kStepTitles[_currentStep],
+                    style: context.text.titleMedium),
+              ),
+              Text('${_currentStep + 1}/4',
+                  style: context.text.labelSmall
+                      ?.copyWith(color: context.mq.ink3)),
             ],
           ),
-        ),
-      );
+          const SizedBox(height: MqSpacing.lg),
+          switch (_currentStep) {
+            0 => _basicStep(context),
+            1 => _teachingStep(context),
+            2 => _profileStep(context),
+            _ => _uploadsStep(context),
+          },
+        ],
+      ),
+    );
+  }
 
-  Step _buildUploadsStep(ColorScheme scheme) => Step(
-        title: const Text('المستندات + الإرسال'),
-        isActive: _currentStep >= 3,
-        content: Column(
+  IconData _stepIcon(int i) => switch (i) {
+        0 => Icons.person_outline,
+        1 => Icons.school_outlined,
+        2 => Icons.badge_outlined,
+        _ => Icons.upload_file_outlined,
+      };
+
+  // -- steps ------------------------------------------------------------------
+
+  Widget _basicStep(BuildContext context) => Form(
+        key: _stepKeys[0],
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'كل المرفقات اختيارية، لكنّها تُسرّع المراجعة. الأنواع المدعومة: JPG / PNG / WEBP / PDF (للمستندات) و MP4 (للفيديو).',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            _fileTile(scheme, _kindProfile, 'الصورة الشخصية', 'JPG/PNG/WEBP — حتى 5MB',
-                onPick: () => _pickImage(_kindProfile)),
-            _fileTile(scheme, _kindCert, 'شهادة التدريس', 'JPG/PNG/WEBP/PDF — حتى 10MB',
-                onPick: () => _pickDocOrImage(_kindCert)),
-            _fileTile(scheme, _kindNationalId, 'الهوية الوطنية', 'JPG/PNG/WEBP — حتى 5MB',
-                onPick: () => _pickImage(_kindNationalId)),
-            _fileTile(scheme, _kindOptional, 'مرفق إضافي (اختياري)',
-                'JPG/PNG/WEBP/PDF — حتى 10MB',
-                onPick: () => _pickDocOrImage(_kindOptional)),
-            _fileTile(scheme, _kindVideo, 'فيديو تعريفي', 'MP4 — حتى 50MB',
-                onPick: _pickVideo),
-            if (_submitError != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(children: [
-                  Icon(Icons.error_outline, color: scheme.error),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(_submitError!, style: TextStyle(color: scheme.onErrorContainer)),
-                  ),
-                ]),
-              ),
-            ],
+            _authMethodToggle(context),
+            const SizedBox(height: MqSpacing.md),
+            Row(children: [
+              Expanded(child: _tf(_firstName, 'الاسم الأول', isRequired: true)),
+              const SizedBox(width: MqSpacing.sm),
+              Expanded(child: _tf(_lastName, 'الاسم الأخير', isRequired: true)),
+            ]),
+            _tf(_phone, 'رقم الهاتف (10–15 رقم)',
+                isRequired: true, keyboard: TextInputType.phone),
+            if (_authProvider == 'email') ...[
+              _tf(_email, 'البريد الإلكتروني',
+                  isRequired: true, keyboard: TextInputType.emailAddress),
+              _tf(_password, 'كلمة المرور (6 أحرف على الأقل)',
+                  isRequired: true, obscure: true, minLen: 6),
+            ] else
+              _googleIdentityRow(context),
+            _genderDropdown(context),
+            _datePickerField(context),
+            Row(children: [
+              Expanded(child: _tf(_city, 'المدينة', isRequired: true)),
+              const SizedBox(width: MqSpacing.sm),
+              Expanded(child: _tf(_area, 'المنطقة', isRequired: true)),
+            ]),
           ],
         ),
       );
 
-  Widget _fileTile(ColorScheme scheme, String kind, String title, String hint,
+  Widget _teachingStep(BuildContext context) => Form(
+        key: _stepKeys[1],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_catalogError != null) ...[
+              JoinErrorBox(message: _catalogError!),
+              const SizedBox(height: MqSpacing.md),
+            ],
+            _catalogDropdown(
+              context,
+              label: 'المادة التي تُدرّسها',
+              value: _selectedSubject,
+              items: _subjectsCatalog,
+              onChanged: (v) => setState(() {
+                _selectedSubject = v;
+                if (v != _kOtherOption) _customSubject.clear();
+              }),
+            ),
+            if (_selectedSubject == _kOtherOption)
+              _tf(_customSubject, 'حدّد المادة', isRequired: true),
+            _gradesMultiSelect(context),
+            Row(children: [
+              Expanded(
+                  child: _tf(_yearsExp, 'سنوات الخبرة',
+                      isRequired: true, keyboard: TextInputType.number)),
+              const SizedBox(width: MqSpacing.sm),
+              Expanded(
+                  child: _tf(_estStudents, 'عدد الطلاب المتوقّع',
+                      keyboard: TextInputType.number)),
+            ]),
+            _tf(_currentWorkplace, 'مكان العمل الحالي (اختياري)'),
+            const SizedBox(height: MqSpacing.sm),
+            _physicalToggle(context),
+          ],
+        ),
+      );
+
+  Widget _profileStep(BuildContext context) => Form(
+        key: _stepKeys[2],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _tf(_bio, 'نبذة عنك (اختياري)', maxLines: 4),
+            _tf(_facebook, 'Facebook (اختياري)', keyboard: TextInputType.url),
+            _tf(_instagram, 'Instagram (اختياري)', keyboard: TextInputType.url),
+            _tf(_telegram, 'Telegram (اختياري)'),
+            _tf(_tiktok, 'TikTok (اختياري)', keyboard: TextInputType.url),
+            _tf(_youtube, 'YouTube (اختياري)', keyboard: TextInputType.url),
+          ],
+        ),
+      );
+
+  Widget _uploadsStep(BuildContext context) {
+    final mq = context.mq;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'كل المرفقات اختيارية، لكنّها تُسرّع المراجعة. الأنواع المدعومة: JPG / PNG / WEBP / PDF (للمستندات) و MP4 (للفيديو).',
+          style: context.text.bodySmall?.copyWith(color: mq.ink2),
+        ),
+        const SizedBox(height: MqSpacing.md),
+        _fileTile(context, _kindProfile, 'الصورة الشخصية',
+            'JPG/PNG/WEBP — حتى 5MB',
+            onPick: () => _pickImage(_kindProfile)),
+        _fileTile(context, _kindCert, 'شهادة التدريس',
+            'JPG/PNG/WEBP/PDF — حتى 10MB',
+            onPick: () => _pickDocOrImage(_kindCert)),
+        _fileTile(context, _kindNationalId, 'الهوية الوطنية',
+            'JPG/PNG/WEBP — حتى 5MB',
+            onPick: () => _pickImage(_kindNationalId)),
+        _fileTile(context, _kindOptional, 'مرفق إضافي (اختياري)',
+            'JPG/PNG/WEBP/PDF — حتى 10MB',
+            onPick: () => _pickDocOrImage(_kindOptional)),
+        _fileTile(context, _kindVideo, 'فيديو تعريفي', 'MP4 — حتى 50MB',
+            onPick: _pickVideo),
+        if (_submitError != null) ...[
+          const SizedBox(height: MqSpacing.md),
+          JoinErrorBox(message: _submitError!),
+        ],
+      ],
+    );
+  }
+
+  Widget _fileTile(BuildContext context, String kind, String title, String hint,
       {required Future<void> Function() onPick}) {
+    final mq = context.mq;
     final picked = _files[kind];
     final progress = _progress[kind] ?? 0.0;
     final err = _uploadError[kind];
+    final isPdf = picked != null && picked.mimeType == 'application/pdf';
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: MqSpacing.sm),
+      padding: const EdgeInsets.all(MqSpacing.md),
       decoration: BoxDecoration(
-        border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(10),
+        color: picked != null ? mq.accentSoft.withValues(alpha: 0.4) : mq.fill,
+        border: Border.all(color: picked != null ? mq.accentLine : mq.line),
+        borderRadius: MqRadius.brMd,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                kind == _kindVideo
-                    ? Icons.videocam_outlined
-                    : (picked != null && picked.mimeType == 'application/pdf'
-                        ? Icons.picture_as_pdf_outlined
-                        : Icons.image_outlined),
-                color: scheme.primary,
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                    color: mq.card, borderRadius: MqRadius.brSm),
+                child: Icon(
+                  kind == _kindVideo
+                      ? Icons.videocam_outlined
+                      : (isPdf
+                          ? Icons.picture_as_pdf_outlined
+                          : Icons.image_outlined),
+                  color: mq.accent,
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: MqSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text(hint, style: const TextStyle(fontSize: 11)),
+                    Text(title, style: context.text.labelLarge),
+                    Text(hint,
+                        style: context.text.labelSmall
+                            ?.copyWith(color: mq.ink3)),
                   ],
                 ),
               ),
@@ -702,35 +774,87 @@ class _TeacherApplicationFormScreenState
                   child: CircularProgressIndicator(strokeWidth: 2.4),
                 )
               else if (picked != null && progress == 1)
-                Icon(Icons.check_circle, color: scheme.primary)
+                Icon(Icons.check_circle, color: mq.success)
               else
-                TextButton.icon(
+                MqButton.text(
+                  label: picked == null ? 'إرفاق' : 'استبدال',
+                  icon: Icons.attach_file,
+                  size: MqButtonSize.small,
                   onPressed: _submitting ? null : () => onPick(),
-                  icon: const Icon(Icons.attach_file, size: 18),
-                  label: Text(picked == null ? 'إرفاق' : 'استبدال'),
                 ),
             ],
           ),
           if (picked != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: MqSpacing.xs),
             Text(
               picked.file.uri.pathSegments.last,
-              style: const TextStyle(fontSize: 12),
+              style: context.text.labelSmall?.copyWith(color: mq.ink2),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             if (_submitting && progress > 0)
               Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: LinearProgressIndicator(value: progress),
+                padding: const EdgeInsets.only(top: MqSpacing.xs),
+                child: ClipRRect(
+                  borderRadius: MqRadius.brPill,
+                  child: LinearProgressIndicator(
+                      value: progress, backgroundColor: mq.line),
+                ),
               ),
             if (err != null)
               Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(err, style: TextStyle(color: scheme.error, fontSize: 12)),
+                padding: const EdgeInsets.only(top: MqSpacing.xs),
+                child: Text(err,
+                    style: context.text.labelSmall?.copyWith(color: mq.error)),
               ),
           ],
         ],
+      ),
+    );
+  }
+
+  // -- bottom action bar ------------------------------------------------------
+
+  Widget _bottomBar(BuildContext context) {
+    final mq = context.mq;
+    final isLast = _currentStep == 3;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+          MqSpacing.lg, MqSpacing.md, MqSpacing.lg, MqSpacing.md),
+      decoration: BoxDecoration(
+        color: mq.card,
+        border: Border(top: BorderSide(color: mq.line)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            if (_currentStep > 0) ...[
+              Expanded(
+                child: MqButton.secondary(
+                  label: 'السابق',
+                  onPressed: _submitting ? null : _prev,
+                ),
+              ),
+              const SizedBox(width: MqSpacing.md),
+            ],
+            Expanded(
+              flex: 2,
+              child: MqButton(
+                label: _submitting
+                    ? 'جارٍ الإرسال…'
+                    : (isLast ? 'إرسال الطلب' : 'التالي'),
+                icon: _submitting
+                    ? null
+                    : (isLast
+                        ? Icons.send_rounded
+                        : Icons.arrow_forward_rounded),
+                loading: _submitting && isLast,
+                onPressed: _submitting ? null : _next,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -744,7 +868,7 @@ class _TeacherApplicationFormScreenState
       int? maxLines,
       TextInputType? keyboard}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.only(bottom: MqSpacing.md),
       child: TextFormField(
         controller: c,
         obscureText: obscure,
@@ -752,7 +876,6 @@ class _TeacherApplicationFormScreenState
         keyboardType: keyboard,
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
           isDense: true,
         ),
         validator: (v) {
@@ -767,61 +890,89 @@ class _TeacherApplicationFormScreenState
     );
   }
 
-  Widget _authMethodToggle() {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('طريقة التسجيل',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface.withValues(alpha: 0.8))),
-          const SizedBox(height: 6),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'email',
-                label: Text('البريد الإلكتروني'),
-                icon: Icon(Icons.email_outlined, size: 18),
-              ),
-              ButtonSegment(
-                value: 'google',
-                label: Text('Google'),
-                icon: Icon(Icons.account_circle_outlined, size: 18),
+  Widget _authMethodToggle(BuildContext context) {
+    final mq = context.mq;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('طريقة التسجيل',
+            style: context.text.labelMedium?.copyWith(color: mq.ink2)),
+        const SizedBox(height: MqSpacing.sm),
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+              color: mq.fill, borderRadius: MqRadius.brMd),
+          child: Row(
+            children: [
+              _segment(context, 'email', 'البريد الإلكتروني',
+                  Icons.email_outlined),
+              _segment(
+                  context, 'google', 'Google', Icons.account_circle_outlined),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _segment(
+      BuildContext context, String value, String label, IconData icon) {
+    final mq = context.mq;
+    final selected = _authProvider == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() {
+          _authProvider = value;
+          if (_authProvider == 'email') {
+            // Clear Google state so a re-selection re-prompts the user.
+            _googleToken = null;
+            _googleEmail = null;
+            _googleError = null;
+          }
+        }),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
+          decoration: BoxDecoration(
+            color: selected ? mq.card : Colors.transparent,
+            borderRadius: MqRadius.brSm,
+            boxShadow: selected ? mq.cardShadow : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: MqSize.iconSm,
+                  color: selected ? mq.accent : mq.ink2),
+              const SizedBox(width: MqSpacing.xs),
+              Flexible(
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.labelMedium?.copyWith(
+                      color: selected ? mq.accent : mq.ink2,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                    )),
               ),
             ],
-            selected: {_authProvider},
-            onSelectionChanged: (s) {
-              setState(() {
-                _authProvider = s.first;
-                if (_authProvider == 'email') {
-                  // Clear Google state so a re-selection re-prompts the user.
-                  _googleToken = null;
-                  _googleEmail = null;
-                  _googleError = null;
-                }
-              });
-            },
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _googleIdentityRow() {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _googleIdentityRow(BuildContext context) {
+    final mq = context.mq;
     final connected = _googleToken != null && (_googleEmail?.isNotEmpty ?? false);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.only(bottom: MqSpacing.md),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(MqSpacing.md),
         decoration: BoxDecoration(
-          border: Border.all(
-              color: connected ? scheme.primary : scheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-          color: connected ? scheme.primary.withValues(alpha: 0.04) : null,
+          border: Border.all(color: connected ? mq.accent : mq.line),
+          borderRadius: MqRadius.brMd,
+          color: connected ? mq.accentSoft.withValues(alpha: 0.5) : mq.fill,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -829,44 +980,38 @@ class _TeacherApplicationFormScreenState
             Row(children: [
               Icon(
                 connected ? Icons.check_circle : Icons.account_circle_outlined,
-                color: connected ? scheme.primary : scheme.onSurfaceVariant,
+                color: connected ? mq.success : mq.ink2,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: MqSpacing.sm),
               Expanded(
                 child: Text(
                   connected
                       ? 'تم ربط حساب Google: $_googleEmail'
                       : 'سجّل الدخول عبر Google لتأكيد بريدك الإلكتروني',
-                  style: TextStyle(
+                  style: context.text.bodyMedium?.copyWith(
                       fontWeight:
                           connected ? FontWeight.w600 : FontWeight.normal),
                 ),
               ),
-              TextButton.icon(
+              MqButton.text(
+                label: connected ? 'تغيير' : 'دخول',
+                icon: _googleSigningIn ? null : Icons.login,
+                size: MqButtonSize.small,
+                loading: _googleSigningIn,
                 onPressed: _googleSigningIn ? null : _signInWithGoogle,
-                icon: _googleSigningIn
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.login, size: 16),
-                label: Text(connected ? 'تغيير' : 'دخول'),
               ),
             ]),
             if (_googleError != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: MqSpacing.xs),
               Text(_googleError!,
-                  style: TextStyle(color: scheme.error, fontSize: 12)),
+                  style: context.text.labelSmall?.copyWith(color: mq.error)),
             ],
             if (!connected)
               Padding(
-                padding: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.only(top: MqSpacing.xs),
                 child: Text(
                   'لن نرى كلمة مرور حساب Google الخاص بك. نحتاج فقط إلى تأكيد عنوان بريدك.',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: scheme.onSurface.withValues(alpha: 0.6)),
+                  style: context.text.labelSmall?.copyWith(color: mq.ink3),
                 ),
               ),
           ],
@@ -878,75 +1023,57 @@ class _TeacherApplicationFormScreenState
   // Multi-select grade picker. Renders chips for every active grade pulled
   // from the public catalog; tap toggles selection. At least one selection
   // is required to advance past step 2 (validated in _next()).
-  Widget _gradesMultiSelect() {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _gradesMultiSelect(BuildContext context) {
+    final mq = context.mq;
 
     if (_catalogLoading) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: InputDecorator(
-          decoration: const InputDecoration(
-            labelText: 'المراحل الدراسية التي تُدرّسها',
-            border: OutlineInputBorder(),
-            isDense: true,
+        padding: const EdgeInsets.only(bottom: MqSpacing.md),
+        child: Row(children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          child: Row(children: const [
-            SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 8),
-            Text('جارٍ تحميل المراحل…'),
-          ]),
-        ),
+          const SizedBox(width: MqSpacing.sm),
+          Text('جارٍ تحميل المراحل…',
+              style: context.text.bodySmall?.copyWith(color: mq.ink2)),
+        ]),
       );
     }
 
     if (_gradesCatalog.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(
-          'لا توجد مراحل متاحة حالياً — تواصل مع الدعم.',
-          style: TextStyle(color: scheme.error, fontSize: 13),
-        ),
+        padding: const EdgeInsets.only(bottom: MqSpacing.md),
+        child: Text('لا توجد مراحل متاحة حالياً — تواصل مع الدعم.',
+            style: context.text.bodySmall?.copyWith(color: mq.error)),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.only(bottom: MqSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'المراحل الدراسية التي تُدرّسها *',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: scheme.onSurface.withValues(alpha: 0.85),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'يمكنك اختيار أكثر من مرحلة',
-            style: TextStyle(
-              fontSize: 11,
-              color: scheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 8),
+          Text('المراحل الدراسية التي تُدرّسها *',
+              style: context.text.labelMedium?.copyWith(color: mq.ink2)),
+          const SizedBox(height: 2),
+          Text('يمكنك اختيار أكثر من مرحلة',
+              style: context.text.labelSmall?.copyWith(color: mq.ink3)),
+          const SizedBox(height: MqSpacing.sm),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: MqSpacing.sm,
+            runSpacing: MqSpacing.sm,
             children: [
               for (final g in _gradesCatalog)
-                FilterChip(
-                  label: Text(g.name),
+                MqChip(
+                  label: g.name,
                   selected: _selectedGradeIds.contains(g.id),
-                  onSelected: (on) => setState(() {
-                    if (on) {
-                      _selectedGradeIds.add(g.id);
-                    } else {
+                  onTap: () => setState(() {
+                    if (_selectedGradeIds.contains(g.id)) {
                       _selectedGradeIds.remove(g.id);
+                    } else {
+                      _selectedGradeIds.add(g.id);
                     }
                   }),
                 ),
@@ -957,44 +1084,40 @@ class _TeacherApplicationFormScreenState
     );
   }
 
-  Widget _catalogDropdown({
+  Widget _catalogDropdown(
+    BuildContext context, {
     required String label,
     required String? value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
+    final mq = context.mq;
     if (_catalogLoading) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.only(bottom: MqSpacing.md),
         child: InputDecorator(
-          decoration: InputDecoration(
-            labelText: label,
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-          child: Row(children: const [
-            SizedBox(
-              width: 14,
-              height: 14,
+          decoration: InputDecoration(labelText: label, isDense: true),
+          child: Row(children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            SizedBox(width: 8),
-            Text('جارٍ التحميل…'),
+            const SizedBox(width: MqSpacing.sm),
+            Text('جارٍ التحميل…',
+                style: context.text.bodySmall?.copyWith(color: mq.ink2)),
           ]),
         ),
       );
     }
     final entries = [...items, _kOtherOption];
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.only(bottom: MqSpacing.md),
       child: DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          isDense: true,
-        ),
+        dropdownColor: mq.card,
+        decoration: InputDecoration(labelText: label, isDense: true),
         items: [
           for (final e in entries)
             DropdownMenuItem(value: e, child: Text(e)),
@@ -1005,15 +1128,12 @@ class _TeacherApplicationFormScreenState
     );
   }
 
-  Widget _genderDropdown() => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+  Widget _genderDropdown(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: MqSpacing.md),
         child: DropdownButtonFormField<String>(
           initialValue: _gender,
-          decoration: const InputDecoration(
-            labelText: 'الجنس',
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
+          dropdownColor: context.mq.card,
+          decoration: const InputDecoration(labelText: 'الجنس', isDense: true),
           items: const [
             DropdownMenuItem(value: 'male', child: Text('ذكر')),
             DropdownMenuItem(value: 'female', child: Text('أنثى')),
@@ -1022,10 +1142,11 @@ class _TeacherApplicationFormScreenState
         ),
       );
 
-  Widget _datePickerField() {
+  Widget _datePickerField(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.only(bottom: MqSpacing.md),
       child: InkWell(
+        borderRadius: MqRadius.brMd,
         onTap: () async {
           final now = DateTime.now();
           final picked = await showDatePicker(
@@ -1033,13 +1154,13 @@ class _TeacherApplicationFormScreenState
             initialDate: _birthDate ?? DateTime(now.year - 30),
             firstDate: DateTime(now.year - 80),
             lastDate: now,
+            locale: const Locale('ar'),
           );
           if (picked != null) setState(() => _birthDate = picked);
         },
         child: InputDecorator(
           decoration: const InputDecoration(
             labelText: 'تاريخ الميلاد',
-            border: OutlineInputBorder(),
             isDense: true,
             suffixIcon: Icon(Icons.calendar_today_outlined),
           ),
@@ -1047,8 +1168,36 @@ class _TeacherApplicationFormScreenState
             _birthDate == null
                 ? 'اضغط لاختيار التاريخ'
                 : DateFormat('yyyy-MM-dd').format(_birthDate!),
+            style: context.text.bodyMedium?.copyWith(
+                color: _birthDate == null ? context.mq.ink3 : context.mq.ink),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _physicalToggle(BuildContext context) {
+    final mq = context.mq;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: MqSpacing.md, vertical: MqSpacing.xs),
+      decoration: BoxDecoration(
+        color: mq.fill,
+        borderRadius: MqRadius.brMd,
+        border: Border.all(color: mq.line),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text('أُقدّم كورسات حضورية',
+                style: context.text.bodyMedium),
+          ),
+          Switch(
+            value: _hasPhysical,
+            activeTrackColor: mq.accent,
+            onChanged: (v) => setState(() => _hasPhysical = v),
+          ),
+        ],
       ),
     );
   }

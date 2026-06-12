@@ -11,13 +11,9 @@ String fmtNum(dynamic n) {
 
 String fmtIQD(dynamic n) => '${fmtNum(n)} د.ع';
 
-String fmtIQDShort(dynamic n) {
-  final v = (n is num) ? n : num.tryParse((n ?? 0).toString()) ?? 0;
-  final abs = v.abs();
-  if (abs >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-  if (abs >= 1000) return '${(v / 1000).toStringAsFixed(abs >= 10000 ? 0 : 1)}K';
-  return fmtNum(v);
-}
+// Amounts always render with thousands separators and no decimals — no K/M
+// abbreviation (kept as a named alias so existing call sites don't change).
+String fmtIQDShort(dynamic n) => fmtNum(n);
 
 String fmtDate(dynamic v) {
   if (v == null) return '—';

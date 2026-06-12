@@ -6,9 +6,23 @@ import '../shared/teacher_helpers.dart';
 
 /// Teacher → session attendance (attendance/[id].vue).
 class TeacherAttendanceScreen extends StatefulWidget {
-  const TeacherAttendanceScreen({super.key, required this.sessionId, this.session});
+  const TeacherAttendanceScreen({
+    super.key,
+    required this.sessionId,
+    this.session,
+    this.initialDate,
+  });
   final String sessionId;
   final Map<String, dynamic>? session;
+
+  /// The date of the session occurrence being edited (from the week schedule).
+  /// When omitted, the screen defaults to the most recent occurrence of the
+  /// session's weekday. The chosen date is always aligned to the session's
+  /// weekday so attendance is recorded against the correct occurrence (this is
+  /// what prevents a Wednesday session from being saved under a Friday date and
+  /// creating a duplicate row).
+  final DateTime? initialDate;
+
   @override
   State<TeacherAttendanceScreen> createState() => _TeacherAttendanceScreenState();
 }
@@ -20,9 +34,40 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   List<Map<String, dynamic>> _students = [];
   Map<String, String?> _status = {};
   Map<String, String?> _original = {};
-  DateTime _date = DateTime.now();
+  late DateTime _date;
   String _search = '';
   final _searchCtl = TextEditingController();
+
+  static const _weekdayNames = [
+    'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت',
+  ];
+
+  /// DB weekday convention: 0=Sunday … 6=Saturday.
+  int? get _sessionWeekday => (widget.session?['weekday'] is num)
+      ? (widget.session!['weekday'] as num).toInt()
+      : null;
+
+  /// Dart's DateTime.weekday is Mon=1..Sun=7; `% 7` maps it to the DB convention
+  /// (Sun=0..Sat=6).
+  int _dbWeekday(DateTime d) => d.weekday % 7;
+
+  DateTime _computeInitialDate() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final wd = _sessionWeekday;
+    final given = widget.initialDate;
+    if (given != null) {
+      final d = DateTime(given.year, given.month, given.day);
+      if (!d.isAfter(today) && (wd == null || _dbWeekday(d) == wd)) return d;
+    }
+    if (wd == null) return today;
+    // Most recent occurrence (<= today) of the session's weekday.
+    for (var i = 0; i < 7; i++) {
+      final d = today.subtract(Duration(days: i));
+      if (_dbWeekday(d) == wd) return d;
+    }
+    return today;
+  }
 
   static const _statuses = [
     {'value': 'present', 'label': 'حاضر', 'color': Colors.green, 'icon': Icons.check},
@@ -31,11 +76,25 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   ];
 
   @override
-  void initState() { super.initState(); _bootstrap(); }
+  void initState() {
+    super.initState();
+    _date = _computeInitialDate();
+    _bootstrap();
+  }
   @override
   void dispose() { _searchCtl.dispose(); super.dispose(); }
 
   String get _dateISO => '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
+
+  String get _dateLabel {
+    final now = DateTime.now();
+    final isToday =
+        _date.year == now.year && _date.month == now.month && _date.day == now.day;
+    final name = _weekdayNames[_dbWeekday(_date)];
+    final dd =
+        '${_date.day.toString().padLeft(2, '0')}/${_date.month.toString().padLeft(2, '0')}';
+    return isToday ? 'اليوم · $name' : '$name $dd';
+  }
 
   Future<void> _bootstrap() async {
     setState(() => _loading = true);
@@ -107,12 +166,24 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   }
 
   Future<void> _save() async {
+    // The API only accepts present/absent/leave — a null (unmarked) status
+    // fails server validation and rejects the whole batch. Send only the
+    // students that actually have a status set.
+    final items = _students
+        .map((s) => {
+              'studentId': s['student_id'].toString(),
+              'status': _status[s['student_id'].toString()],
+            })
+        .where((it) => it['status'] != null)
+        .toList();
+    if (items.isEmpty) {
+      Get.snackbar('لا يوجد ما يُحفظ',
+          'حدّد حالة طالب واحد على الأقل (حاضر/غائب/إجازة) قبل الحفظ',
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
     setState(() => _saving = true);
     try {
-      final items = _students.map((s) => {
-        'studentId': s['student_id'].toString(),
-        'status': _status[s['student_id'].toString()],
-      }).toList();
       await _api.bulkSetSessionAttendance(widget.sessionId, _dateISO, items);
       Get.snackbar('تم', 'تم حفظ الحضور', snackPosition: SnackPosition.BOTTOM);
       setState(() => _original = Map.of(_status));
@@ -124,10 +195,21 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   }
 
   Future<void> _pickDate() async {
-    final d = await showDatePicker(context: context, initialDate: _date,
-        firstDate: DateTime.now().subtract(const Duration(days: 365)),
-        lastDate: DateTime.now().add(const Duration(days: 7)), locale: const Locale('ar'));
-    if (d != null) { setState(() => _date = d); await _loadDate(); }
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final wd = _sessionWeekday;
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: today.subtract(const Duration(days: 365)),
+      lastDate: today, // attendance is only recorded for past/today occurrences
+      selectableDayPredicate: wd == null ? null : (day) => _dbWeekday(day) == wd,
+      locale: const Locale('ar'),
+    );
+    if (d != null) {
+      setState(() => _date = DateTime(d.year, d.month, d.day));
+      await _loadDate();
+    }
   }
 
   List<Map<String, dynamic>> get _filtered {
@@ -141,20 +223,36 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     final cs = Theme.of(context).colorScheme;
     final counts = _counts;
     final pct = _students.isEmpty ? 0.0 : counts['p']! / _students.length;
-    final isToday = _date.year == DateTime.now().year && _date.month == DateTime.now().month && _date.day == DateTime.now().day;
     return Scaffold(
       appBar: AppBar(title: const Text('تسجيل الحضور')),
       bottomNavigationBar: SafeArea(child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(children: [
-          if (_dirty) Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.error_outline, size: 14, color: kOrange),
-              SizedBox(width: 4), Text('تعديلات غير محفوظة', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.bold)),
-            ]),
-          ),
+          if (_dirty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: kOrange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.error_outline, size: 14, color: kOrange),
+                SizedBox(width: 4), Text('تعديلات غير محفوظة', style: TextStyle(color: kOrange, fontSize: 11, fontWeight: FontWeight.bold)),
+              ]),
+            )
+          else
+            Flexible(
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    _status.values.any((v) => v != null)
+                        ? 'الحضور محفوظ. لتعديله اختر حالة مختلفة للطالب.'
+                        : 'لم يُسجَّل حضور بعد. اختر حالة كل طالب ثم احفظ، أو يُحتسب غائباً تلقائياً بعد انتهاء الجلسة.',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                    maxLines: 2,
+                  ),
+                ),
+              ]),
+            ),
           const Spacer(),
           FilledButton.icon(
             onPressed: (_saving || !_dirty) ? null : _save,
@@ -179,7 +277,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     const Icon(Icons.calendar_month, color: Colors.white, size: 14),
                     const SizedBox(width: 4),
-                    Text(isToday ? 'اليوم' : _dateISO, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    Text(_dateLabel, style: const TextStyle(color: Colors.white, fontSize: 12)),
                   ]),
                 ),
               ),

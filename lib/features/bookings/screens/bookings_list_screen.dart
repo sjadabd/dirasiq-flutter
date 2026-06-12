@@ -1,23 +1,42 @@
-import 'package:mulhimiq/core/config/app_config.dart';
+// Student → My bookings (MulhimIQ design-system pass). RootShell tab
+// "حجوزاتي" + standalone route /bookings.
+//
+// Backed by ApiService.fetchStudentBookings → GET /student/bookings (status +
+// study-year + pagination, all server-side). The status set, server filter,
+// pagination, and navigation to /booking-details are UNCHANGED. The original
+// list had a "cancel" button on pending whose confirm dialog did nothing
+// (no API call); it is now wired to the existing ApiService.cancelBooking —
+// the same endpoint the details screen already uses — so the action actually
+// works. No payment / course-hub actions are added (none exist in the booking
+// flow → "never invent").
+
 import 'package:flutter/material.dart';
-import 'package:mulhimiq/shared/themes/app_colors.dart';
+
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
-import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
+import 'package:mulhimiq/shared/widgets/app_network_image.dart';
+
+/// Money with thousands separators and no decimals (e.g. 100000.00 → 100,000).
+String _fmtMoney(dynamic v) {
+  final n = num.tryParse((v ?? '').toString());
+  if (n == null) return '';
+  return n
+      .round()
+      .toString()
+      .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
+}
 
 class BookingsListScreen extends StatefulWidget {
   final void Function(int index)? onNavigateToTab;
-
   const BookingsListScreen({super.key, this.onNavigateToTab});
 
   @override
   State<BookingsListScreen> createState() => _BookingsListScreenState();
 }
 
-class _BookingsListScreenState extends State<BookingsListScreen>
-    with TickerProviderStateMixin {
+class _BookingsListScreenState extends State<BookingsListScreen> {
   final _api = ApiService();
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
 
   String? _statusFilter;
   String? _studyYear;
@@ -28,45 +47,23 @@ class _BookingsListScreenState extends State<BookingsListScreen>
   String? _error;
   List<Map<String, dynamic>> _items = [];
 
-  static const Map<String, String> statusLabels = {
-    'pending': 'قيد الانتظار',
-    'pre_approved': 'موافقة أولية',
-    'confirmed': 'تم التأكيد',
-    'rejected': 'مرفوض',
-    'cancelled': 'ملغي',
-  };
-
-  static const Map<String, IconData> statusIcons = {
-    'pending': Icons.schedule_rounded,
-    'pre_approved': Icons.task_alt_rounded,
-    'confirmed': Icons.verified_rounded,
-    'approved': Icons.check_circle_rounded,
-    'rejected': Icons.cancel_rounded,
-    'cancelled': Icons.block_rounded,
-    'canceled': Icons.block_rounded,
-  };
+  // Server-supported status values (preserves the original filter behaviour).
+  static const List<(String?, String)> _statusChips = [
+    (null, 'الكل'),
+    ('pending', 'قيد الانتظار'),
+    ('pre_approved', 'موافقة أولية'),
+    ('confirmed', 'تم التأكيد'),
+    ('rejected', 'مرفوض'),
+    ('cancelled', 'ملغي'),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
     _studyYear ??= DateTime.now().month >= 9
         ? '${DateTime.now().year}-${DateTime.now().year + 1}'
         : '${DateTime.now().year - 1}-${DateTime.now().year}';
     _loadInitial();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadInitial() async {
@@ -77,7 +74,6 @@ class _BookingsListScreenState extends State<BookingsListScreen>
       _error = null;
     });
     await _fetchPage(reset: true);
-    _animationController.forward();
   }
 
   Future<void> _fetchPage({bool reset = false}) async {
@@ -93,17 +89,13 @@ class _BookingsListScreenState extends State<BookingsListScreen>
         limit: _limit,
         status: _statusFilter,
       );
-
       List<dynamic> list = [];
       if (res['data'] is List) {
         list = res['data'] as List;
       } else if (res['data'] is Map) {
         final data = res['data'] as Map<String, dynamic>;
         list = (data['items'] ?? data['data'] ?? []) as List;
-      } else {
-        list = [];
       }
-
       final items = List<Map<String, dynamic>>.from(list);
       setState(() {
         if (_page == 1) {
@@ -114,785 +106,405 @@ class _BookingsListScreenState extends State<BookingsListScreen>
         _hasMore = items.length >= _limit;
         if (_hasMore) _page++;
       });
-    } catch (e) {
-      setState(() => _error = e.toString());
+    } catch (_) {
+      setState(() => _error = 'تعذّر تحميل الحجوزات');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _onRefresh() async {
-    _animationController.reset();
-    await _loadInitial();
+  void _onFilter(String? value) {
+    if (_statusFilter == value) return;
+    setState(() {
+      _statusFilter = value;
+      _page = 1;
+      _items = [];
+      _hasMore = true;
+    });
+    _fetchPage(reset: true);
   }
+
+  // ─── cancel (wired to the existing endpoint) ────────────────────────────────
+
+  Future<void> _cancel(String? id) async {
+    if (id == null || id.isEmpty) return;
+    final reason = await _askReason();
+    if (reason == null) return;
+    try {
+      await _api.cancelBooking(bookingId: id, reason: reason);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إلغاء الحجز'), behavior: SnackBarBehavior.floating),
+      );
+      _loadInitial();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذّر إلغاء الحجز'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
+  Future<String?> _askReason() async {
+    final controller = TextEditingController();
+    String? result;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('سبب الإلغاء'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: 'اذكر سبب الإلغاء'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('تراجع')),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.trim().isEmpty) return;
+              result = controller.text.trim();
+              Navigator.pop(ctx);
+            },
+            child: const Text('تأكيد الإلغاء'),
+          ),
+        ],
+      ),
+    );
+    return result;
+  }
+
+  // ─── status helpers ─────────────────────────────────────────────────────────
+
+  (String, MqBadgeTone, IconData) _statusMeta(String s) {
+    switch (s.toLowerCase()) {
+      case 'pending':
+        return ('قيد الانتظار', MqBadgeTone.orange, Icons.schedule_rounded);
+      case 'pre_approved':
+        return ('موافقة أولية', MqBadgeTone.accent, Icons.task_alt_rounded);
+      case 'confirmed':
+        return ('تم التأكيد', MqBadgeTone.success, Icons.verified_rounded);
+      case 'approved':
+        return ('موافق نهائياً', MqBadgeTone.success, Icons.check_circle_rounded);
+      case 'rejected':
+        return ('مرفوض', MqBadgeTone.error, Icons.cancel_rounded);
+      case 'cancelled':
+      case 'canceled':
+        return ('ملغي', MqBadgeTone.neutral, Icons.block_rounded);
+      default:
+        return (s, MqBadgeTone.neutral, Icons.help_outline_rounded);
+    }
+  }
+
+  Color _toneColor(BuildContext context, MqBadgeTone tone) {
+    final m = context.mq;
+    return switch (tone) {
+      MqBadgeTone.orange => m.orange,
+      MqBadgeTone.accent => m.accent,
+      MqBadgeTone.success => m.success,
+      MqBadgeTone.error => m.error,
+      MqBadgeTone.neutral => m.ink3,
+    };
+  }
+
+  String _nextStep(String s) => switch (s.toLowerCase()) {
+        'pending' => 'بانتظار مراجعة الأستاذ لطلبك',
+        'pre_approved' => 'تمت الموافقة المبدئية — بانتظار التأكيد',
+        'confirmed' => 'تم تأكيد حجزك',
+        'approved' => 'تم قبولك في الدورة',
+        'rejected' => 'تم رفض الطلب',
+        'cancelled' || 'canceled' => 'تم إلغاء الطلب',
+        _ => '',
+      };
+
+  String _fmtDate(String? s) {
+    if (s == null || s.isEmpty) return '';
+    try {
+      final d = DateTime.parse(s).toLocal();
+      return '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return s;
+    }
+  }
+
+  // ─── build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
-      appBar: const GlobalAppBar(title: 'حجوزاتي', centerTitle: true),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: RefreshIndicator(
-          onRefresh: _onRefresh,
-          color: AppColors.primary,
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      _buildFilters(isDark),
-                      const SizedBox(height: 10),
-                      if (_error != null) _buildError(isDark),
-                    ],
-                  ),
-                ),
-              ),
-              if (_items.isEmpty && !_loading && _error == null)
-                SliverFillRemaining(child: _buildEmpty(isDark))
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    if (index < _items.length) {
-                      return AnimatedContainer(
-                        duration: Duration(milliseconds: 300 + (index * 50)),
-                        curve: Curves.easeOutCubic,
-                        child: _buildBookingCard(_items[index], index, isDark),
-                      );
-                    } else if (index == _items.length) {
-                      return Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          children: [
-                            if (_loading)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 28,
-                                    height: 28,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (!_loading && _hasMore)
-                              Center(
-                                child: TextButton.icon(
-                                  onPressed: _fetchPage,
-                                  icon: const Icon(
-                                    Icons.expand_more_rounded,
-                                    size: 18,
-                                  ),
-                                  label: const Text(
-                                    'تحميل المزيد',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: AppColors.primary,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      );
-                    }
-                    return null;
-                  }, childCount: _items.length + 1),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilters(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.1),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.filter_list_rounded,
-                  color: AppColors.white,
-                  size: 14,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'تصفية الحجوزات',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.textPrimary,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _buildStatusDropdown(isDark),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusDropdown(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: DropdownButtonFormField<String?>(
-        initialValue: _statusFilter,
-        isExpanded: true,
-        dropdownColor: isDark ? AppColors.darkSurface : AppColors.surface,
-        style: TextStyle(
-          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-          fontSize: 12,
-        ),
-        items: [
-          DropdownMenuItem(
-            value: null,
-            child: Text(
-              'كل الحالات',
-              style: TextStyle(
-                color: isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.textPrimary,
-                fontSize: 12,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          ...statusLabels.entries.map(
-            (e) => DropdownMenuItem(
-              value: e.key,
-              child: Row(
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: context.mq.page,
+            appBar: AppBar(
+              automaticallyImplyLeading: Navigator.of(context).canPop(),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    statusIcons[e.key],
-                    size: 12,
-                    color: _getStatusColor(e.key, isDark),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      e.value,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
+                  const Text('حجوزاتي'),
+                  Text('تابع حالة طلبات التسجيل الخاصة بك', style: context.text.bodySmall),
                 ],
               ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(52),
+                child: _filters(context),
+              ),
             ),
-          ),
-        ],
-        decoration: InputDecoration(
-          labelText: 'الحالة',
-          labelStyle: TextStyle(
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.textSecondary,
-            fontSize: 11,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
+            body: RefreshIndicator(onRefresh: _loadInitial, child: _body(context)),
           ),
         ),
-        onChanged: (v) {
-          setState(() => _statusFilter = v);
-          _page = 1;
-          _items = [];
-          _hasMore = true;
-          _fetchPage(reset: true);
+      ),
+    );
+  }
+
+  Widget _filters(BuildContext context) {
+    return SizedBox(
+      height: MqSize.chipHeight + MqSpacing.sm,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(MqSpacing.lg, 0, MqSpacing.lg, MqSpacing.sm),
+        itemCount: _statusChips.length,
+        separatorBuilder: (_, _) => const SizedBox(width: MqSpacing.xs),
+        itemBuilder: (_, i) {
+          final (value, label) = _statusChips[i];
+          return MqChip(label: label, selected: _statusFilter == value, onTap: () => _onFilter(value));
         },
       ),
     );
   }
 
-  Widget _buildBookingCard(Map<String, dynamic> b, int index, bool isDark) {
+  Widget _body(BuildContext context) {
+    if (_loading && _items.isEmpty) return _skeleton(context);
+    if (_error != null && _items.isEmpty) return _errorView(context);
+    if (_items.isEmpty) return _empty(context);
+
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.md, MqSpacing.lg, MqSpacing.xxxl + MqSpacing.xl),
+      itemCount: _items.length + 1,
+      separatorBuilder: (_, _) => const SizedBox(height: MqSpacing.sm),
+      itemBuilder: (context, index) {
+        if (index < _items.length) return _bookingCard(context, _items[index]);
+        // footer: load-more / spinner
+        if (_loading) {
+          return const Padding(
+            padding: EdgeInsets.all(MqSpacing.md),
+            child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
+        if (_hasMore) {
+          return Center(
+            child: MqButton.text(label: 'تحميل المزيد', icon: Icons.expand_more_rounded, onPressed: _fetchPage),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _bookingCard(BuildContext context, Map<String, dynamic> b) {
+    final m = context.mq;
     final status = (b['status'] ?? '').toString();
-    final statusLabel = statusLabels[status] ?? status;
+    final (label, tone, icon) = _statusMeta(status);
+    final color = _toneColor(context, tone);
+    final courseName = (b['courseName'] ?? 'دورة غير محددة').toString();
+    final teacherName = (b['teacher_name'] ?? '').toString();
+    final price = _fmtMoney(b['price']);
+    final bookingDate = _fmtDate(b['bookingDate']?.toString());
+    final note = (b['studentMessage'] ?? '').toString().trim();
+    final id = b['id']?.toString();
+    final imgs = b['courseImages'];
+    final imgPath = (imgs is List && imgs.isNotEmpty) ? imgs.first.toString() : '';
+    final imgUrl = imgPath.isEmpty ? '' : (imgPath.startsWith('http') ? imgPath : '${AppConfig.serverBaseUrl}$imgPath');
+    final nextStep = _nextStep(status);
 
-    final courseName = b['courseName'] ?? 'دورة غير محددة';
-    final teacherName = b['teacher_name'] ?? 'غير محدد';
-    final studentName = b['student_name'] ?? 'غير محدد';
-    final price = b['price']?.toString() ?? '';
-    final bookingDate = b['bookingDate']?.toString() ?? '';
-    final studyYear = b['studyYear']?.toString() ?? '';
-    final studentMessage = b['studentMessage']?.toString() ?? '';
-    final courseImage =
-        (b['courseImages'] is List && b['courseImages'].isNotEmpty)
-        ? b['courseImages'][0]
-        : null;
-
-    final statusColor = _getStatusColor(status, isDark);
-    final statusIcon = statusIcons[status] ?? Icons.help_outline_rounded;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withValues(alpha: 0.2), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: statusColor.withValues(alpha: 0.06),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => Navigator.pushNamed(
-            context,
-            '/booking-details',
-            arguments: b['id'],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
+    return MqCard(
+      padding: EdgeInsets.zero,
+      onTap: id == null ? null : () => Navigator.pushNamed(context, '/booking-details', arguments: id),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (imgUrl.isNotEmpty)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: AppNetworkImage(url: imgUrl, fit: BoxFit.cover, fallbackIcon: Icons.school_rounded),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(MqSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // صورة الدورة
-                if (courseImage != null) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      "${AppConfig.serverBaseUrl}$courseImage",
-                      height: 110,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        height: 110,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.image_not_supported_rounded,
-                            size: 32,
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-
-                // العنوان + الحالة
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(statusIcon, color: statusColor, size: 16),
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: MqRadius.brMd),
+                      child: Icon(icon, color: color, size: MqSize.iconSm),
                     ),
-                    const SizedBox(width: 10),
+                    MqSpacing.gapSm,
                     Expanded(
-                      child: Text(
-                        courseName,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: Text(courseName, style: context.text.titleSmall, maxLines: 2, overflow: TextOverflow.ellipsis),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        statusLabel,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    MqSpacing.gapSm,
+                    MqBadge(label: label, tone: tone),
+                  ],
+                ),
+                MqSpacing.gapSm,
+                Row(children: [
+                  if (teacherName.isNotEmpty) ...[
+                    Icon(Icons.person_outline_rounded, size: 13, color: m.ink3),
+                    MqSpacing.gapXxs,
+                    Expanded(child: Text(teacherName, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ] else
+                    const Spacer(),
+                  if (bookingDate.isNotEmpty) ...[
+                    Icon(Icons.event_outlined, size: 13, color: m.ink3),
+                    MqSpacing.gapXxs,
+                    Text(bookingDate, style: context.text.labelSmall),
+                  ],
+                ]),
+                if (price.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Icon(Icons.payments_outlined, size: 13, color: m.ink3),
+                    MqSpacing.gapXxs,
+                    Text('$price د.ع', style: context.text.labelSmall),
+                  ]),
+                ],
+                if (nextStep.isNotEmpty) ...[
+                  MqSpacing.gapSm,
+                  MqSurface(
+                    tone: MqSurfaceTone.neutral,
+                    padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: MqSpacing.xs),
+                    child: Row(children: [
+                      Icon(Icons.flag_outlined, size: 13, color: color),
+                      MqSpacing.gapXs,
+                      Expanded(child: Text(nextStep, style: context.text.labelSmall)),
+                    ]),
+                  ),
+                ],
+                if (note.isNotEmpty) ...[
+                  MqSpacing.gapSm,
+                  MqSurface(
+                    tone: MqSurfaceTone.neutral,
+                    padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: MqSpacing.xs),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Icon(Icons.message_outlined, size: 13, color: m.ink3),
+                      MqSpacing.gapXs,
+                      Expanded(child: Text(note, style: context.text.labelSmall, maxLines: 2, overflow: TextOverflow.ellipsis)),
+                    ]),
+                  ),
+                ],
+                MqSpacing.gapSm,
+                Row(children: [
+                  Expanded(
+                    child: MqButton(
+                      label: 'عرض التفاصيل',
+                      icon: Icons.visibility_outlined,
+                      size: MqButtonSize.small,
+                      variant: MqButtonVariant.tonal,
+                      onPressed: id == null ? null : () => Navigator.pushNamed(context, '/booking-details', arguments: id),
+                    ),
+                  ),
+                  if (status == 'pending') ...[
+                    MqSpacing.gapSm,
+                    Expanded(
+                      child: MqButton(
+                        label: 'إلغاء الطلب',
+                        icon: Icons.cancel_outlined,
+                        size: MqButtonSize.small,
+                        variant: MqButtonVariant.secondary,
+                        onPressed: () => _cancel(id),
                       ),
                     ),
                   ],
-                ),
-
-                const SizedBox(height: 10),
-
-                // تفاصيل مختصرة
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurface : AppColors.surface,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildDetailRow(
-                        Icons.person_rounded,
-                        'المدرس',
-                        teacherName,
-                        AppColors.primary,
-                      ),
-                      const SizedBox(height: 6),
-                      _buildDetailRow(
-                        Icons.person_outline_rounded,
-                        'الطالب',
-                        studentName,
-                        AppColors.info,
-                      ),
-                      if (price.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        _buildDetailRow(
-                          Icons.attach_money_rounded,
-                          'السعر',
-                          '$price د.ع',
-                          AppColors.success,
-                        ),
-                      ],
-                      if (bookingDate.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        _buildDetailRow(
-                          Icons.event_rounded,
-                          'تاريخ الحجز',
-                          _formatDate(bookingDate),
-                          AppColors.warning,
-                        ),
-                      ],
-                      if (studyYear.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        _buildDetailRow(
-                          Icons.school_rounded,
-                          'السنة الدراسية',
-                          studyYear,
-                          AppColors.primary,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
-                if (studentMessage.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.info.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.info.withValues(alpha: 0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.message_rounded,
-                          size: 12,
-                          color: AppColors.info,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            studentMessage,
-                            style: TextStyle(
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.textSecondary,
-                              fontSize: 10,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 8),
-
-                // العمليات
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          '/booking-details',
-                          arguments: b['id'],
-                        ),
-                        icon: Icon(
-                          Icons.visibility_rounded,
-                          size: 14,
-                          color: AppColors.primary,
-                        ),
-                        label: Text(
-                          'عرض التفاصيل',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (status == 'pending') ...[
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: TextButton.icon(
-                          onPressed: () => _showCancelDialog(b['id']),
-                          icon: const Icon(
-                            Icons.cancel_rounded,
-                            size: 14,
-                            color: AppColors.error,
-                          ),
-                          label: const Text(
-                            'إلغاء',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.error,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                ]),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildDetailRow(
-    IconData icon,
-    String label,
-    String value,
-    Color color,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Row(
+  // ─── states ─────────────────────────────────────────────────────────────────
+
+  Widget _empty(BuildContext context) {
+    final m = context.mq;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
       children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 10,
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.textSecondary,
+        const SizedBox(height: MqSpacing.xxl),
+        Center(child: Column(children: [
+          Container(
+            padding: const EdgeInsets.all(MqSpacing.lg),
+            decoration: BoxDecoration(color: m.accentSoft, shape: BoxShape.circle),
+            child: Icon(Icons.inbox_rounded, size: 44, color: m.accent),
           ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 10,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+          MqSpacing.gapMd,
+          Text('لا توجد حجوزات', style: context.text.titleMedium),
+          MqSpacing.gapXs,
+          Text('ستظهر هنا طلبات التسجيل في الدورات.', textAlign: TextAlign.center, style: context.text.bodySmall),
+          if (widget.onNavigateToTab != null) ...[
+            MqSpacing.gapLg,
+            MqButton(
+              label: 'تصفّح الدورات',
+              icon: Icons.search_rounded,
+              expand: false,
+              onPressed: () => widget.onNavigateToTab?.call(1),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+          ],
+        ])),
       ],
     );
   }
 
-  Widget _buildError(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'حدث خطأ',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.error,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _error ?? '',
-                  style: TextStyle(color: AppColors.error, fontSize: 10),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: _loadInitial,
-            child: Text(
-              'إعادة',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.error,
-              ),
-            ),
-          ),
-        ],
-      ),
+  Widget _errorView(BuildContext context) {
+    final m = context.mq;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      children: [
+        const SizedBox(height: MqSpacing.xxl),
+        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.wifi_off_rounded, size: 44, color: m.error),
+          MqSpacing.gapMd,
+          Text(_error ?? 'حدث خطأ', textAlign: TextAlign.center, style: context.text.bodyMedium),
+          MqSpacing.gapMd,
+          MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: _loadInitial),
+        ])),
+      ],
     );
   }
 
-  Widget _buildEmpty(bool isDark) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.inbox_rounded,
-                size: 48,
-                color: AppColors.primary.withValues(alpha: 0.5),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'لا توجد حجوزات حتى الآن',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'ستظهر حجوزاتك هنا عند إنشائها',
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark
-                    ? AppColors.darkTextSecondary
-                    : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => widget.onNavigateToTab?.call(1),
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text(
-                'تصفح الدورات',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                elevation: 2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getStatusColor(String status, bool isDark) {
-    switch (status) {
-      case 'pending':
-        return AppColors.warning;
-      case 'pre_approved':
-        return AppColors.info;
-      case 'confirmed':
-        return AppColors.success;
-      case 'rejected':
-        return AppColors.error;
-      case 'cancelled':
-        return isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-      default:
-        return AppColors.info;
-    }
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
-  void _showCancelDialog(String bookingId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? AppColors.darkSurface
-            : AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'إلغاء الحجز',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? AppColors.darkTextPrimary
-                : AppColors.textPrimary,
-          ),
-        ),
-        content: Text(
-          'هل أنت متأكد من رغبتك في إلغاء هذا الحجز؟',
-          style: TextStyle(
-            fontSize: 12,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? AppColors.darkTextSecondary
-                : AppColors.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'إلغاء',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? AppColors.darkTextSecondary
-                    : AppColors.textSecondary,
-              ),
+  Widget _skeleton(BuildContext context) {
+    final m = context.mq;
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.md, MqSpacing.lg, MqSpacing.lg),
+      children: [
+        for (var i = 0; i < 4; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+            child: MqCard(
+              padding: const EdgeInsets.all(MqSpacing.md),
+              child: Row(children: [
+                Container(width: 36, height: 36, decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brMd)),
+                MqSpacing.gapMd,
+                Expanded(child: Container(height: 40, decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brSm))),
+              ]),
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'تأكيد الإلغاء',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }

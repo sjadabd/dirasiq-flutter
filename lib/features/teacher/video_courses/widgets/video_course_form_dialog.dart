@@ -1,21 +1,14 @@
-// Shared create/edit dialog for video courses.
+// Shared create/edit sheet for video courses (Teacher Design System pass).
 //
 // Single component used by:
 //   - list screen → create new course (returns the new course id)
-//   - detail screen → edit existing course (returns true on success)
+//   - detail screen → edit existing course (returns the id on success)
 //
-// Dropdowns for subject + teachingStage are sourced from the teacher's
-// OWN subjects + grades (per product constraint — no free-text). Catalogs
-// load synchronously inside the dialog; while loading the dialog shows a
-// spinner instead of empty disabled dropdowns to avoid confusing UX.
-//
-// Cover image is a 2-step server flow (the backend `cover-image` endpoint
-// is POST /:id/cover-image, so the row must exist first). The dialog hides
-// that: it creates/updates the course first, then if the user picked a
-// file it uploads it as a follow-up call before resolving. A failed cover
-// upload doesn't roll back the course — the user keeps the new course and
-// gets a snackbar-grade error on the next screen via the standard
-// change-cover button.
+// Presentation only — the catalog loading, subject/grade dropdowns (with the
+// FK-safe `gradeId` extraction), the two-step cover-image upload, and the
+// create/update submit are UNCHANGED. Restyled from an AlertDialog to an
+// animated design-system bottom sheet. Open with:
+//   showModalBottomSheet<String?>(... builder: (_) => const VideoCourseFormDialog())
 
 import 'dart:io';
 
@@ -24,15 +17,15 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/services/teacher_api_service.dart';
 import '../../../../core/utils/content_url.dart';
+import '../../shared/design/teacher_design.dart';
 
 class VideoCourseFormDialog extends StatefulWidget {
   const VideoCourseFormDialog({super.key, this.initial});
 
-  /// When non-null, the dialog opens in EDIT mode pre-filled with these
-  /// values. Required field on a course row: `id`.
   final Map<String, dynamic>? initial;
 
-  bool get isEdit => initial != null && (initial!['id']?.toString().isNotEmpty ?? false);
+  bool get isEdit =>
+      initial != null && (initial!['id']?.toString().isNotEmpty ?? false);
 
   @override
   State<VideoCourseFormDialog> createState() => _VideoCourseFormDialogState();
@@ -57,14 +50,10 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
   bool _submitting = false;
   String _error = '';
 
-  // ----- Cover image ------------------------------------------------------
-  // _coverFile is set when the user picks a NEW image. Existing courses
-  // (edit mode) carry their persisted cover under initial['coverImage'] —
-  // we render that as the fallback preview when no new file is picked.
   File? _coverFile;
   String _coverFileName = '';
   bool _pickingCover = false;
-  String _coverPhase = ''; // status text shown during the upload step
+  String _coverPhase = '';
 
   String get _existingCoverUrl {
     final raw = widget.initial?['coverImage']?.toString();
@@ -84,7 +73,9 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
       _selectedGradeName = initial['teachingStage']?.toString() ?? '';
       _isFree = initial['isFree'] == true;
       final p = initial['price'];
-      _price.text = (p is num ? p.toInt() : int.tryParse(p?.toString() ?? '0') ?? 0).toString();
+      _price.text =
+          (p is num ? p.toInt() : int.tryParse(p?.toString() ?? '0') ?? 0)
+              .toString();
       _visibility = (initial['visibility']?.toString() ?? 'private');
     }
     _loadCatalogs();
@@ -109,54 +100,26 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
         _subjects = results[0];
         _grades = results[1];
         _loadingCatalogs = false;
-        // For EDIT mode: if the persisted subject / grade isn't in the
-        // catalog (e.g. teacher removed the subject after the course was
-        // created), clear the selection so the dropdown doesn't render
-        // an invalid value.
-        if (_selectedSubject != null &&
-            !_subjects.any((s) => _subjectValue(s) == _selectedSubject)) {
-          // keep the value so it still saves on submit — Dropdown will
-          // just show empty until user picks something
-        }
-        if (_selectedGradeId != null &&
-            !_grades.any((g) => _gradeUuid(g) == _selectedGradeId)) {
-          // same — don't auto-clear so we don't surprise the teacher
-        }
       });
     } catch (_) {
       if (mounted) setState(() => _loadingCatalogs = false);
     }
   }
 
-  String _subjectValue(Map s) {
-    return (s['name'] ?? s['title'] ?? s['subject'])?.toString() ?? '';
-  }
+  String _subjectValue(Map s) =>
+      (s['name'] ?? s['title'] ?? s['subject'])?.toString() ?? '';
 
-  String _gradeName(Map g) {
-    return (g['name'] ?? g['gradeName'] ?? g['title'])?.toString() ?? '';
-  }
+  String _gradeName(Map g) =>
+      (g['name'] ?? g['gradeName'] ?? g['title'])?.toString() ?? '';
 
-  /// Extract the REAL grade UUID from a /grades/my-grades row.
-  ///
-  /// The endpoint returns junction-table rows shaped as:
-  ///   `{ id: <teacher_grades.id>, gradeId: <grades.id>, gradeName: ..., ... }`
-  /// We need the `gradeId` field — NOT `id` — because `id` is the junction
-  /// row's UUID which doesn't exist in the `grades` table. Sending it as
-  /// `gradeId` to /api/teacher/video-courses causes Postgres FK violations
-  /// → HTTP 500 (this was the bug fixed in this commit).
-  ///
-  /// Falls back to `id` only if `gradeId` is missing — happens when the
-  /// API ever changes to return raw grades.
+  /// Extract the REAL grade UUID — the `gradeId` field, not the junction
+  /// row's `id` (sending `id` causes an FK violation server-side).
   String _gradeUuid(Map g) {
     final viaGradeId = g['gradeId']?.toString();
     if (viaGradeId != null && viaGradeId.isNotEmpty) return viaGradeId;
     return g['id']?.toString() ?? '';
   }
 
-  /// Pick a cover image. Guarded by [_pickingCover] against the same
-  /// PlatformException(already_active) race that bit the lesson upload
-  /// dialog when the user double-taps "browse" before the native picker
-  /// dialog mounts.
   Future<void> _pickCover() async {
     if (_pickingCover) return;
     _pickingCover = true;
@@ -185,12 +148,23 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
 
   Future<void> _submit() async {
     final title = _title.text.trim();
-    if (title.isEmpty) { setState(() => _error = 'العنوان مطلوب'); return; }
-    if ((_selectedSubject ?? '').isEmpty) { setState(() => _error = 'يجب اختيار المادة'); return; }
-    if ((_selectedGradeId ?? '').isEmpty || _selectedGradeName.isEmpty) {
-      setState(() => _error = 'يجب اختيار المرحلة'); return;
+    if (title.isEmpty) {
+      setState(() => _error = 'العنوان مطلوب');
+      return;
     }
-    setState(() { _submitting = true; _error = ''; _coverPhase = ''; });
+    if ((_selectedSubject ?? '').isEmpty) {
+      setState(() => _error = 'يجب اختيار المادة');
+      return;
+    }
+    if ((_selectedGradeId ?? '').isEmpty || _selectedGradeName.isEmpty) {
+      setState(() => _error = 'يجب اختيار المرحلة');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = '';
+      _coverPhase = '';
+    });
     try {
       final payload = <String, dynamic>{
         'title': title,
@@ -218,10 +192,6 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
         courseId = id;
       }
 
-      // Cover upload step. The course already exists at this point, so a
-      // failure here does NOT roll back — we leave the row in place and
-      // surface a non-fatal error so the user can retry from the detail
-      // screen via the standard change-cover button.
       if (_coverFile != null) {
         if (mounted) setState(() => _coverPhase = 'رفع صورة الغلاف…');
         try {
@@ -236,7 +206,6 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
               _submitting = false;
             });
           }
-          // Still pop with the id so the caller refreshes / navigates.
           if (mounted) Navigator.of(context).pop(courseId);
           return;
         }
@@ -245,50 +214,337 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
       if (!mounted) return;
       Navigator.of(context).pop(courseId);
     } catch (e) {
-      if (mounted) setState(() => _error = widget.isEdit ? 'تعذّر حفظ التعديلات' : 'تعذّر إنشاء الدورة');
+      if (mounted) {
+        setState(() =>
+            _error = widget.isEdit ? 'تعذّر حفظ التعديلات' : 'تعذّر إنشاء الدورة');
+      }
     } finally {
-      if (mounted) setState(() { _submitting = false; _coverPhase = ''; });
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _coverPhase = '';
+        });
+      }
     }
   }
 
-  /// Cover preview + browse + remove. Three states:
-  ///   - new file picked → show File preview + "تغيير" + "إزالة"
-  ///   - edit mode with existing remote cover → show network preview +
-  ///     "تغيير" (no remove — there's no API to clear it; the user can
-  ///     only replace)
-  ///   - empty → dotted placeholder + "تصفّح"
-  Widget _buildCoverField(ColorScheme scheme) {
+  // ---------------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.92),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: mq.card,
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(MqRadius.xl)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _handle(context),
+                      _header(context),
+                      Flexible(
+                        child: _loadingCatalogs
+                            ? const Padding(
+                                padding: EdgeInsets.all(MqSpacing.xxl),
+                                child:
+                                    Center(child: CircularProgressIndicator()),
+                              )
+                            : _formBody(context),
+                      ),
+                      _saveBar(context),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _handle(BuildContext context) => Center(
+        child: Container(
+          width: 40,
+          height: 4,
+          margin: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
+          decoration: BoxDecoration(
+              color: context.mq.line, borderRadius: MqRadius.brPill),
+        ),
+      );
+
+  Widget _header(BuildContext context) {
+    final mq = context.mq;
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(MqSpacing.lg, 0, MqSpacing.lg, MqSpacing.sm),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration:
+                BoxDecoration(color: mq.accentSoft, borderRadius: MqRadius.brSm),
+            child: Icon(widget.isEdit ? Icons.edit_outlined : Icons.add_rounded,
+                size: MqSize.iconSm, color: mq.accent),
+          ),
+          const SizedBox(width: MqSpacing.sm),
+          Expanded(
+            child: Text(
+                widget.isEdit ? 'تعديل الدورة' : 'إنشاء دورة مرئية جديدة',
+                style: context.text.titleMedium),
+          ),
+          InkWell(
+            onTap: () => Navigator.of(context).pop(null),
+            customBorder: const CircleBorder(),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.close_rounded, color: mq.ink3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _formBody(BuildContext context) {
+    final mq = context.mq;
+    final hint = _subjects.isEmpty && _grades.isEmpty
+        ? 'لم تضِف بعد مواد أو مراحل. أضِفها قبل إنشاء دورة.'
+        : _subjects.isEmpty
+            ? 'أضِف مادة على الأقل قبل إنشاء دورة.'
+            : _grades.isEmpty
+                ? 'أضِف مرحلة على الأقل قبل إنشاء دورة.'
+                : '';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+          MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hint.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: MqSpacing.md),
+              child: MqSurface(
+                tone: MqSurfaceTone.orange,
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        size: 18, color: mq.orangeDeep),
+                    const SizedBox(width: MqSpacing.sm),
+                    Expanded(
+                      child: Text(hint,
+                          style:
+                              context.text.bodySmall?.copyWith(color: mq.ink2)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          TextField(
+            controller: _title,
+            decoration: const InputDecoration(
+              labelText: 'عنوان الدورة *',
+              prefixIcon: Icon(Icons.video_library_outlined),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: MqSpacing.md),
+          TextField(
+            controller: _description,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              labelText: 'الوصف',
+              hintText: 'وصف اختياري...',
+            ),
+          ),
+          const SizedBox(height: MqSpacing.md),
+          _coverField(context),
+          const SizedBox(height: MqSpacing.md),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedSubject != null &&
+                    _subjects.any((s) => _subjectValue(s) == _selectedSubject)
+                ? _selectedSubject
+                : null,
+            isExpanded: true,
+            dropdownColor: mq.card,
+            decoration: const InputDecoration(
+              labelText: 'المادة *',
+              prefixIcon: Icon(Icons.menu_book_outlined),
+              isDense: true,
+            ),
+            items: _subjects
+                .map((s) {
+                  final v = _subjectValue(s);
+                  if (v.isEmpty) return null;
+                  return DropdownMenuItem<String>(value: v, child: Text(v));
+                })
+                .whereType<DropdownMenuItem<String>>()
+                .toList(),
+            onChanged: _subjects.isEmpty
+                ? null
+                : (v) => setState(() => _selectedSubject = v),
+          ),
+          const SizedBox(height: MqSpacing.md),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedGradeId != null &&
+                    _grades.any((g) => _gradeUuid(g) == _selectedGradeId)
+                ? _selectedGradeId
+                : null,
+            isExpanded: true,
+            dropdownColor: mq.card,
+            decoration: const InputDecoration(
+              labelText: 'المرحلة *',
+              prefixIcon: Icon(Icons.school_outlined),
+              isDense: true,
+            ),
+            items: _grades
+                .map((g) {
+                  final uuid = _gradeUuid(g);
+                  final name = _gradeName(g);
+                  if (uuid.isEmpty || name.isEmpty) return null;
+                  return DropdownMenuItem<String>(value: uuid, child: Text(name));
+                })
+                .whereType<DropdownMenuItem<String>>()
+                .toList(),
+            onChanged: _grades.isEmpty
+                ? null
+                : (v) {
+                    final g = _grades.firstWhere((g) => _gradeUuid(g) == v,
+                        orElse: () => {});
+                    setState(() {
+                      _selectedGradeId = v;
+                      _selectedGradeName = _gradeName(g);
+                    });
+                  },
+          ),
+          const SizedBox(height: MqSpacing.sm),
+          MqSurface(
+            tone: MqSurfaceTone.neutral,
+            padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm),
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              activeTrackColor: mq.accent,
+              title: Text('دورة مجانية', style: context.text.bodyMedium),
+              value: _isFree,
+              onChanged: (v) => setState(() => _isFree = v),
+            ),
+          ),
+          if (!_isFree) ...[
+            const SizedBox(height: MqSpacing.md),
+            TextField(
+              controller: _price,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'السعر (د.ع)',
+                prefixIcon: Icon(Icons.payments_outlined),
+                isDense: true,
+              ),
+            ),
+          ],
+          const SizedBox(height: MqSpacing.md),
+          DropdownButtonFormField<String>(
+            initialValue: _visibility,
+            isExpanded: true,
+            dropdownColor: mq.card,
+            decoration: const InputDecoration(
+              labelText: 'الرؤية',
+              prefixIcon: Icon(Icons.visibility_outlined),
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem(value: 'private', child: Text('خاصة')),
+              DropdownMenuItem(value: 'public', child: Text('عامة')),
+            ],
+            onChanged: (v) => setState(() => _visibility = v ?? 'private'),
+          ),
+          if (widget.isEdit) ...[
+            const SizedBox(height: MqSpacing.sm),
+            Text(
+              '* أي تعديل يعيد الدورة إلى حالة "بانتظار المراجعة" من قبل الإدارة.',
+              style: context.text.labelSmall?.copyWith(color: mq.ink3),
+            ),
+          ],
+          if (_coverPhase.isNotEmpty) ...[
+            const SizedBox(height: MqSpacing.md),
+            Row(children: [
+              const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: MqSpacing.sm),
+              Text(_coverPhase,
+                  style: context.text.labelSmall?.copyWith(color: mq.ink2)),
+            ]),
+          ],
+          if (_error.isNotEmpty) ...[
+            const SizedBox(height: MqSpacing.md),
+            MqSurface(
+              tone: MqSurfaceTone.neutral,
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline_rounded, size: 18, color: mq.error),
+                  const SizedBox(width: MqSpacing.sm),
+                  Expanded(
+                    child: Text(_error,
+                        style:
+                            context.text.bodySmall?.copyWith(color: mq.error)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _coverField(BuildContext context) {
+    final mq = context.mq;
     final hasNew = _coverFile != null;
     final existingUrl = _existingCoverUrl;
     final hasExisting = existingUrl.isNotEmpty;
     final disabled = _submitting;
 
-    // NOTE: width must NOT be `double.infinity` on any child here.
-    // AlertDialog wraps its content area in IntrinsicWidth to size itself,
-    // and IntrinsicWidth asserts that every descendant's intrinsic width is
-    // finite. `Image(width: double.infinity)` returns infinity → assertion
-    // fails ("input.isFinite"). The fix is to let the OUTER stretch (the
-    // dialog content Column has `crossAxisAlignment: stretch`) plus the
-    // Container's `clipBehavior` give us the visible width, while the
-    // children stay intrinsic-width-friendly (finite or zero).
     Widget preview;
     if (hasNew) {
-      preview = Image.file(_coverFile!, fit: BoxFit.cover, height: 120);
+      preview = Image.file(_coverFile!,
+          fit: BoxFit.cover, height: 130, width: double.infinity);
     } else if (hasExisting) {
       preview = Image.network(
         existingUrl,
         fit: BoxFit.cover,
-        height: 120,
-        errorBuilder: (ctx, err, stack) => _coverPlaceholder(scheme, label: 'تعذّر تحميل المعاينة'),
+        height: 130,
+        width: double.infinity,
+        errorBuilder: (ctx, err, stack) =>
+            _coverPlaceholder(context, label: 'تعذّر تحميل المعاينة'),
       );
     } else {
-      preview = _coverPlaceholder(scheme);
+      preview = _coverPlaceholder(context);
     }
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: mq.line),
+        borderRadius: MqRadius.brMd,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -297,11 +553,12 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
         children: [
           preview,
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            padding: const EdgeInsets.symmetric(
+                horizontal: MqSpacing.sm, vertical: MqSpacing.xs),
             child: Row(
               children: [
-                Icon(Icons.image_outlined, size: 16, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 6),
+                Icon(Icons.image_outlined, size: 16, color: mq.ink3),
+                const SizedBox(width: MqSpacing.xs),
                 Expanded(
                   child: Text(
                     hasNew
@@ -309,29 +566,25 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
                         : (hasExisting ? 'الغلاف الحالي' : 'صورة الغلاف (اختياري)'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                    style: context.text.labelSmall?.copyWith(color: mq.ink2),
                   ),
                 ),
                 if (hasNew)
-                  TextButton(
-                    onPressed: disabled ? null : () => setState(() {
-                      _coverFile = null;
-                      _coverFileName = '';
-                    }),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(0, 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    child: const Text('إزالة', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                  MqButton.text(
+                    label: 'إزالة',
+                    size: MqButtonSize.small,
+                    onPressed: disabled
+                        ? null
+                        : () => setState(() {
+                              _coverFile = null;
+                              _coverFileName = '';
+                            }),
                   ),
-                TextButton.icon(
+                MqButton.text(
+                  label: hasNew || hasExisting ? 'تغيير' : 'تصفّح',
+                  icon: Icons.folder_open_outlined,
+                  size: MqButtonSize.small,
                   onPressed: disabled ? null : _pickCover,
-                  icon: const Icon(Icons.folder_open, size: 14),
-                  label: Text(hasNew || hasExisting ? 'تغيير' : 'تصفّح', style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 32),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
                 ),
               ],
             ),
@@ -341,22 +594,21 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
     );
   }
 
-  Widget _coverPlaceholder(ColorScheme scheme, {String? label}) {
-    // Same constraint as the Image branches: NO `width: double.infinity`
-    // anywhere — the outer stretch + clipBehavior handles the visible
-    // width; this child only needs to declare a finite height.
+  Widget _coverPlaceholder(BuildContext context, {String? label}) {
+    final mq = context.mq;
     return Container(
-      height: 120,
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      height: 130,
+      width: double.infinity,
+      color: mq.fill,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_photo_alternate_outlined, color: scheme.onSurfaceVariant, size: 28),
-            const SizedBox(height: 4),
+            Icon(Icons.add_photo_alternate_outlined, color: mq.ink3, size: 28),
+            const SizedBox(height: MqSpacing.xs),
             Text(
               label ?? 'لا توجد صورة — JPG / PNG / WEBP حتى 5MB',
-              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+              style: context.text.labelSmall?.copyWith(color: mq.ink3),
             ),
           ],
         ),
@@ -364,185 +616,24 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isEdit = widget.isEdit;
-    if (_loadingCatalogs) {
-      return AlertDialog(
-        title: Text(isEdit ? 'تعديل الدورة' : 'إنشاء دورة مرئية جديدة'),
-        content: const SizedBox(
-          height: 120,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    final hint = _subjects.isEmpty && _grades.isEmpty
-        ? 'لم تضِف بعد مواد أو مراحل. أضِفها من قسم المواد والمراحل قبل إنشاء دورة.'
-        : _subjects.isEmpty
-            ? 'أضِف مادة على الأقل قبل إنشاء دورة.'
-            : _grades.isEmpty
-                ? 'أضِف مرحلة على الأقل قبل إنشاء دورة.'
-                : '';
-
-    return AlertDialog(
-      title: Text(isEdit ? 'تعديل الدورة' : 'إنشاء دورة مرئية جديدة'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (hint.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(8),
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(hint, style: const TextStyle(fontSize: 12)),
-              ),
-            TextField(
-              controller: _title,
-              decoration: const InputDecoration(
-                labelText: 'عنوان الدورة *',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _description,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'الوصف',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildCoverField(scheme),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _selectedSubject != null && _subjects.any((s) => _subjectValue(s) == _selectedSubject)
-                  ? _selectedSubject
-                  : null,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'المادة *',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: _subjects
-                  .map((s) {
-                    final v = _subjectValue(s);
-                    if (v.isEmpty) return null;
-                    return DropdownMenuItem<String>(value: v, child: Text(v));
-                  })
-                  .whereType<DropdownMenuItem<String>>()
-                  .toList(),
-              onChanged: _subjects.isEmpty ? null : (v) => setState(() => _selectedSubject = v),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _selectedGradeId != null && _grades.any((g) => _gradeUuid(g) == _selectedGradeId)
-                  ? _selectedGradeId
-                  : null,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'المرحلة *',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: _grades
-                  .map((g) {
-                    final uuid = _gradeUuid(g);
-                    final name = _gradeName(g);
-                    if (uuid.isEmpty || name.isEmpty) return null;
-                    return DropdownMenuItem<String>(value: uuid, child: Text(name));
-                  })
-                  .whereType<DropdownMenuItem<String>>()
-                  .toList(),
-              onChanged: _grades.isEmpty ? null : (v) {
-                final g = _grades.firstWhere((g) => _gradeUuid(g) == v, orElse: () => {});
-                setState(() {
-                  _selectedGradeId = v;
-                  _selectedGradeName = _gradeName(g);
-                });
-              },
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('مجاني'),
-              value: _isFree,
-              onChanged: (v) => setState(() => _isFree = v),
-            ),
-            if (!_isFree)
-              TextField(
-                controller: _price,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'السعر (د.ع)',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-              ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: _visibility,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'الرؤية',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: const [
-                DropdownMenuItem(value: 'private', child: Text('خاصة')),
-                DropdownMenuItem(value: 'public',  child: Text('عامة')),
-              ],
-              onChanged: (v) => setState(() => _visibility = v ?? 'private'),
-            ),
-            if (isEdit) ...[
-              const SizedBox(height: 8),
-              Text(
-                '* أي تعديل يعيد الدورة إلى حالة "بانتظار المراجعة" من قبل الإدارة.',
-                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-              ),
-            ],
-            if (_coverPhase.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Row(children: [
-                  const SizedBox(
-                    width: 12, height: 12,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(_coverPhase, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-                ]),
-              ),
-            if (_error.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text(_error, style: TextStyle(color: scheme.error, fontSize: 12)),
-              ),
-          ],
-        ),
+  Widget _saveBar(BuildContext context) {
+    final mq = context.mq;
+    final disabled = _submitting || _subjects.isEmpty || _grades.isEmpty;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+          MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.md),
+      decoration: BoxDecoration(
+        color: mq.card,
+        border: Border(top: BorderSide(color: mq.line)),
       ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.pop(context, null),
-          child: const Text('إلغاء'),
-        ),
-        FilledButton(
-          onPressed: (_submitting || _subjects.isEmpty || _grades.isEmpty) ? null : _submit,
-          child: _submitting
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(isEdit ? 'حفظ' : 'إنشاء'),
-        ),
-      ],
+      child: MqButton(
+        label: _submitting
+            ? 'جارٍ الحفظ…'
+            : (widget.isEdit ? 'حفظ التعديلات' : 'إنشاء الدورة'),
+        icon: _submitting ? null : Icons.check_rounded,
+        loading: _submitting,
+        onPressed: disabled ? null : _submit,
+      ),
     );
   }
 }

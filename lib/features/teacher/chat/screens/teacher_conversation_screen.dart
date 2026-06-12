@@ -1,23 +1,21 @@
-// Single-conversation screen.
+// Single-conversation screen (Teacher Design System pass).
 //
-// Layout (top to bottom):
-//   - AppBar (title = peer/group name + optional ⓘ for group settings)
-//   - Optional banner: "هذه المجموعة للإعلانات فقط" for announce_only
-//   - Reverse-ListView of message bubbles (newest at bottom, scroll up = older)
-//   - Typing indicator strip
-//   - Composer (text field + attach + send)
+// Presentation only — the ConversationController (fetch / pagination / send /
+// typing / pin / delete), the attachment upload, the message menu, and the
+// group-settings navigation are UNCHANGED. Restyled to the teacher design
+// system: chat-style header, design-system bubbles, and a rounded composer.
 //
-// Permission UX:
-//   - Long-press own message → delete (within 5 min) / pin (owner/admin)
-//   - Long-press someone else's message → delete (owner/admin) / pin
-//   - In announce_only with role=member, composer is disabled with hint.
+//   - SEND path is REST (controller.send); RECEIVE is socket — untouched.
+//   - Long-press own message → delete (≤5 min) / pin (owner/admin).
+//   - announce_only + member → composer disabled with hint.
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../../core/config/app_config.dart';
+import '../../shared/design/teacher_design.dart';
 import '../controllers/conversation_controller.dart';
 import '../models/chat_models.dart';
 import '../services/chat_api_service.dart';
@@ -44,8 +42,6 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
   late final ConversationController _ctrl;
   late final TextEditingController _composer;
   late final ScrollController _scroll;
-  // Persistent across rebuilds — recreating a FocusNode inside `build()` is
-  // the classic "keyboard never opens" trap, so we keep it on the State.
   late final FocusNode _messageFocus;
   final _picker = ImagePicker();
   bool _uploading = false;
@@ -77,129 +73,176 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
   }
 
   void _onScroll() {
-    // ListView is `reverse: true`, so the TOP of the visual list is the BOTTOM
-    // of the scroll metrics. We trigger older-page-load when the user reaches
-    // the visible top (= max scroll extent).
     if (!_scroll.hasClients) return;
-    if (_scroll.position.pixels >=
-        _scroll.position.maxScrollExtent - 200) {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
       _ctrl.loadOlder();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Scaffold(
-      // Explicit because the default is true but we depend on the keyboard
-      // pushing the composer up — and a future refactor could flip it.
-      resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        title: Obx(
-          () => Text(
-            _ctrl.conversation.value?.displayName() ?? widget.initialTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        actions: [
-          Obx(() {
-            final c = _ctrl.conversation.value;
-            if (c == null || !c.isGroup) return const SizedBox.shrink();
-            return IconButton(
-              tooltip: 'إعدادات المجموعة',
-              icon: const Icon(Icons.info_outline),
-              onPressed: () => _openSettings(c),
-            );
-          }),
-        ],
-      ),
-      body: Obx(() {
-        if (_ctrl.loading.value && _ctrl.messages.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (_ctrl.error.value != null && _ctrl.messages.isEmpty) {
-          return _ErrorView(
-            message: _ctrl.error.value!,
-            onRetry: _ctrl.fetch,
-          );
-        }
-        return Column(
-          children: [
-            _AnnounceOnlyBanner(controller: _ctrl),
-            Expanded(
-              child: _ctrl.messages.isEmpty
-                  ? _EmptyMessages()
-                  : ListView.builder(
-                      controller: _scroll,
-                      reverse: true,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 8),
-                      itemCount: _ctrl.messages.length +
-                          (_ctrl.loadingMore.value ? 1 : 0),
-                      itemBuilder: (ctx, idx) {
-                        if (_ctrl.loadingMore.value &&
-                            idx == _ctrl.messages.length) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Center(
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          );
-                        }
-                        final m = _ctrl.messages[idx];
-                        final isMine = m.senderId == widget.myUserId;
-                        return _Bubble(
-                          message: m,
-                          isMine: isMine,
-                          onLongPress: () => _showMessageMenu(m, isMine),
-                        );
-                      },
-                    ),
-            ),
-            Obx(() {
-              final typing = _ctrl.typingUserName.value;
-              if (typing == null) return const SizedBox.shrink();
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                alignment: Alignment.centerRight,
-                child: Text(
-                  '$typing يكتب…',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
-                    color: cs.onSurfaceVariant,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Theme(
+      data: isDark ? MqTheme.dark() : MqTheme.light(),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(builder: (context) {
+          final mq = context.mq;
+          return Scaffold(
+            backgroundColor: mq.page,
+            resizeToAvoidBottomInset: true,
+            appBar: _appBar(context),
+            body: Obx(() {
+              if (_ctrl.loading.value && _ctrl.messages.isEmpty) {
+                return Center(
+                    child: CircularProgressIndicator(color: mq.accent));
+              }
+              if (_ctrl.error.value != null && _ctrl.messages.isEmpty) {
+                return _ErrorView(
+                    message: _ctrl.error.value!, onRetry: _ctrl.fetch);
+              }
+              return Column(
+                children: [
+                  _AnnounceOnlyBanner(controller: _ctrl),
+                  Expanded(
+                    child: _ctrl.messages.isEmpty
+                        ? const _EmptyMessages()
+                        : ListView.builder(
+                            controller: _scroll,
+                            reverse: true,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: MqSpacing.sm,
+                                vertical: MqSpacing.sm),
+                            itemCount: _ctrl.messages.length +
+                                (_ctrl.loadingMore.value ? 1 : 0),
+                            itemBuilder: (ctx, idx) {
+                              if (_ctrl.loadingMore.value &&
+                                  idx == _ctrl.messages.length) {
+                                return const Padding(
+                                  padding:
+                                      EdgeInsets.symmetric(vertical: MqSpacing.md),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                  ),
+                                );
+                              }
+                              final m = _ctrl.messages[idx];
+                              final isMine = m.senderId == widget.myUserId;
+                              return _Bubble(
+                                message: m,
+                                isMine: isMine,
+                                onLongPress: () => _showMessageMenu(m, isMine),
+                              );
+                            },
+                          ),
                   ),
-                ),
+                  Obx(() {
+                    final typing = _ctrl.typingUserName.value;
+                    if (typing == null) return const SizedBox.shrink();
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: MqSpacing.lg, vertical: MqSpacing.xs),
+                      child: Text('$typing يكتب…',
+                          style: context.text.labelSmall?.copyWith(
+                              color: mq.ink3, fontStyle: FontStyle.italic)),
+                    );
+                  }),
+                  _Composer(
+                    controller: _composer,
+                    focusNode: _messageFocus,
+                    canSend: _canSend(),
+                    uploading: _uploading,
+                    onSubmit: _submit,
+                    onAttach: _pickImage,
+                    onTyping: _ctrl.typing,
+                  ),
+                ],
               );
             }),
-            _Composer(
-              controller: _composer,
-              focusNode: _messageFocus,
-              canSend: _canSend(),
-              uploading: _uploading,
-              onSubmit: _submit,
-              onAttach: _pickImage,
-              onTyping: _ctrl.typing,
+          );
+        }),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _appBar(BuildContext context) {
+    final mq = context.mq;
+    return AppBar(
+      backgroundColor: mq.card,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
+      titleSpacing: 0,
+      leadingWidth: 48,
+      leading: Align(
+        child: _HeaderChip(
+          icon: Icons.arrow_forward_rounded,
+          tooltip: 'رجوع',
+          onTap: () => Navigator.of(context).maybePop(),
+        ),
+      ),
+      title: Obx(() {
+        final c = _ctrl.conversation.value;
+        final name = c?.displayName() ?? widget.initialTitle;
+        final isGroup = c?.isGroup ?? false;
+        return Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isGroup ? mq.orangeSoft : mq.accentSoft,
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: isGroup ? mq.orangeLine : mq.accentLine),
+              ),
+              alignment: Alignment.center,
+              child: isGroup
+                  ? Icon(Icons.groups_2_outlined, size: 18, color: mq.orangeDeep)
+                  : Text(name.isNotEmpty ? name.characters.first : '؟',
+                      style: MqTypography.mono(
+                          color: mq.accent, size: 14, weight: FontWeight.w700)),
+            ),
+            const SizedBox(width: MqSpacing.sm),
+            Expanded(
+              child: Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.titleSmall),
             ),
           ],
         );
       }),
+      actions: [
+        Obx(() {
+          final c = _ctrl.conversation.value;
+          if (c == null || !c.isGroup) return const SizedBox.shrink();
+          return _HeaderChip(
+            icon: Icons.info_outline_rounded,
+            tooltip: 'إعدادات المجموعة',
+            onTap: () => _openSettings(c),
+          );
+        }),
+        const SizedBox(width: MqSpacing.sm),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(height: 1, color: mq.line),
+      ),
     );
   }
 
   bool _canSend() {
     final c = _ctrl.conversation.value;
     if (c == null) return true;
-    if (c.mode == ConversationMode.announceOnly && !c.canManage) {
-      return false;
-    }
+    if (c.mode == ConversationMode.announceOnly && !c.canManage) return false;
     return true;
   }
 
@@ -260,44 +303,73 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
     if (!canDelete && !canPin) return;
     if (m.isDeleted) return;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (canPin)
-              ListTile(
-                leading: Icon(
-                    m.isPinned ? Icons.push_pin : Icons.push_pin_outlined),
-                title: Text(m.isPinned ? 'إلغاء التثبيت' : 'تثبيت الرسالة'),
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  try {
-                    await _ctrl.togglePin(m);
-                  } catch (e) {
-                    _showError(e);
-                  }
-                },
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Theme(
+        data: isDark ? MqTheme.dark() : MqTheme.light(),
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Builder(builder: (ctx) {
+            final mq = ctx.mq;
+            return Container(
+              decoration: BoxDecoration(
+                color: mq.card,
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(MqRadius.xl)),
               ),
-            if (canDelete)
-              ListTile(
-                leading: Icon(Icons.delete_outline,
-                    color: Theme.of(ctx).colorScheme.error),
-                title: Text(
-                  'حذف الرسالة',
-                  style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
+                      decoration: BoxDecoration(
+                          color: mq.line, borderRadius: MqRadius.brPill),
+                    ),
+                    if (canPin)
+                      ListTile(
+                        leading: Icon(
+                            m.isPinned
+                                ? Icons.push_pin
+                                : Icons.push_pin_outlined,
+                            color: mq.accent),
+                        title: Text(
+                            m.isPinned ? 'إلغاء التثبيت' : 'تثبيت الرسالة'),
+                        onTap: () async {
+                          Navigator.of(ctx).pop();
+                          try {
+                            await _ctrl.togglePin(m);
+                          } catch (e) {
+                            _showError(e);
+                          }
+                        },
+                      ),
+                    if (canDelete)
+                      ListTile(
+                        leading:
+                            Icon(Icons.delete_outline_rounded, color: mq.error),
+                        title: Text('حذف الرسالة',
+                            style: TextStyle(color: mq.error)),
+                        onTap: () async {
+                          Navigator.of(ctx).pop();
+                          try {
+                            await _ctrl.deleteMessage(m);
+                          } catch (e) {
+                            _showError(e);
+                          }
+                        },
+                      ),
+                    const SizedBox(height: MqSpacing.sm),
+                  ],
                 ),
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  try {
-                    await _ctrl.deleteMessage(m);
-                  } catch (e) {
-                    _showError(e);
-                  }
-                },
               ),
-          ],
+            );
+          }),
         ),
       ),
     );
@@ -315,6 +387,38 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
 //  Sub-widgets
 // ---------------------------------------------------------------------------
 
+class _HeaderChip extends StatelessWidget {
+  const _HeaderChip(
+      {required this.icon, required this.tooltip, required this.onTap});
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = context.mq;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: mq.fill,
+        shape: RoundedRectangleBorder(
+          borderRadius: MqRadius.brMd,
+          side: BorderSide(color: mq.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: 38,
+            height: 38,
+            child: Icon(icon, size: MqSize.iconSm, color: mq.ink2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AnnounceOnlyBanner extends StatelessWidget {
   const _AnnounceOnlyBanner({required this.controller});
   final ConversationController controller;
@@ -325,21 +429,23 @@ class _AnnounceOnlyBanner extends StatelessWidget {
       if (c == null || c.mode != ConversationMode.announceOnly) {
         return const SizedBox.shrink();
       }
-      final cs = Theme.of(context).colorScheme;
+      final mq = context.mq;
+      final t = context.teacher;
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        color: cs.tertiaryContainer.withValues(alpha: 0.4),
+        padding: const EdgeInsets.symmetric(
+            horizontal: MqSpacing.lg, vertical: MqSpacing.sm),
+        color: t.warningSoft,
         child: Row(
           children: [
-            Icon(Icons.campaign_outlined, size: 14, color: cs.onSurface),
-            const SizedBox(width: 6),
+            Icon(Icons.campaign_outlined, size: 15, color: t.warning),
+            const SizedBox(width: MqSpacing.sm),
             Expanded(
               child: Text(
                 c.canManage
                     ? 'وضع الإعلانات: فقط أنت ومشرفو المجموعة يمكنهم الإرسال.'
                     : 'هذه المجموعة للإعلانات فقط — لا يمكن للأعضاء الإرسال.',
-                style: const TextStyle(fontSize: 11),
+                style: context.text.labelSmall?.copyWith(color: mq.ink2),
               ),
             ),
           ],
@@ -350,18 +456,23 @@ class _AnnounceOnlyBanner extends StatelessWidget {
 }
 
 class _EmptyMessages extends StatelessWidget {
+  const _EmptyMessages();
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final mq = context.mq;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.chat_bubble_outline,
-              size: 48, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
-          const SizedBox(height: 8),
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(color: mq.fill2, shape: BoxShape.circle),
+            child: Icon(Icons.chat_bubble_outline, size: 30, color: mq.ink3),
+          ),
+          const SizedBox(height: MqSpacing.md),
           Text('لا توجد رسائل بعد',
-              style: TextStyle(color: cs.onSurfaceVariant)),
+              style: context.text.bodyMedium?.copyWith(color: mq.ink2)),
         ],
       ),
     );
@@ -380,11 +491,13 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final bg = message.isDeleted
-        ? cs.surfaceContainerHighest
-        : (isMine ? cs.primaryContainer : cs.surfaceContainerHighest);
-    final fg = isMine ? cs.onPrimaryContainer : cs.onSurface;
+    final mq = context.mq;
+    final t = context.teacher;
+    final deleted = message.isDeleted;
+    final bg = deleted
+        ? mq.fill2
+        : (isMine ? mq.accent : mq.card);
+    final fg = deleted ? mq.ink3 : (isMine ? mq.onAccent : mq.ink);
     final time = DateFormat('HH:mm').format(message.createdAt.toLocal());
 
     return Align(
@@ -392,34 +505,31 @@ class _Bubble extends StatelessWidget {
       child: GestureDetector(
         onLongPress: onLongPress,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: MqSpacing.xs),
+          padding: const EdgeInsets.symmetric(
+              horizontal: MqSpacing.md, vertical: MqSpacing.sm),
           constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75),
+              maxWidth: MediaQuery.of(context).size.width * 0.76),
           decoration: BoxDecoration(
             color: bg,
+            border: (!isMine && !deleted) ? Border.all(color: mq.line) : null,
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(14),
-              topRight: const Radius.circular(14),
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
               bottomLeft:
-                  isMine ? const Radius.circular(4) : const Radius.circular(14),
+                  isMine ? const Radius.circular(4) : const Radius.circular(16),
               bottomRight:
-                  isMine ? const Radius.circular(14) : const Radius.circular(4),
+                  isMine ? const Radius.circular(16) : const Radius.circular(4),
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!isMine && message.sender != null) ...[
-                Text(
-                  message.sender!.name,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: cs.primary,
-                  ),
-                ),
+              if (!isMine && !deleted && message.sender != null) ...[
+                Text(message.sender!.name,
+                    style: context.text.labelSmall?.copyWith(
+                        color: mq.accent, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
               ],
               if (message.isPinned)
@@ -428,40 +538,37 @@ class _Bubble extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.push_pin, size: 12, color: cs.tertiary),
-                      const SizedBox(width: 4),
+                      Icon(Icons.push_pin,
+                          size: 12,
+                          color: isMine ? mq.onAccent : t.warning),
+                      const SizedBox(width: MqSpacing.xs),
                       Text('مثبّتة',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: cs.tertiary,
-                              fontWeight: FontWeight.bold)),
+                          style: context.text.labelSmall?.copyWith(
+                              color: isMine ? mq.onAccent : t.warning,
+                              fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ),
-              if (message.isDeleted)
+              if (deleted)
                 Text('تم حذف هذه الرسالة',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontStyle: FontStyle.italic,
-                        color: cs.onSurfaceVariant))
+                    style: context.text.bodySmall?.copyWith(
+                        color: mq.ink3, fontStyle: FontStyle.italic))
               else ...[
                 for (final a in message.attachments) _AttachmentView(att: a),
                 if ((message.body ?? '').isNotEmpty)
-                  Text(
-                    message.body!,
-                    style: TextStyle(color: fg, fontSize: 14, height: 1.35),
-                  ),
+                  Text(message.body!,
+                      style: context.text.bodyMedium
+                          ?.copyWith(color: fg, height: 1.35)),
               ],
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(time,
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: fg.withValues(alpha: 0.6))),
-                  if (isMine) ...[
-                    const SizedBox(width: 4),
+                      style: context.text.labelSmall?.copyWith(
+                          color: fg.withValues(alpha: 0.6), fontSize: 10)),
+                  if (isMine && !deleted) ...[
+                    const SizedBox(width: MqSpacing.xs),
                     _StatusGlyph(status: message.status, color: fg),
                   ],
                 ],
@@ -484,8 +591,7 @@ class _StatusGlyph extends StatelessWidget {
       case MessageStatus.sending:
         return Icon(Icons.schedule, size: 11, color: color.withValues(alpha: 0.6));
       case MessageStatus.failed:
-        return Icon(Icons.error_outline,
-            size: 11, color: Theme.of(context).colorScheme.error);
+        return Icon(Icons.error_outline, size: 11, color: context.mq.error);
       case MessageStatus.sent:
         return Icon(Icons.done, size: 11, color: color.withValues(alpha: 0.6));
     }
@@ -497,7 +603,7 @@ class _AttachmentView extends StatelessWidget {
   final ChatAttachment att;
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final mq = context.mq;
     final url = att.url.startsWith('http')
         ? att.url
         : '${AppConfig.chatBaseUrl}${att.url}';
@@ -509,9 +615,9 @@ class _AttachmentView extends StatelessWidget {
 
     if (att.isImage) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.only(bottom: MqSpacing.xs),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: MqRadius.brMd,
           child: Image.network(
             thumb ?? url,
             width: 220,
@@ -519,9 +625,9 @@ class _AttachmentView extends StatelessWidget {
             errorBuilder: (_, _, _) => Container(
               width: 220,
               height: 140,
-              color: cs.surfaceContainerHighest,
+              color: mq.fill2,
               alignment: Alignment.center,
-              child: const Icon(Icons.broken_image_outlined),
+              child: Icon(Icons.broken_image_outlined, color: mq.ink3),
             ),
           ),
         ),
@@ -530,28 +636,29 @@ class _AttachmentView extends StatelessWidget {
 
     final iconData = att.isVideo
         ? Icons.video_file_outlined
-        : (att.isPdf ? Icons.picture_as_pdf_outlined : Icons.insert_drive_file_outlined);
+        : (att.isPdf
+            ? Icons.picture_as_pdf_outlined
+            : Icons.insert_drive_file_outlined);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: MqSpacing.xs),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(MqSpacing.sm),
         decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+          color: mq.card,
+          borderRadius: MqRadius.brMd,
+          border: Border.all(color: mq.line),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(iconData, size: 22, color: cs.primary),
-            const SizedBox(width: 8),
+            Icon(iconData, size: 22, color: mq.accent),
+            const SizedBox(width: MqSpacing.sm),
             Flexible(
-              child: Text(
-                att.originalName ?? att.url.split('/').last,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
+              child: Text(att.originalName ?? att.url.split('/').last,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.labelMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -580,36 +687,27 @@ class _Composer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    // SafeArea handles the bottom system inset (gesture bar / iPhone home
-    // indicator). The Scaffold's `resizeToAvoidBottomInset: true` shrinks
-    // the body when the keyboard opens, so we DON'T add `viewInsets.bottom`
-    // here — doing both would double-pad and push the composer above the
-    // keyboard instead of flush with it.
+    final mq = context.mq;
     return SafeArea(
       top: false,
       bottom: true,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+        padding: const EdgeInsets.fromLTRB(
+            MqSpacing.sm, MqSpacing.sm, MqSpacing.sm, MqSpacing.sm),
         decoration: BoxDecoration(
-          color: cs.surface,
-          border: Border(
-            top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.4)),
-          ),
+          color: mq.card,
+          border: Border(top: BorderSide(color: mq.line)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            IconButton(
-              onPressed: canSend && !uploading ? () => onAttach() : null,
-              icon: uploading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.attach_file_outlined),
+            _RoundIcon(
+              icon: uploading ? null : Icons.attach_file_outlined,
+              loading: uploading,
+              onTap: canSend && !uploading ? () => onAttach() : null,
+              filled: false,
             ),
+            const SizedBox(width: MqSpacing.xs),
             Expanded(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 120),
@@ -623,26 +721,84 @@ class _Composer extends StatelessWidget {
                   maxLines: 5,
                   textInputAction: TextInputAction.newline,
                   keyboardType: TextInputType.multiline,
+                  style: context.text.bodyMedium,
                   decoration: InputDecoration(
                     isDense: true,
+                    filled: true,
+                    fillColor: mq.fill,
                     hintText: canSend
                         ? 'اكتب رسالتك…'
                         : 'لا يمكنك الإرسال في هذه المجموعة',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                        horizontal: MqSpacing.md, vertical: MqSpacing.sm),
+                    border: const OutlineInputBorder(
+                      borderRadius: MqRadius.brPill,
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: MqRadius.brPill,
+                      borderSide: BorderSide(color: mq.line),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: MqRadius.brPill,
+                      borderSide: BorderSide(color: mq.accent, width: 1.5),
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 4),
-            IconButton.filled(
-              onPressed: canSend ? () => onSubmit() : null,
-              icon: const Icon(Icons.send),
+            const SizedBox(width: MqSpacing.xs),
+            _RoundIcon(
+              icon: Icons.send_rounded,
+              onTap: canSend ? () => onSubmit() : null,
+              filled: true,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoundIcon extends StatelessWidget {
+  const _RoundIcon({
+    required this.icon,
+    required this.onTap,
+    required this.filled,
+    this.loading = false,
+  });
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final bool filled;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = context.mq;
+    final disabled = onTap == null;
+    final bg = filled
+        ? (disabled ? mq.fill2 : mq.accent)
+        : mq.fill;
+    final fg = filled ? mq.onAccent : mq.ink2;
+    return Material(
+      color: bg,
+      shape: filled
+          ? const CircleBorder()
+          : RoundedRectangleBorder(
+              borderRadius: MqRadius.brMd,
+              side: BorderSide(color: mq.line)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: loading
+              ? Padding(
+                  padding: const EdgeInsets.all(13),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: mq.ink3),
+                )
+              : Icon(icon, size: MqSize.iconMd, color: fg),
         ),
       ),
     );
@@ -655,21 +811,23 @@ class _ErrorView extends StatelessWidget {
   final Future<void> Function() onRetry;
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final mq = context.mq;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(MqSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: cs.error),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton.tonalIcon(
+            Icon(Icons.error_outline_rounded, size: 48, color: mq.error),
+            const SizedBox(height: MqSpacing.md),
+            Text(message,
+                textAlign: TextAlign.center, style: context.text.bodyMedium),
+            const SizedBox(height: MqSpacing.lg),
+            MqButton(
+              label: 'إعادة المحاولة',
+              icon: Icons.refresh_rounded,
+              expand: false,
               onPressed: () => onRetry(),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة'),
             ),
           ],
         ),
@@ -677,4 +835,3 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
-

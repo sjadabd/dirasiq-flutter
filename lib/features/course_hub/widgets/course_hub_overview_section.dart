@@ -1,16 +1,17 @@
-// Course Hub — Overview section.
+// Course Hub — Overview section (MulhimIQ design system).
 //
-// Top card on the Hub. Shows course name + teacher + the first cover
-// image and three quick-glance pills (attendance %, pending count,
-// next session). Tapping the teacher chip opens the teacher details
-// screen.
+// Top card on the Hub: course cover banner + name + teacher chip (tap → teacher
+// details) + course-type badge + short description + progress/attendance when
+// the backend provides them. Every field is conditionally rendered.
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:mulhimiq/features/course_hub/controllers/course_hub_controller.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_section_shell.dart';
 import 'package:mulhimiq/features/teachers/screens/teacher_details_screen.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class CourseHubOverviewSection extends StatefulWidget {
   const CourseHubOverviewSection({super.key});
@@ -32,13 +33,13 @@ class _CourseHubOverviewSectionState extends State<CourseHubOverviewSection> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final mq = context.mq;
     return Obx(() {
       if (_c.overviewLoading.value && _c.overview.value == null) {
         return const CourseHubSectionShell(
           icon: Icons.school_outlined,
           title: 'نظرة عامة',
-          child: CourseHubSectionLoading(height: 80),
+          child: CourseHubSectionLoading(height: 120),
         );
       }
       if (_c.overviewError.value.isNotEmpty && _c.overview.value == null) {
@@ -54,8 +55,13 @@ class _CourseHubOverviewSectionState extends State<CourseHubOverviewSection> {
       final ov = _c.overview.value ?? {};
       final course = ov['course'] is Map ? Map<String, dynamic>.from(ov['course']) : ov;
       final teacher = course['teacher'] is Map ? Map<String, dynamic>.from(course['teacher']) : <String, dynamic>{};
-      final coverPath = _firstImagePath(course['course_images'] ?? course['courseImages']);
-      final fullCover = _absolute(coverPath);
+      final cover = _absolute(_firstImagePath(course['course_images'] ?? course['courseImages']));
+      final name = (course['courseName'] ?? course['name'] ?? _c.initialCourseName ?? 'الدورة').toString();
+      final teacherName = (teacher['name'] ?? '').toString();
+      final teacherId = (teacher['id'] ?? '').toString();
+      final type = _courseType(course);
+      final desc = (course['description'] ?? '').toString().trim();
+      final progress = _num(course['progressPercent'] ?? course['attendancePercent'] ?? course['progress']);
 
       return CourseHubSectionShell(
         icon: Icons.school_outlined,
@@ -63,69 +69,79 @@ class _CourseHubOverviewSectionState extends State<CourseHubOverviewSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (fullCover.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.network(
-                    fullCover,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      color: cs.surfaceContainerLow,
-                      child: Icon(Icons.image_not_supported_outlined,
-                          color: cs.onSurfaceVariant),
-                    ),
-                  ),
-                ),
+            ClipRRect(
+              borderRadius: MqRadius.brMd,
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: cover.isEmpty
+                    ? Container(color: mq.fill2, alignment: Alignment.center,
+                        child: Icon(Icons.image_outlined, size: 36, color: mq.ink3))
+                    : Image.network(cover, fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(color: mq.fill2, alignment: Alignment.center,
+                            child: Icon(Icons.image_not_supported_outlined, color: mq.ink3))),
               ),
-            const SizedBox(height: 8),
-            Text(
-              (course['courseName'] ?? course['name'] ?? _c.initialCourseName ?? 'الدورة').toString(),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 6),
-            if (teacher.isNotEmpty)
+            MqSpacing.gapMd,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: Text(name, style: context.text.titleMedium)),
+                if (type != null) ...[MqSpacing.gapXs, MqBadge(label: type, tone: MqBadgeTone.accent)],
+              ],
+            ),
+            if (teacherName.isNotEmpty) ...[
+              MqSpacing.gapSm,
               InkWell(
-                onTap: () {
-                  final id = (teacher['id'] ?? '').toString();
-                  if (id.isNotEmpty) {
-                    Get.to(() => TeacherDetailsScreen(teacherId: id));
-                  }
-                },
-                borderRadius: BorderRadius.circular(8),
+                onTap: teacherId.isEmpty ? null : () => Get.to(() => TeacherDetailsScreen(teacherId: teacherId)),
+                borderRadius: MqRadius.brSm,
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.person_outline, size: 16, color: cs.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      (teacher['name'] ?? '').toString(),
-                      style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.chevron_left, size: 16, color: cs.primary),
+                    Icon(Icons.person_outline_rounded, size: MqSize.iconSm, color: mq.accent),
+                    MqSpacing.gapXs,
+                    Text(teacherName, style: context.text.bodyMedium?.copyWith(color: mq.accent, fontWeight: FontWeight.w600)),
+                    if (teacherId.isNotEmpty) Icon(Icons.chevron_left_rounded, size: 18, color: mq.accent),
                   ],
                 ),
               ),
-            const SizedBox(height: 8),
-            if ((course['description'] ?? '').toString().isNotEmpty)
-              Text(
-                course['description'].toString(),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+            ],
+            if (desc.isNotEmpty) ...[
+              MqSpacing.gapSm,
+              Text(desc, maxLines: 3, overflow: TextOverflow.ellipsis,
+                  style: context.text.bodySmall?.copyWith(height: 1.5)),
+            ],
+            if (progress != null) ...[
+              MqSpacing.gapMd,
+              Row(
+                children: [
+                  Text('تقدّمك في الدورة', style: context.text.labelMedium),
+                  const Spacer(),
+                ],
               ),
+              const SizedBox(height: 6),
+              MqLinearProgress(value: (progress / 100).clamp(0, 1), showLabel: true),
+            ],
           ],
         ),
       );
     });
   }
 
+  double? _num(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse('${v ?? ''}');
+  }
+
+  String? _courseType(Map<String, dynamic> c) {
+    final raw = (c['courseType'] ?? c['course_type'] ?? c['type'] ?? c['delivery'])?.toString().toLowerCase();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.contains('video') || raw.contains('مرئي')) return 'مرئي';
+    if (raw.contains('live') || raw.contains('مباشر')) return 'مباشر';
+    return 'حضوري';
+  }
+
   String _firstImagePath(dynamic raw) {
-    if (raw is List && raw.isNotEmpty) {
-      final first = raw.first;
-      if (first is String) return first;
-    }
+    if (raw is List && raw.isNotEmpty && raw.first is String) return raw.first as String;
     return '';
   }
 

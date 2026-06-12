@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:mulhimiq/features/bookings/screens/booking_details_screen.dart';
-import 'package:mulhimiq/shared/themes/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:mulhimiq/features/courses/screens/course_details_screen.dart';
 import 'package:mulhimiq/features/enrollments/screens/course_attendance_screen.dart';
 import 'package:mulhimiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
-import 'package:mulhimiq/shared/widgets/global_app_bar.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 import 'package:mulhimiq/core/services/notification_events.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
@@ -17,6 +17,8 @@ import 'package:mulhimiq/features/exams/screens/student_exams_screen.dart';
 import 'package:mulhimiq/features/exams/screens/student_exam_grades_screen.dart';
 import 'package:mulhimiq/features/evaluations/screens/student_evaluations_screen.dart';
 import 'package:mulhimiq/features/invoices/screens/invoice_details_screen.dart';
+import 'package:mulhimiq/features/teacher/shared/teacher_workspace.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -36,6 +38,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   StreamSubscription<void>? _notifSub;
   StreamSubscription<Map<String, dynamic>>? _payloadSub;
   String? _typeFilter;
+  // Role drives booking-notification routing: a teacher goes to the bookings
+  // screen, a student to that booking's details.
+  bool _isTeacher = false;
 
   static const List<Map<String, dynamic>> _filters = [
     {"text": "الكل", "value": null, "icon": Icons.notifications_rounded},
@@ -83,9 +88,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadRole();
     _fetch();
     _scroll.addListener(_onScroll);
     _setupNotificationListeners();
+  }
+
+  Future<void> _loadRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('user');
+      if (raw == null) return;
+      final u = jsonDecode(raw) as Map<String, dynamic>;
+      final t = (u['userType'] ?? u['user_type'] ?? u['type'])
+          ?.toString()
+          .toLowerCase();
+      if (mounted) setState(() => _isTeacher = t == 'teacher');
+    } catch (_) {}
   }
 
   void _setupNotificationListeners() {
@@ -303,17 +322,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 n['study_year'])
             ?.toString();
 
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
     await showDialog(
       context: context,
-      builder: (context) {
-        return Dialog(
+      builder: (dialogCtx) {
+        return Theme(
+          data: dsTheme,
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Builder(builder: (context) {
+              final m = context.mq;
+              return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : Colors.white,
+              color: m.card,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
@@ -323,9 +349,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.primary],
-                    ),
+                    color: m.accent,
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
@@ -386,7 +410,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             Icon(
                               Icons.access_time_rounded,
                               size: 13,
-                              color: AppColors.primary,
+                              color: m.accent,
                             ),
                             const SizedBox(width: 5),
                             Text(
@@ -406,7 +430,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               Icon(
                                 Icons.person_rounded,
                                 size: 13,
-                                color: AppColors.primary,
+                                color: m.accent,
                               ),
                               const SizedBox(width: 5),
                               Text(
@@ -430,7 +454,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               Icon(
                                 Icons.image_rounded,
                                 size: 15,
-                                color: AppColors.secondary,
+                                color: m.orange,
                               ),
                               const SizedBox(width: 6),
                               const Text(
@@ -462,7 +486,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     borderRadius: BorderRadius.circular(10),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppColors.primary.withValues(
+                                        color: m.accent.withValues(
                                           alpha: 0.15,
                                         ),
                                         blurRadius: 6,
@@ -522,7 +546,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               Icon(
                                 Icons.picture_as_pdf_rounded,
                                 size: 15,
-                                color: AppColors.error,
+                                color: m.error,
                               ),
                               const SizedBox(width: 6),
                               const Text(
@@ -545,7 +569,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 label: pdfUrls.length > 1
                                     ? 'ملف PDF ${index + 1}'
                                     : 'فتح ملف PDF',
-                                theme: theme,
+                                m: m,
                               ),
                             );
                           }),
@@ -553,7 +577,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                         if (link != null && link.isNotEmpty) ...[
                           const SizedBox(height: 10),
-                          _buildCompactLinkButton(link: link, theme: theme),
+                          _buildCompactLinkButton(link: link, m: m),
                         ],
 
                         if (studyYear != null && studyYear.isNotEmpty) ...[
@@ -561,7 +585,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
+                              color: m.accent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -570,7 +594,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 Icon(
                                   Icons.school_rounded,
                                   size: 14,
-                                  color: AppColors.primary,
+                                  color: m.accent,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -578,7 +602,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
+                                    color: m.accent,
                                   ),
                                 ),
                               ],
@@ -592,43 +616,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                 // Compact Actions
                 Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(MqSpacing.md),
                   child: Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
+                        child: MqButton(
+                          label: 'إغلاق',
+                          variant: MqButtonVariant.secondary,
                           onPressed: () => Navigator.of(context).pop(),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            'إغلاق',
-                            style: TextStyle(fontSize: 13),
-                          ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      MqSpacing.gapSm,
                       Expanded(
-                        child: ElevatedButton(
+                        child: MqButton(
+                          label: 'التفاصيل',
                           onPressed: () {
                             Navigator.of(context).pop();
                             _openNotificationTarget(n);
                           },
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            'التفاصيل',
-                            style: TextStyle(fontSize: 13),
-                          ),
                         ),
                       ),
                     ],
@@ -638,6 +643,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ),
         );
+            }),
+          ),
+        );
       },
     );
   }
@@ -645,40 +653,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildCompactPdfButton({
     required String pdfUrl,
     required String label,
-    required ThemeData theme,
+    required MqColors m,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _launchUrl(pdfUrl),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: MqRadius.brMd,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           decoration: BoxDecoration(
-            color: AppColors.error.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+            color: m.error.withValues(alpha: 0.1),
+            borderRadius: MqRadius.brMd,
+            border: Border.all(color: m.error.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.picture_as_pdf_rounded,
-                size: 16,
-                color: AppColors.error,
-              ),
+              Icon(Icons.picture_as_pdf_rounded, size: 16, color: m.error),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.error,
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: m.error),
                 ),
               ),
-              Icon(Icons.open_in_new_rounded, size: 14, color: AppColors.error),
+              Icon(Icons.open_in_new_rounded, size: 14, color: m.error),
             ],
           ),
         ),
@@ -688,36 +688,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildCompactLinkButton({
     required String link,
-    required ThemeData theme,
+    required MqColors m,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _launchUrl(link),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: MqRadius.brMd,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           decoration: BoxDecoration(
-            color: AppColors.info.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+            color: m.accent.withValues(alpha: 0.1),
+            borderRadius: MqRadius.brMd,
+            border: Border.all(color: m.accent.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.link_rounded, size: 16, color: AppColors.info),
+              Icon(Icons.link_rounded, size: 16, color: m.accent),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'فتح الرابط',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.info,
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: m.accent),
                 ),
               ),
-              Icon(Icons.open_in_new_rounded, size: 14, color: AppColors.info),
+              Icon(Icons.open_in_new_rounded, size: 14, color: m.accent),
             ],
           ),
         ),
@@ -966,8 +962,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
-    // Booking status routing
-    if (type == 'booking_status') {
+    // Booking routing — role-aware. A teacher receives a booking REQUEST
+    // ('new_booking') and must land on the teacher bookings screen; a student
+    // receives a 'booking_status' update and should see that booking's details.
+    final isBooking = type == 'booking_status' ||
+        type == 'new_booking' ||
+        type == 'booking' ||
+        (type?.toLowerCase().contains('booking') ?? false);
+    if (isBooking) {
+      if (_isTeacher) {
+        TeacherWorkspace.jumpTo(context, TeacherWorkspaceState.bookingsIdx);
+        return;
+      }
       final bookingId =
           (payload['bookingId'] ??
                   payload['booking_id'] ??
@@ -1102,474 +1108,381 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dsTheme = isDark ? MqTheme.dark() : MqTheme.light();
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
-      appBar: const GlobalAppBar(title: 'الإشعارات', centerTitle: true),
-      body: Column(
-        children: [
-          _buildFiltersSection(theme),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => _fetch(refresh: true),
-              color: AppColors.primary,
-              child: _buildBody(theme, isDark),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFiltersSection(ThemeData theme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 52,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              itemCount: _filters.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (_, i) => _buildFilterChip(_filters[i], theme),
-            ),
-          ),
-          Divider(height: 1, color: theme.colorScheme.outlineVariant),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(Map<String, dynamic> filter, ThemeData theme) {
-    final val = filter['value'];
-    final selected = _typeFilter == val;
-    final icon = filter['icon'] as IconData?;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() => _typeFilter = val);
-          _fetch(refresh: true);
-        },
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            gradient: selected
-                ? const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primary],
-                  )
-                : null,
-            color: selected ? null : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: selected
-                  ? Colors.transparent
-                  : theme.colorScheme.outlineVariant,
-            ),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 15,
-                  color: selected
-                      ? Colors.white
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 5),
-              ],
-              Text(
-                filter['text'] ?? '',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                  color: selected
-                      ? Colors.white
-                      : theme.colorScheme.onSurfaceVariant,
+    return Theme(
+      data: dsTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Builder(
+          builder: (context) => Scaffold(
+            backgroundColor: context.mq.page,
+            appBar: AppBar(
+              title: const Text('الإشعارات'),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(20),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+                  child: Text('تابع آخر التحديثات والتنبيهات', style: context.text.bodySmall),
                 ),
               ),
-            ],
+            ),
+            body: Column(
+              children: [
+                _filtersRow(context),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => _fetch(refresh: true),
+                    child: _buildBody(context),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBody(ThemeData theme, bool isDark) {
-    if (_loading && _items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _filtersRow(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.mq.page,
+        border: Border(bottom: BorderSide(color: context.mq.line)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
+      child: SizedBox(
+        height: MqSize.chipHeight,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: MqSpacing.lg),
+          itemCount: _filters.length,
+          separatorBuilder: (_, _) => const SizedBox(width: MqSpacing.xs),
+          itemBuilder: (_, i) {
+            final f = _filters[i];
+            return MqChip(
+              label: (f['text'] ?? '').toString(),
+              icon: f['icon'] as IconData?,
+              selected: _typeFilter == f['value'],
+              onTap: () {
+                setState(() => _typeFilter = f['value'] as String?);
+                _fetch(refresh: true);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_loading && _items.isEmpty) return _buildSkeleton(context);
+    if (_error != null && _items.isEmpty) return _buildError(context);
+    if (_items.isEmpty) return _buildEmpty(context);
+
+    final groups = _groupedSections();
+    final children = <Widget>[];
+    for (final g in groups) {
+      children.add(Padding(
+        padding: const EdgeInsets.fromLTRB(MqSpacing.xs, MqSpacing.md, MqSpacing.xs, MqSpacing.sm),
+        child: Row(
           children: [
-            SizedBox(
-              width: 50,
-              height: 50,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  AppColors.primary,
-                ),
+            Container(width: 4, height: 16, decoration: BoxDecoration(color: context.mq.accent, borderRadius: MqRadius.brPill)),
+            MqSpacing.gapSm,
+            Text(g.title, style: context.text.titleSmall),
+            MqSpacing.gapXs,
+            MqBadge(label: '${g.items.length}', tone: MqBadgeTone.neutral),
+          ],
+        ),
+      ));
+      for (final n in g.items) {
+        children.add(Padding(
+          padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+          child: _notificationCard(context, n),
+        ));
+      }
+    }
+    if (_hasMore) {
+      children.add(const Padding(
+        padding: EdgeInsets.all(MqSpacing.md),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ));
+    }
+
+    return ListView(
+      controller: _scroll,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.xxxl),
+      children: children,
+    );
+  }
+
+  Widget _buildError(BuildContext context) {
+    final mq = context.mq;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      children: [
+        MqCard(
+          padding: const EdgeInsets.all(MqSpacing.xl),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(MqSpacing.md),
+                decoration: BoxDecoration(color: mq.error.withValues(alpha: 0.12), shape: BoxShape.circle),
+                child: Icon(Icons.wifi_off_rounded, size: 32, color: mq.error),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'جاري التحميل...',
-              style: TextStyle(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 13,
+              MqSpacing.gapMd,
+              Text('تعذّر تحميل الإشعارات', style: context.text.titleMedium),
+              MqSpacing.gapSm,
+              MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: () => _fetch(refresh: true)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmpty(BuildContext context) {
+    final mq = context.mq;
+    final filtered = _typeFilter != null;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      children: [
+        const SizedBox(height: MqSpacing.xxl),
+        MqCard(
+          padding: const EdgeInsets.all(MqSpacing.xl),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(MqSpacing.lg),
+                decoration: BoxDecoration(color: mq.accentSoft, shape: BoxShape.circle),
+                child: Icon(Icons.notifications_off_outlined, size: 44, color: mq.accent),
+              ),
+              MqSpacing.gapMd,
+              Text(filtered ? 'لا توجد إشعارات لهذا الفلتر' : 'لا توجد إشعارات بعد',
+                  style: context.text.titleMedium, textAlign: TextAlign.center),
+              MqSpacing.gapXs,
+              Text('ستظهر هنا تنبيهات محاضراتك واختباراتك ودرجاتك.',
+                  style: context.text.bodySmall, textAlign: TextAlign.center),
+              MqSpacing.gapMd,
+              if (filtered)
+                MqButton.tonal(
+                  label: 'عرض كل الإشعارات',
+                  expand: false,
+                  onPressed: () {
+                    setState(() => _typeFilter = null);
+                    _fetch(refresh: true);
+                  },
+                )
+              else
+                MqButton(
+                  label: 'العودة للرئيسية',
+                  icon: Icons.home_outlined,
+                  expand: false,
+                  onPressed: () => Get.back(),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    final mq = context.mq;
+    Widget bar(double w, double h) => Container(
+          width: w, height: h,
+          decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brSm),
+        );
+    return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.lg),
+      itemCount: 6,
+      separatorBuilder: (_, _) => const SizedBox(height: MqSpacing.sm),
+      itemBuilder: (_, _) => MqCard(
+        child: Row(
+          children: [
+            Container(width: 44, height: 44, decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brMd)),
+            MqSpacing.gapMd,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [bar(160, 12), const SizedBox(height: 8), bar(220, 10), const SizedBox(height: 8), bar(90, 9)],
               ),
             ),
           ],
         ),
-      );
-    }
-    if (_error != null) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.errorLight,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: const BoxDecoration(
-                    color: AppColors.error,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.error_outline_rounded,
-                    size: 36,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'حدث خطأ',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.error,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => _fetch(refresh: true),
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text(
-                    'إعادة المحاولة',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-    if (_items.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.3,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.secondary],
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.notifications_off_rounded,
-                    size: 48,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'لا توجد إشعارات',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'لم نجد أي إشعارات لهذا الفلتر',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    return ListView.separated(
-      controller: _scroll,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(12),
-      itemCount: _items.length + (_hasMore ? 1 : 0),
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (_, index) {
-        if (index == _items.length) {
-          return const Padding(
-            padding: EdgeInsets.all(12),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          );
-        }
-        return _buildCompactNotificationCard(_items[index], theme, isDark);
-      },
+      ),
     );
   }
 
-  Widget _buildCompactNotificationCard(
-    Map<String, dynamic> n,
-    ThemeData theme,
-    bool isDark,
-  ) {
-    final id = (n['id'] ?? n['_id'])?.toString() ?? '';
-    final title = n['title']?.toString() ?? 'إشعار';
-    final message = n['message']?.toString() ?? '';
-    final payload = _parsePayload(n);
-    final senderName = payload['sender'] is Map
-        ? (payload['sender']['name']?.toString() ?? '')
-        : '';
-    final status = n['status']?.toString() ?? 'sent';
-    final isReadFlag = n['isRead'] == true;
-    final readAtVal = n['readAt'];
-    final createdAt =
-        (n['createdAt']?.toString() ??
+  ({IconData icon, Color color, String label}) _typeStyle(BuildContext context, Map<String, dynamic> n) {
+    final mq = context.mq;
+    final t = (_canonicalType(n) ?? '').toLowerCase();
+    bool has(String s) => t.contains(s);
+    if (has('assign') || has('homework')) return (icon: Icons.assignment_rounded, color: mq.accent, label: 'واجب');
+    if (has('grade') || t == 'exam_grade' || has('result')) return (icon: Icons.fact_check_rounded, color: mq.success, label: 'نتيجة');
+    if (has('exam') || t == 'class_reminder' || has('quiz')) return (icon: Icons.quiz_rounded, color: mq.accent, label: 'اختبار');
+    if (has('message') || has('chat') || t == 'teacher_message') return (icon: Icons.forum_rounded, color: mq.accent, label: 'رسالة');
+    if (has('payment') || has('invoice') || has('installment')) return (icon: Icons.payments_rounded, color: mq.orange, label: 'دفع');
+    if (has('attendance') || has('course_update') || has('session') || has('lecture')) return (icon: Icons.event_available_rounded, color: mq.accent, label: 'محاضرة');
+    if (has('booking')) return (icon: Icons.event_note_rounded, color: mq.accent, label: 'حجز');
+    if (has('system') || has('announcement') || has('news')) return (icon: Icons.campaign_rounded, color: mq.orange, label: 'إعلان');
+    return (icon: Icons.notifications_rounded, color: mq.accent, label: 'إشعار');
+  }
+
+  DateTime? _notifDate(Map<String, dynamic> n) {
+    final raw = n['createdAt']?.toString() ??
         n['created_at']?.toString() ??
         n['timestamp']?.toString() ??
         n['time']?.toString() ??
         _parsePayload(n)['createdAt']?.toString() ??
-        _parsePayload(n)['created_at']?.toString());
-    final time = createdAt != null && createdAt.isNotEmpty
-        ? _formatDate(createdAt)
-        : '';
-    final isUnread = !(isReadFlag || readAtVal != null || status == 'read');
+        _parsePayload(n)['created_at']?.toString();
+    if (raw == null || raw.isEmpty) return null;
+    return DateTime.tryParse(raw)?.toLocal();
+  }
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          final idx = _items.indexWhere((e) => (e['id'] ?? e['_id']) == id);
-          if (idx != -1) {
-            final current = _items[idx];
-            final alreadyRead =
-                current['isRead'] == true ||
-                current['readAt'] != null ||
-                current['status'] == 'read';
-            if (!alreadyRead) {
-              setState(() {
-                _items[idx]['status'] = 'read';
-                _items[idx]['isRead'] = true;
-                _items[idx]['readAt'] = DateTime.now().toIso8601String();
-              });
-              _markAsRead(id);
-            }
+  bool _isUnread(Map<String, dynamic> n) {
+    final status = n['status']?.toString() ?? 'sent';
+    return !(n['isRead'] == true || n['readAt'] != null || status == 'read');
+  }
+
+  /// Groups [_items] into اليوم / أمس / هذا الأسبوع / الأقدم, preserving order
+  /// and dropping empty buckets.
+  List<({String title, List<Map<String, dynamic>> items})> _groupedSections() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final weekStart = today.subtract(const Duration(days: 7));
+
+    final order = ['اليوم', 'أمس', 'هذا الأسبوع', 'الأقدم'];
+    final buckets = <String, List<Map<String, dynamic>>>{for (final k in order) k: []};
+
+    for (final n in _items) {
+      final d = _notifDate(n);
+      String key;
+      if (d == null) {
+        key = 'الأقدم';
+      } else {
+        final day = DateTime(d.year, d.month, d.day);
+        if (day == today) {
+          key = 'اليوم';
+        } else if (day == yesterday) {
+          key = 'أمس';
+        } else if (d.isAfter(weekStart)) {
+          key = 'هذا الأسبوع';
+        } else {
+          key = 'الأقدم';
+        }
+      }
+      buckets[key]!.add(n);
+    }
+
+    return [
+      for (final k in order)
+        if (buckets[k]!.isNotEmpty) (title: k, items: buckets[k]!),
+    ];
+  }
+
+  Widget _notificationCard(BuildContext context, Map<String, dynamic> n) {
+    final mq = context.mq;
+    final id = (n['id'] ?? n['_id'])?.toString() ?? '';
+    final title = n['title']?.toString() ?? 'إشعار';
+    final message = n['message']?.toString() ?? '';
+    final payload = _parsePayload(n);
+    final senderName = payload['sender'] is Map ? (payload['sender']['name']?.toString() ?? '') : '';
+    final d = _notifDate(n);
+    final time = d != null ? _formatDate(d.toIso8601String()) : '';
+    final unread = _isUnread(n);
+    final style = _typeStyle(context, n);
+
+    return MqCard(
+      bordered: true,
+      color: unread ? mq.accentSoft.withValues(alpha: 0.5) : mq.card,
+      padding: const EdgeInsets.all(MqSpacing.md),
+      onTap: () {
+        final idx = _items.indexWhere((e) => (e['id'] ?? e['_id']) == id);
+        if (idx != -1) {
+          final current = _items[idx];
+          final alreadyRead = current['isRead'] == true || current['readAt'] != null || current['status'] == 'read';
+          if (!alreadyRead) {
+            setState(() {
+              _items[idx]['status'] = 'read';
+              _items[idx]['isRead'] = true;
+              _items[idx]['readAt'] = DateTime.now().toIso8601String();
+            });
+            _markAsRead(id);
           }
-          _showNotificationDialog(n);
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isUnread
-                  ? AppColors.primary.withValues(alpha: 0.3)
-                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-              width: isUnread ? 1.5 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: isUnread
-                    ? AppColors.primary.withValues(alpha: 0.1)
-                    : Colors.black.withValues(alpha: 0.03),
-                blurRadius: isUnread ? 8 : 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+        }
+        _showNotificationDialog(n);
+      },
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: style.color.withValues(alpha: 0.12), borderRadius: MqRadius.brMd),
+            child: Icon(style.icon, color: style.color, size: MqSize.iconMd),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: isUnread
-                      ? const LinearGradient(
-                          colors: [AppColors.primary, AppColors.primary],
-                        )
-                      : null,
-                  color: isUnread
-                      ? null
-                      : theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  isUnread
-                      ? Icons.notifications_active_rounded
-                      : Icons.notifications_none_rounded,
-                  color: isUnread
-                      ? Colors.white
-                      : theme.colorScheme.onSurfaceVariant,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          MqSpacing.gapMd,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isUnread
-                            ? FontWeight.bold
-                            : FontWeight.w600,
-                        color: theme.colorScheme.onSurface,
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: context.text.titleSmall?.copyWith(
+                          fontWeight: unread ? FontWeight.w700 : FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (message.isNotEmpty || senderName.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      if (message.isNotEmpty)
-                        Text(
-                          message,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      if (senderName.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.person_rounded,
-                              size: 10,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                senderName,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    if (unread) ...[
+                      MqSpacing.gapXs,
+                      Container(width: 8, height: 8, decoration: BoxDecoration(color: mq.accent, shape: BoxShape.circle)),
                     ],
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          size: 10,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          time,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ],
+                if (message.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(message, style: context.text.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+                MqSpacing.gapSm,
+                Row(
+                  children: [
+                    MqBadge(label: style.label, tone: MqBadgeTone.accent, icon: style.icon),
+                    const Spacer(),
+                    if (senderName.isNotEmpty) ...[
+                      Icon(Icons.person_outline_rounded, size: 12, color: mq.ink3),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(senderName, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                      MqSpacing.gapSm,
+                    ],
+                    Icon(Icons.schedule_rounded, size: 12, color: mq.ink3),
+                    const SizedBox(width: 3),
+                    Text(time, style: context.text.labelSmall),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
+
 
   String? _canonicalType(Map<String, dynamic> n) {
     final rawType =

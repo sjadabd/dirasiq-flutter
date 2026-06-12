@@ -13,6 +13,7 @@ import 'package:mulhimiq/features/course_hub/widgets/course_hub_section_shell.da
 import 'package:mulhimiq/features/evaluations/screens/student_evaluations_screen.dart';
 import 'package:mulhimiq/features/exams/screens/student_exam_grades_screen.dart';
 import 'package:mulhimiq/features/exams/screens/student_exams_screen.dart';
+import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class CourseHubAcademicSection extends StatefulWidget {
   const CourseHubAcademicSection({super.key});
@@ -64,7 +65,7 @@ class _CourseHubAcademicSectionState extends State<CourseHubAcademicSection> {
                   ? '${_c.upcomingExamsCount} امتحان قادم'
                   : 'لا توجد امتحانات قادمة',
               trailing: _c.upcomingExamsCount > 0
-                  ? CourseHubBadge(label: '${_c.upcomingExamsCount}', color: Colors.deepOrange)
+                  ? CourseHubBadge(label: '${_c.upcomingExamsCount}', color: context.mq.orange)
                   : null,
               onTap: () => Get.to(() => const StudentExamsScreen(
                     fixedType: 'daily',
