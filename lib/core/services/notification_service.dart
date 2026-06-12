@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'notification_events.dart';
+
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -31,10 +33,16 @@ class NotificationService {
     // ✅ ربط المستخدم إذا كان مسجلاً مسبقاً
     await _bindSavedUserId();
 
-    // ✅ عرض الإشعار حتى داخل التطبيق
-    OneSignal.Notifications.addForegroundWillDisplayListener(
-      (event) => event.notification.display(),
-    );
+    // ✅ عرض الإشعار حتى داخل التطبيق + تحديث جرس الإشعارات فوراً في كل الصفحات
+    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+      event.notification.display();
+      // Live badge: announce the arrival so GlobalController bumps the unread
+      // count (the bell across all pages is Obx-bound to it) without any
+      // manual refresh or app restart.
+      NotificationEvents.instance.emitNotificationPayload(
+        event.notification.additionalData ?? {},
+      );
+    });
 
     // ✅ عند الضغط على الإشعار
     OneSignal.Notifications.addClickListener((event) {

@@ -37,6 +37,7 @@ class _WaylPaymentScreenState extends State<WaylPaymentScreen> {
   late final WebViewController _controller;
   bool _loading = true;
   bool _done = false;
+  bool _error = false;
 
   @override
   void initState() {
@@ -50,6 +51,14 @@ class _WaylPaymentScreenState extends State<WaylPaymentScreen> {
               _finish();
               return NavigationDecision.prevent;
             }
+            // Payment pages are web (http/https). Block every other scheme —
+            // `javascript:`, `file:`, `data:`, `intent:` and app-handoff
+            // schemes — so a crafted gateway response can't run a local script,
+            // read device files, or jump out to an arbitrary app.
+            final scheme = Uri.tryParse(req.url)?.scheme.toLowerCase() ?? '';
+            if (scheme != 'http' && scheme != 'https') {
+              return NavigationDecision.prevent;
+            }
             return NavigationDecision.navigate;
           },
           onPageStarted: (url) {
@@ -61,6 +70,15 @@ class _WaylPaymentScreenState extends State<WaylPaymentScreen> {
           },
           onPageFinished: (_) {
             if (mounted) setState(() => _loading = false);
+          },
+          onWebResourceError: (err) {
+            // Surface a hard load/TLS failure instead of a blank WebView.
+            if (mounted && err.isForMainFrame == true) {
+              setState(() {
+                _loading = false;
+                _error = true;
+              });
+            }
           },
         ),
       )
@@ -90,13 +108,40 @@ class _WaylPaymentScreenState extends State<WaylPaymentScreen> {
             onPressed: () => Navigator.of(context).pop(false),
           ),
         ),
-        body: Stack(
-          children: [
-            WebViewWidget(controller: _controller),
-            if (_loading)
-              const LinearProgressIndicator(minHeight: 3),
-          ],
-        ),
+        body: _error
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.wifi_off_rounded, size: 48),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'تعذّر تحميل صفحة الدفع. تحقّق من الاتصال وحاول مجدداً.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            _error = false;
+                            _loading = true;
+                          });
+                          _controller.loadRequest(Uri.parse(widget.url));
+                        },
+                        child: const Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : Stack(
+                children: [
+                  WebViewWidget(controller: _controller),
+                  if (_loading) const LinearProgressIndicator(minHeight: 3),
+                ],
+              ),
       ),
     );
   }

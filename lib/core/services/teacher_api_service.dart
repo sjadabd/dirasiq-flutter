@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'api_service.dart';
 
@@ -111,6 +113,17 @@ class TeacherApiService {
     final res = await _dio.get('/teacher/wallet/withdrawals',
         queryParameters: {'page': page, 'limit': limit});
     return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Fetch the transfer-receipt image bytes for one of the teacher's own
+  /// withdrawals. The file is private on the server and only reachable with the
+  /// auth token (the Dio interceptor attaches it).
+  Future<Uint8List> fetchWithdrawalReceipt(String id) async {
+    final res = await _dio.get(
+      '/teacher/wallet/withdrawals/$id/receipt',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(List<int>.from(res.data as List));
   }
 
   // ===========================================================================

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../../../core/utils/money.dart';
 import '../../../shared/widgets/wayl_payment_screen.dart';
@@ -718,6 +717,10 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
 
   Widget _withdrawalsSection(BuildContext context) {
     final mq = context.mq;
+    // Total of all non-rejected withdrawal requests (pending + approved + paid).
+    final withdrawalsTotal = _withdrawals
+        .where((w) => (w['status'] ?? '').toString() != 'rejected')
+        .fold<num>(0, (s, w) => s + _n(w['amount_iqd']));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -727,6 +730,20 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
                 size: MqSize.iconSm, color: mq.ink2),
             const SizedBox(width: MqSpacing.sm),
             Text('السحوبات', style: context.text.titleSmall),
+            const Spacer(),
+            if (_withdrawals.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: MqSpacing.sm, vertical: 3),
+                decoration: BoxDecoration(
+                  color: mq.accentSoft,
+                  borderRadius: MqRadius.brPill,
+                  border: Border.all(color: mq.accentLine),
+                ),
+                child: Text('الإجمالي: ${fmtMoney(withdrawalsTotal)} د.ع',
+                    style: context.text.labelSmall?.copyWith(
+                        color: mq.accent, fontWeight: FontWeight.w700)),
+              ),
           ],
         ),
         const SizedBox(height: MqSpacing.md),
@@ -752,8 +769,8 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
     );
   }
 
-  void _openReceipt(String url) {
-    final full = url.startsWith('http') ? url : '${AppConfig.serverBaseUrl}$url';
+  void _openReceipt(String withdrawalId) {
+    if (withdrawalId.isEmpty) return;
     showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
@@ -761,15 +778,28 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
         insetPadding: const EdgeInsets.all(12),
         child: Stack(
           children: [
-            InteractiveViewer(
-              child: Center(
-                child: Image.network(full,
-                    errorBuilder: (_, _, _) => const Padding(
-                          padding: EdgeInsets.all(40),
-                          child: Text('تعذّر تحميل صورة الوصل',
-                              style: TextStyle(color: Colors.white)),
-                        )),
-              ),
+            // The receipt is private on the server; fetch its bytes with the
+            // auth token rather than loading a public URL.
+            FutureBuilder<Uint8List>(
+              future: _api.fetchWithdrawalReceipt(withdrawalId),
+              builder: (c, snap) {
+                if (snap.connectionState != ConnectionState.done) {
+                  return const Padding(
+                    padding: EdgeInsets.all(48),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snap.hasError || snap.data == null) {
+                  return const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Text('تعذّر تحميل صورة الوصل',
+                        style: TextStyle(color: Colors.white)),
+                  );
+                }
+                return InteractiveViewer(
+                  child: Center(child: Image.memory(snap.data!)),
+                );
+              },
             ),
             Positioned(
               top: 4,
@@ -900,7 +930,7 @@ class _WithdrawalTile extends StatelessWidget {
           if (status == 'paid' && receipt.isNotEmpty) ...[
             const SizedBox(height: MqSpacing.sm),
             InkWell(
-              onTap: () => onViewReceipt(receipt),
+              onTap: () => onViewReceipt((data['id'] ?? '').toString()),
               borderRadius: MqRadius.brSm,
               child: Container(
                 padding: const EdgeInsets.symmetric(

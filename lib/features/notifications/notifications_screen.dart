@@ -820,6 +820,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
+    // Withdrawal (payout) routing → the teacher wallet, which hosts the
+    // "السحوبات" section. Fires on approve / reject / paid notifications.
+    final route = (payload['route'] ?? n['route'])?.toString();
+    final isWithdrawal =
+        (subType?.startsWith('withdrawal') ?? false) ||
+        route == '/teacher/wallet';
+    if (isWithdrawal) {
+      if (_isTeacher) {
+        TeacherWorkspace.jumpTo(context, TeacherWorkspaceState.walletIdx);
+      } else {
+        Navigator.pop(context);
+      }
+      return;
+    }
+
     // Invoice routing
     final invoiceId =
         (payload['invoiceId'] ??
