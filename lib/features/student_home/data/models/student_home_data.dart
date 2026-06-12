@@ -270,7 +270,7 @@ class VideoCourseItem {
       id: _str(m, ['id', '_id', 'videoCourseId']),
       title: _str(m, ['title', 'name', 'courseName', 'course_name']),
       teacherName: teacher is Map ? (teacher['name'] ?? '').toString() : _str(m, ['teacherName', 'teacher_name']),
-      thumbnailUrl: resolveAssetUrl(_firstOf<Object>(m, ['thumbnail', 'thumbnailUrl', 'thumbnail_url', 'cover', 'image', 'poster'])),
+      thumbnailUrl: resolveAssetUrl(_firstOf<Object>(m, ['coverImage', 'cover_image', 'thumbnail', 'thumbnailUrl', 'thumbnail_url', 'cover', 'image', 'poster'])),
       progress: p,
       price: _firstOf<Object>(m, ['price', 'amount']) is num ? _firstOf<num>(m, ['price', 'amount']) : null,
       currency: _firstOf<Object>(m, ['currency', 'currencyCode'])?.toString(),

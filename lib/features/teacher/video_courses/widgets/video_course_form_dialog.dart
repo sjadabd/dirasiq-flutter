@@ -57,10 +57,13 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
   bool _submitting = false;
   String _error = '';
 
+  // UI-level access modes. 'enrolled_free_paid' maps to the backend's
+  // marketplace_paid + freeForEnrolledStudents=true (free for the teacher's
+  // enrolled students, paid for everyone else).
   static const _accessTypes = <(String, String)>[
     ('public_free_by_grade', 'مجاني — لطلاب المرحلة'),
-    ('enrolled_students_free', 'مجاني — لطلاب كورس حضوري'),
-    ('marketplace_paid', 'مدفوع'),
+    ('enrolled_free_paid', 'مجاني لطلاب كورس حضوري (مدفوع للباقي)'),
+    ('marketplace_paid', 'مدفوع — للجميع'),
   ];
 
   File? _coverFile;
@@ -91,9 +94,16 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
               .toString();
       _visibility = (initial['visibility']?.toString() ?? 'private');
       final at = initial['accessType']?.toString();
-      _accessType = _accessTypes.any((e) => e.$1 == at)
-          ? at!
-          : (_isFree ? 'public_free_by_grade' : 'marketplace_paid');
+      final freeEnrolled = initial['freeForEnrolledStudents'] == true;
+      if (at == 'public_free_by_grade') {
+        _accessType = 'public_free_by_grade';
+      } else if (at == 'enrolled_students_free') {
+        _accessType = 'enrolled_free_paid';
+      } else if (at == 'marketplace_paid') {
+        _accessType = freeEnrolled ? 'enrolled_free_paid' : 'marketplace_paid';
+      } else {
+        _accessType = _isFree ? 'public_free_by_grade' : 'marketplace_paid';
+      }
     }
     _loadCatalogs();
   }
@@ -213,13 +223,15 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
       setState(() => _error = 'يجب اختيار المرحلة');
       return;
     }
-    if (_accessType == 'enrolled_students_free' && _targetCourseIds.isEmpty) {
+    final isEnrolledFreePaid = _accessType == 'enrolled_free_paid';
+    if (isEnrolledFreePaid && _targetCourseIds.isEmpty) {
       setState(() => _error = 'اختر كورساً حضورياً واحداً على الأقل للربط');
       return;
     }
     final price = int.tryParse(_price.text.trim()) ?? 0;
-    if (_accessType == 'marketplace_paid' && price <= 0) {
-      setState(() => _error = 'أدخل سعراً أكبر من 0 للكورس المدفوع');
+    final paid = isEnrolledFreePaid || _accessType == 'marketplace_paid';
+    if (paid && price <= 0) {
+      setState(() => _error = 'أدخل سعراً أكبر من 0');
       return;
     }
     setState(() {
@@ -228,18 +240,24 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
       _coverPhase = '';
     });
     try {
-      final paid = _accessType == 'marketplace_paid';
+      // 'enrolled_free_paid' is a UI grouping → backend marketplace_paid with
+      // the freeForEnrolledStudents modifier (free for the teacher's enrolled
+      // students, priced for everyone else). gradeTargetIds is required for
+      // both public_free_by_grade and marketplace_paid.
+      final backendAccessType =
+          paid ? 'marketplace_paid' : 'public_free_by_grade';
       final payload = <String, dynamic>{
         'title': title,
         'subject': _selectedSubject,
         'teachingStage': _selectedGradeName,
         'gradeId': _selectedGradeId,
         'visibility': _visibility,
-        'accessType': _accessType,
-        if (_accessType == 'public_free_by_grade' || paid)
-          'gradeTargetIds': [_selectedGradeId],
-        if (_accessType == 'enrolled_students_free')
+        'accessType': backendAccessType,
+        'gradeTargetIds': [_selectedGradeId],
+        if (isEnrolledFreePaid) ...{
+          'freeForEnrolledStudents': true,
           'targetCourseIds': _targetCourseIds.toList(),
+        },
         if (paid) 'priceIqd': price,
         // legacy back-compat (service back-fills from accessType anyway):
         'isFree': !paid,
@@ -523,18 +541,22 @@ class _VideoCourseFormDialogState extends State<VideoCourseFormDialog> {
               _isFree = _accessType != 'marketplace_paid';
             }),
           ),
-          if (_accessType == 'enrolled_students_free') ...[
+          if (_accessType == 'enrolled_free_paid') ...[
             const SizedBox(height: MqSpacing.md),
             _liveCoursePicker(context),
           ],
-          if (_accessType == 'marketplace_paid') ...[
+          if (_accessType == 'enrolled_free_paid' ||
+              _accessType == 'marketplace_paid') ...[
             const SizedBox(height: MqSpacing.md),
             TextField(
               controller: _price,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'السعر (د.ع) *',
-                prefixIcon: Icon(Icons.payments_outlined),
+                helperText: _accessType == 'enrolled_free_paid'
+                    ? 'يُدفع من الطلاب غير المسجَّلين في الكورس الحضوري'
+                    : null,
+                prefixIcon: const Icon(Icons.payments_outlined),
                 isDense: true,
               ),
             ),

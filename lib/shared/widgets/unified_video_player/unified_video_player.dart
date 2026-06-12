@@ -42,6 +42,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:screen_protector/screen_protector.dart';
 import 'package:video_player/video_player.dart';
 
 import 'playback_progress_storage.dart';
@@ -116,7 +117,26 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _enableScreenProtection();
     _setupController();
+  }
+
+  /// Block screenshots + screen recording while a lesson is on screen.
+  /// Android: FLAG_SECURE (capture + recording both show black). iOS: the
+  /// secure-overlay trick for screenshots + a blur over the content while the
+  /// screen is being captured/recorded.
+  Future<void> _enableScreenProtection() async {
+    try {
+      await ScreenProtector.preventScreenshotOn();
+      await ScreenProtector.protectDataLeakageWithBlur();
+    } catch (_) {/* best-effort — never block playback on a protection failure */}
+  }
+
+  Future<void> _disableScreenProtection() async {
+    try {
+      await ScreenProtector.preventScreenshotOff();
+      await ScreenProtector.protectDataLeakageWithBlurOff();
+    } catch (_) {}
   }
 
   Future<void> _setupController() async {
@@ -354,6 +374,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer>
     if (_isFullscreen) {
       unawaited(_restoreSystemUi());
     }
+    unawaited(_disableScreenProtection());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

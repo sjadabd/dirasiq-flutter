@@ -38,6 +38,7 @@ dependencies:
   flutter_map: ^8.3.0
   latlong2: ^0.9.1
   qr_flutter: ^4.1.0
+  screen_protector: ^1.4.2
 
 dev_dependencies:
   flutter_test:
