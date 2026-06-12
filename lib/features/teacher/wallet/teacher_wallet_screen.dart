@@ -382,11 +382,11 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
                           controller: amountCtl,
                           keyboardType: TextInputType.number,
                           inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
+                            ThousandsSeparatorInputFormatter(),
                           ],
                           decoration: const InputDecoration(
                             labelText: 'المبلغ المطلوب سحبه (د.ع)',
-                            hintText: 'مثال: 50000',
+                            hintText: 'مثال: 50,000',
                             prefixIcon: Icon(Icons.payments_outlined),
                           ),
                         ),
@@ -394,8 +394,8 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
                         Align(
                           alignment: AlignmentDirectional.centerStart,
                           child: TextButton(
-                            onPressed: () => amountCtl.text =
-                                _total.round().toString(),
+                            onPressed: () =>
+                                amountCtl.text = fmtMoney(_total),
                             child: const Text('سحب كامل الرصيد'),
                           ),
                         ),
