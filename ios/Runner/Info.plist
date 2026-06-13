@@ -53,8 +53,6 @@
 	<string>This app uses your location to provide location-based features.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app requires access to your photo library to allow image selection and upload.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>We use this identifier to provide personalized app content and notifications.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
