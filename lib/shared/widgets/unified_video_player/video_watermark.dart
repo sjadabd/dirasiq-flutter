@@ -25,8 +25,8 @@
 // native code or backend support, see the task's security brief):
 //   * FLAG_SECURE (block screenshots / screen-record) → MethodChannel to
 //     MainActivity.setFlags(FLAG_SECURE); no Flutter plugin in pubspec today.
-//   * Screenshot / screen-record DETECTION → `screen_protector` /
-//     `no_screenshot` plugin (not added).
+//   * iOS capture detection + privacy overlays → `VideoSecurityService`
+//     MethodChannel backed by AppDelegate.
 //   * Concurrent-session limit, device binding, playback-token validation,
 //     expiring signed URLs → backend must issue per-device short-TTL tokens;
 //     the player already re-mints the URL at play time so the expiring-URL
