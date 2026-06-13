@@ -88,13 +88,13 @@ import GoogleSignIn
     )
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(applicationWillResignActive),
+      selector: #selector(showPrivacyOverlayForBackground),
       name: UIApplication.willResignActiveNotification,
       object: nil
     )
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(applicationDidBecomeActive),
+      selector: #selector(hidePrivacyOverlayAfterForeground),
       name: UIApplication.didBecomeActiveNotification,
       object: nil
     )
@@ -127,12 +127,12 @@ import GoogleSignIn
     updatePrivacyOverlay()
   }
 
-  @objc private func applicationWillResignActive() {
+  @objc private func showPrivacyOverlayForBackground() {
     isAppObscured = true
     updatePrivacyOverlay()
   }
 
-  @objc private func applicationDidBecomeActive() {
+  @objc private func hidePrivacyOverlayAfterForeground() {
     isAppObscured = false
     updatePrivacyOverlay()
   }
