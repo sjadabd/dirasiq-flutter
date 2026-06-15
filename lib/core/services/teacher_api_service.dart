@@ -74,6 +74,10 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  Future<Map<String, dynamic>> fetchPaymentFeatures() {
+    return _apiService.fetchPaymentFeatures();
+  }
+
   /// Create a Wayl payment link to top up the wallet by [amount] IQD.
   /// Returns the envelope; `data` carries `{ url, referenceId, amount }`.
   Future<Map<String, dynamic>> createWalletTopup(int amount) async {

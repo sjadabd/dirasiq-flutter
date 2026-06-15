@@ -113,16 +113,41 @@ class PurchaseBottomSheet extends StatelessWidget {
                     ]),
                   ),
                   MqSpacing.gapSm,
-                  Text('سيُفتح موقع Wayl لإتمام الدفع. بعد نجاحه ستظهر الدورة في "مكتبتي" تلقائياً.',
-                      style: context.text.bodySmall),
-                  MqSpacing.gapLg,
                   Obx(() {
+                    if (!controller.videoCoursePurchasesEnabled.value) {
+                      return MqSurface(
+                        tone: MqSurfaceTone.neutral,
+                        padding: const EdgeInsets.all(MqSpacing.md),
+                        child: Row(
+                          children: [
+                            Icon(Icons.schedule_rounded, color: m.ink3),
+                            MqSpacing.gapSm,
+                            Expanded(
+                              child: Text(
+                                'سوف تتوفر هذه الميزة قريبًا',
+                                style: context.text.titleSmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                     final busy = controller.purchasing.contains(_id);
-                    return MqButton(
-                      label: busy ? 'جارٍ التحضير…' : 'متابعة إلى الدفع',
-                      icon: Icons.lock_open_outlined,
-                      loading: busy,
-                      onPressed: busy ? null : () => _onPurchase(context),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'سيُفتح موقع Wayl لإتمام الدفع. بعد نجاحه ستظهر الدورة في "مكتبتي" تلقائياً.',
+                          style: context.text.bodySmall,
+                        ),
+                        MqSpacing.gapLg,
+                        MqButton(
+                          label: busy ? 'جارٍ التحضير…' : 'متابعة إلى الدفع',
+                          icon: Icons.lock_open_outlined,
+                          loading: busy,
+                          onPressed: busy ? null : () => _onPurchase(context),
+                        ),
+                      ],
                     );
                   }),
                 ],

@@ -362,6 +362,11 @@ class ApiService {
 
   Dio get dio => _dio;
 
+  Future<Map<String, dynamic>> fetchPaymentFeatures() async {
+    final response = await _dio.get('/app-settings/payment-features');
+    return Map<String, dynamic>.from(response.data ?? {});
+  }
+
   // =============================
   // تقييمات الطالب
   // =============================

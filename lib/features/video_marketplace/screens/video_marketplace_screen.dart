@@ -68,6 +68,11 @@ class _VideoMarketplaceScreenState extends State<VideoMarketplaceScreen> {
       await _c.refreshAll();
       return;
     }
+    if (!_c.videoCoursePurchasesEnabled.value) {
+      await Get.to(() => StudentVideoCourseDetailScreen(courseId: id));
+      await _c.refreshAll();
+      return;
+    }
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

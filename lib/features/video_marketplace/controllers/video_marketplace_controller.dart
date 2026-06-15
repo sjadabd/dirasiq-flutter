@@ -88,6 +88,7 @@ class VideoMarketplaceController extends GetxController {
   final RxString marketplaceError = ''.obs;
   final RxBool libraryLoading = false.obs;
   final RxString libraryError = ''.obs;
+  final RxBool videoCoursePurchasesEnabled = false.obs;
 
   // Active filters. UI listens via Obx and rebuilds the chip row.
   final Rx<VideoMarketplaceFilters> filters =
@@ -106,7 +107,19 @@ class VideoMarketplaceController extends GetxController {
     await Future.wait([
       _fetchMarketplace(),
       _fetchLibrary(),
+      _fetchPaymentFeatures(),
     ]);
+  }
+
+  Future<void> _fetchPaymentFeatures() async {
+    try {
+      final res = await _api.fetchPaymentFeatures();
+      final data = res['data'];
+      videoCoursePurchasesEnabled.value =
+          data is Map && data['videoCoursePurchasesEnabled'] == true;
+    } catch (_) {
+      videoCoursePurchasesEnabled.value = false;
+    }
   }
 
   Future<void> _fetchMarketplace() async {
@@ -190,6 +203,7 @@ class VideoMarketplaceController extends GetxController {
   /// show it in an in-app webview.
   Future<String?> purchase(String videoCourseId) async {
     if (videoCourseId.isEmpty) return null;
+    if (!videoCoursePurchasesEnabled.value) return null;
     if (purchasing.contains(videoCourseId)) return null;
     purchasing.add(videoCourseId);
     try {

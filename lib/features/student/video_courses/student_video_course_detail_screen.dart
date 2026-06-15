@@ -33,6 +33,7 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
   String _error = '';
   Map<String, dynamic>? _course;
   List<Map<String, dynamic>> _lessons = [];
+  bool _videoCoursePurchasesEnabled = false;
 
   // الدروس | نظرة عامة
   int _tab = 0;
@@ -54,6 +55,14 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
     setState(() { _loading = true; _error = ''; });
     try {
       final res = await _api.fetchPublicVideoCourse(widget.courseId);
+      try {
+        final settings = await _api.fetchPaymentFeatures();
+        final features = settings['data'];
+        _videoCoursePurchasesEnabled =
+            features is Map && features['videoCoursePurchasesEnabled'] == true;
+      } catch (_) {
+        _videoCoursePurchasesEnabled = false;
+      }
       final data = (res['data'] is Map) ? Map<String, dynamic>.from(res['data']) : <String, dynamic>{};
       _course = (data['course'] is Map) ? Map<String, dynamic>.from(data['course']) : null;
       _lessons = (data['lessons'] is List)
@@ -85,6 +94,10 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
     // backend signed-URL endpoint also rejects (402), but bouncing here
     // gives a clean UX before the round-trip.
     if (_isPaidUnowned) {
+      if (!_videoCoursePurchasesEnabled) {
+        _showSnack('سوف تتوفر هذه الميزة قريبًا');
+        return;
+      }
       _showSnack('عليك شراء الدورة أولاً.', error: true);
       await _openPurchaseSheet();
       return;
@@ -173,6 +186,10 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
 
   Future<void> _openPurchaseSheet() async {
     if (_course == null) return;
+    if (!_videoCoursePurchasesEnabled) {
+      _showSnack('سوف تتوفر هذه الميزة قريبًا');
+      return;
+    }
     final ctl = Get.isRegistered<VideoMarketplaceController>(tag: 'video-marketplace')
         ? Get.find<VideoMarketplaceController>(tag: 'video-marketplace')
         : Get.put(VideoMarketplaceController(), tag: 'video-marketplace-detail');
@@ -398,6 +415,22 @@ class _StudentVideoCourseDetailScreenState extends State<StudentVideoCourseDetai
 
   Widget _buildPurchaseCta(BuildContext context, String priceLabel) {
     final m = context.mq;
+    if (!_videoCoursePurchasesEnabled) {
+      return MqSurface(
+        tone: MqSurfaceTone.neutral,
+        padding: const EdgeInsets.all(MqSpacing.md),
+        child: Row(children: [
+          Icon(Icons.schedule_rounded, color: m.ink3),
+          MqSpacing.gapSm,
+          Expanded(
+            child: Text(
+              'سوف تتوفر هذه الميزة قريبًا',
+              style: context.text.titleSmall,
+            ),
+          ),
+        ]),
+      );
+    }
     return MqSurface(
       tone: MqSurfaceTone.accent,
       padding: const EdgeInsets.all(MqSpacing.md),

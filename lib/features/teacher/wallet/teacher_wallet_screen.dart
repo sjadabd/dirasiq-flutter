@@ -31,6 +31,7 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
   bool _preparing = false;
   bool _submittingWithdraw = false;
   bool _awaitingPayment = false;
+  bool _walletTopupsEnabled = false;
   Map<String, dynamic> _wallet = const {};
   List<Map<String, dynamic>> _withdrawals = const [];
 
@@ -91,6 +92,14 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
               : const [];
       _withdrawals =
           list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      try {
+        final settings = await _api.fetchPaymentFeatures();
+        final features = settings['data'];
+        _walletTopupsEnabled =
+            features is Map && features['teacherWalletTopupsEnabled'] == true;
+      } catch (_) {
+        _walletTopupsEnabled = false;
+      }
     } catch (_) {
       _toast('تعذّر جلب المحفظة');
     } finally {
@@ -122,6 +131,10 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
   // ---- top-up flow ----------------------------------------------------------
 
   Future<void> _startTopup(int amount) async {
+    if (!_walletTopupsEnabled) {
+      _toast('سوف تتوفر هذه الميزة قريبًا');
+      return;
+    }
     if (_preparing) return;
     setState(() => _preparing = true);
     try {
@@ -153,6 +166,10 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
   }
 
   Future<void> _showTopupSheet() async {
+    if (!_walletTopupsEnabled) {
+      _toast('سوف تتوفر هذه الميزة قريبًا');
+      return;
+    }
     final amountCtl = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     int? selectedQuick;
@@ -491,12 +508,28 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
                   Row(
                     children: [
                       Expanded(
-                        child: MqButton(
-                          label: _preparing ? 'جارٍ التحضير…' : 'شحن',
-                          icon: _preparing ? null : Icons.add_card_outlined,
-                          loading: _preparing,
-                          onPressed: _preparing ? null : _showTopupSheet,
-                        ),
+                        child: _walletTopupsEnabled
+                            ? MqButton(
+                                label: _preparing ? 'جارٍ التحضير…' : 'شحن',
+                                icon: _preparing ? null : Icons.add_card_outlined,
+                                loading: _preparing,
+                                onPressed: _preparing ? null : _showTopupSheet,
+                              )
+                            : Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: MqSpacing.sm,
+                                  vertical: MqSpacing.md,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: mq.line),
+                                  borderRadius: MqRadius.brMd,
+                                ),
+                                child: Text(
+                                  'سوف تتوفر هذه الميزة قريبًا',
+                                  textAlign: TextAlign.center,
+                                  style: context.text.labelMedium,
+                                ),
+                              ),
                       ),
                       const SizedBox(width: MqSpacing.md),
                       Expanded(
