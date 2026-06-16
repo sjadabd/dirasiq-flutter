@@ -331,7 +331,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
       title: 'حذف الحساب',
       titleStyle: const TextStyle(fontWeight: FontWeight.bold),
       middleText:
-          'سيتم فتح صفحة لتقديم طلب حذف حسابك. لن يُحذف حسابك فوراً، وسيتم مراجعته خلال 30 يوماً.',
+          'سيتم فتح صفحة حذف الحساب لتعبئة بياناتك وتقديم طلب الحذف. سيتم حذف الحساب خلال 30 يوماً من تاريخ الطلب.',
       textCancel: 'إلغاء',
       textConfirm: 'متابعة',
       confirmTextColor: Colors.white,
