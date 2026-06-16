@@ -276,10 +276,10 @@ class AuthService {
     }
   }
 
-  /// ✅ حذف حساب الطالب (Soft Delete)
+  /// ✅ حذف الحساب (Soft Delete) — طالب وأستاذ يستخدمان نفس المسار.
   Future<Map<String, dynamic>> deleteAccount() async {
     try {
-      final response = await _apiService.dio.delete("/api/student/account");
+      final response = await _apiService.dio.delete('/student/account');
 
       if (response.statusCode == 200 && (response.data["success"] == true)) {
         await logout();

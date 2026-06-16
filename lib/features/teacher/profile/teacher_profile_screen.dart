@@ -253,6 +253,40 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     }
   }
 
+  Future<void> _confirmDelete() async {
+    final err = context.mq.error;
+    Get.defaultDialog(
+      title: 'حذف الحساب',
+      titleStyle: const TextStyle(fontWeight: FontWeight.bold),
+      middleText: 'هل أنت متأكد من حذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه.',
+      textCancel: 'إلغاء',
+      textConfirm: 'حذف',
+      confirmTextColor: Colors.white,
+      buttonColor: err,
+      onConfirm: () async {
+        Get.back();
+        await _deleteAccount();
+      },
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    setState(() => _loading = true);
+    try {
+      final res = await _auth.deleteAccount();
+      if (res['success'] == true) {
+        Get.snackbar('تم', res['message'] ?? 'تم حذف الحساب بنجاح');
+        Get.offAllNamed('/login');
+      } else {
+        Get.snackbar('خطأ', res['message'] ?? 'فشل حذف الحساب');
+      }
+    } catch (_) {
+      Get.snackbar('خطأ', 'فشل حذف الحساب');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _confirmLogout() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -335,7 +369,18 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                             const SizedBox(height: MqSpacing.lg),
                             if (_editing) _editActions(context),
                             const SizedBox(height: MqSpacing.lg),
-                            _logoutButton(context),
+                            _dangerButton(
+                              context,
+                              label: 'تسجيل الخروج',
+                              icon: Icons.logout_rounded,
+                              onTap: _loading ? null : _confirmLogout,
+                            ),
+                            const SizedBox(height: MqSpacing.sm),
+                            _textDanger(
+                              context,
+                              label: 'حذف الحساب',
+                              onTap: _loading ? null : _confirmDelete,
+                            ),
                           ],
                         ),
                       ),
@@ -603,30 +648,54 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     );
   }
 
-  Widget _logoutButton(BuildContext context) {
+  Widget _dangerButton(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    VoidCallback? onTap,
+  }) {
     final mq = context.mq;
     return Material(
-      color: mq.error.withValues(alpha: 0.10),
-      borderRadius: MqRadius.brMd,
+      color: mq.error.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: MqRadius.brMd,
+        side: BorderSide(color: mq.error.withValues(alpha: 0.5)),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: _confirmLogout,
+        onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: MqSpacing.md),
-          decoration: BoxDecoration(
-            borderRadius: MqRadius.brMd,
-            border: Border.all(color: mq.error.withValues(alpha: 0.4)),
-          ),
+          height: MqSize.buttonHeight,
+          alignment: Alignment.center,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.logout_rounded, size: 18, color: mq.error),
-              const SizedBox(width: MqSpacing.sm),
-              Text('تسجيل الخروج',
-                  style: context.text.labelLarge?.copyWith(
-                      color: mq.error, fontWeight: FontWeight.w700)),
+              Icon(icon, size: MqSize.iconMd, color: mq.error),
+              MqSpacing.gapSm,
+              Text(
+                label,
+                style: context.text.labelLarge?.copyWith(color: mq.error),
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _textDanger(
+    BuildContext context, {
+    required String label,
+    VoidCallback? onTap,
+  }) {
+    final mq = context.mq;
+    return Center(
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(Icons.delete_outline_rounded, size: 18, color: mq.error),
+        label: Text(
+          label,
+          style: context.text.labelMedium?.copyWith(color: mq.error),
         ),
       ),
     );
