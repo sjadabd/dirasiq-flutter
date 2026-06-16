@@ -330,33 +330,20 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     Get.defaultDialog(
       title: 'حذف الحساب',
       titleStyle: const TextStyle(fontWeight: FontWeight.bold),
-      middleText: 'هل أنت متأكد من حذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه.',
+      middleText:
+          'سيتم فتح صفحة لتقديم طلب حذف حسابك. لن يُحذف حسابك فوراً، وسيتم مراجعته خلال 30 يوماً.',
       textCancel: 'إلغاء',
-      textConfirm: 'حذف',
+      textConfirm: 'متابعة',
       confirmTextColor: Colors.white,
       buttonColor: err,
       onConfirm: () async {
         Get.back();
-        await _deleteAccount();
+        final ok = await _authService.openDeleteAccountRequestPage();
+        if (!ok) {
+          Get.snackbar('خطأ', 'تعذّر فتح صفحة حذف الحساب');
+        }
       },
     );
-  }
-
-  Future<void> _deleteAccount() async {
-    setState(() => _loading = true);
-    try {
-      final res = await _authService.deleteAccount();
-      if (res['success'] == true) {
-        Get.snackbar('تم', res['message'] ?? 'تم حذف الحساب بنجاح');
-        Get.offAllNamed('/login');
-      } else {
-        Get.snackbar('خطأ', res['message'] ?? 'فشل حذف الحساب');
-      }
-    } catch (_) {
-      Get.snackbar('خطأ', 'فشل حذف الحساب');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 
   // ── derived ──────────────────────────────────────────────────────────────────

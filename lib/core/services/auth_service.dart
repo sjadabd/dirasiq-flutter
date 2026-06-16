@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
+import 'package:mulhimiq/core/config/app_config.dart';
 import 'package:mulhimiq/core/services/notification_service.dart';
 import 'package:mulhimiq/core/services/realtime_service.dart';
 
@@ -276,25 +278,17 @@ class AuthService {
     }
   }
 
-  /// ✅ حذف الحساب (Soft Delete) — طالب وأستاذ يستخدمان نفس المسار.
-  Future<Map<String, dynamic>> deleteAccount() async {
+  /// ✅ فتح صفحة طلب حذف الحساب (طالب + أستاذ) — لا حذف فوري.
+  Future<bool> openDeleteAccountRequestPage() async {
     try {
-      final response = await _apiService.dio.delete('/student/account');
-
-      if (response.statusCode == 200 && (response.data["success"] == true)) {
-        await logout();
-        return {"success": true, "message": response.data["message"] ?? ""};
-      }
-
-      return {
-        "success": false,
-        "message": response.data["message"] ?? "فشل حذف الحساب",
-      };
-    } on DioException catch (e) {
-      return {
-        "success": false,
-        "message": e.response?.data?["message"] ?? "خطأ في السيرفر",
-      };
+      final user = await getUser();
+      final email = (user?['email'] ?? '').toString().trim();
+      final uri = Uri.parse('${AppConfig.serverBaseUrl}/delete-account').replace(
+        queryParameters: email.isNotEmpty ? {'email': email} : null,
+      );
+      return await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    } catch (_) {
+      return false;
     }
   }
 }
