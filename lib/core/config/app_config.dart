@@ -30,6 +30,9 @@ class AppConfig {
   /// REST API root (includes `/api`).
   static const String apiBaseUrl = '$serverBaseUrl/api';
 
+  /// Account deletion request page (serves `public/delete-account.html` on the API).
+  static const String deleteAccountPageUrl = '$serverBaseUrl/delete-account';
+
   /// Chat service root (REST + Socket.IO share this host). No `/api`.
   static const String chatBaseUrl = useLocal ? _localChat : _publicChat;
 

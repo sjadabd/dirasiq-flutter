@@ -278,15 +278,22 @@ class AuthService {
     }
   }
 
-  /// ✅ فتح صفحة طلب حذف الحساب (طالب + أستاذ) — لا حذف فوري.
+  /// ✅ فتح صفحة طلب حذف الحساب (طالب + أستاذ) → delete-account.html على الـ API.
   Future<bool> openDeleteAccountRequestPage() async {
     try {
       final user = await getUser();
       final email = (user?['email'] ?? '').toString().trim();
-      final uri = Uri.parse('${AppConfig.serverBaseUrl}/delete-account').replace(
+      final uri = Uri.parse(AppConfig.deleteAccountPageUrl).replace(
         queryParameters: email.isNotEmpty ? {'email': email} : null,
       );
-      return await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+
+      if (await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
+        return true;
+      }
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        return true;
+      }
+      return await launchUrl(uri, mode: LaunchMode.platformDefault);
     } catch (_) {
       return false;
     }
