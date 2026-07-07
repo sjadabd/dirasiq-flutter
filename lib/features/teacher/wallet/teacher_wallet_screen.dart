@@ -73,8 +73,11 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
   num get _videoAvailable => _n(_wallet['videoEarningsAvailable']);
   Map<String, dynamic> get _adReport =>
       (_wallet['advertisementReport'] is Map) ? Map<String, dynamic>.from(_wallet['advertisementReport']) : const {};
-  num get _adSpent => _n(_adReport['spent'] ?? _adStats['totalMoneySpent']);
-  num get _adRemainingBudget => _n(_adReport['remainingBudget'] ?? _adStats['remainingBudget']);
+  num get _adSpent => _n(_adReport['spentOnClicks'] ?? _adReport['spent'] ?? _adStats['totalMoneySpent']);
+  num get _adRemainingBudget =>
+      _n(_adReport['lockedInAdvertisements'] ?? _adReport['remainingBudget'] ?? _adStats['remainingBudget']);
+  num get _walletAvailable => _n(_adReport['walletAvailable'] ?? _adReport['netWalletAvailable'] ?? _total);
+  num get _totalFunds => _n(_adReport['totalFunds'] ?? (_walletAvailable + _adRemainingBudget));
   Map<String, dynamic> get _videoReport =>
       (_wallet['videoReport'] is Map) ? Map<String, dynamic>.from(_wallet['videoReport']) : const {};
 
@@ -716,12 +719,18 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
             ],
           ),
           const SizedBox(height: MqSpacing.md),
-          _reportRow(context, 'المبلغ المستقطع للنقرات', _adSpent,
+          _reportRow(context, 'المصروف على النقرات (من ميزانية الإعلان)', _adSpent,
               color: mq.error, strong: true),
-          _reportRow(context, 'ميزانية الإعلانات المتبقية', _adRemainingBudget),
+          _reportRow(context, 'ميزانية الإعلانات المحجوزة (غير متاحة للسحب)', _adRemainingBudget),
           const Divider(height: MqSpacing.lg),
-          _reportRow(context, 'صافي المبلغ المتبقي في المحفظة', _n(_adReport['netWalletAvailable'] ?? _total),
+          _reportRow(context, 'المتاح في المحفظة للإنفاق والسحب', _walletAvailable,
               color: mq.accent, strong: true),
+          _reportRow(context, 'إجمالي أموالك (محفظة + ميزانية إعلانات)', _totalFunds),
+          const SizedBox(height: MqSpacing.sm),
+          Text(
+            'عند تقديم الإعلان يُخصم مبلغ الميزانية من المحفظة مرة واحدة. كل نقرة تُخصم من ميزانية الإعلان فقط — لا تُخصم مرة ثانية من رصيد المحفظة.',
+            style: context.text.labelSmall?.copyWith(color: mq.ink3, height: 1.5),
+          ),
         ],
       ),
     );
