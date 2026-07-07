@@ -10,6 +10,7 @@ import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
 import '../shared/teacher_workspace.dart';
+import 'widgets/teacher_platform_news_section.dart';
 
 /// Teacher dashboard — layout matched 1:1 to `Teacher_Dashboard_Light.html`
 /// (light) and `Teacher_Dashboard_Dark.html` (dark). Both modes resolve from
@@ -45,6 +46,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   Map<String, dynamic> _kpis = {};
   List<Map<String, dynamic>> _todaySessions = [];
   List<Map<String, dynamic>> _activeCoursesList = [];
+  List<Map<String, dynamic>> _platformNews = [];
   int? _pendingBookings;
   String _teacherName = '';
   String? _studyYear;
@@ -74,16 +76,18 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         _api.fetchTodayUpcomingSessions(),
         _api.fetchAcademicYears(),
         _api.fetchCourses(deleted: false, limit: 100),
+        _api.fetchTeacherPlatformNews(limit: 8),
       ]);
 
-      final overview = _dataMap(results[0]);
-      final sessions = _dataList(results[1]);
-      final studyYear = _activeStudyYear(results[2]);
+      final overview = _dataMap(results[0] as Map<String, dynamic>);
+      final sessions = _dataList(results[1] as Map<String, dynamic>);
+      final studyYear = _activeStudyYear(results[2] as Map<String, dynamic>);
       final now = DateTime.now();
-      final courses = _dataList(results[3]).where((c) {
+      final courses = _dataList(results[3] as Map<String, dynamic>).where((c) {
         final end = DateTime.tryParse((c['end_date'] ?? '').toString());
         return end == null || !end.isBefore(now);
       }).toList();
+      final newsRaw = results[4];
 
       int? pending;
       try {
@@ -99,6 +103,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         _kpis = overview;
         _todaySessions = sessions;
         _activeCoursesList = courses;
+        _platformNews = newsRaw is List
+            ? newsRaw.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList()
+            : const [];
         _pendingBookings = pending;
         _studyYear = studyYear;
         _online = true;
@@ -233,6 +240,13 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                       padding: const EdgeInsets.fromLTRB(
                           MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xl),
                       children: [
+                        if (_platformNews.isNotEmpty) ...[
+                          TeacherPlatformNewsSection(
+                            items: _platformNews,
+                            onOpen: (item) => showTeacherPlatformNewsDetail(context, item),
+                          ),
+                          const SizedBox(height: MqSpacing.md),
+                        ],
                         _hero(context),
                         const SizedBox(height: MqSpacing.md),
                         _revenuePair(context),

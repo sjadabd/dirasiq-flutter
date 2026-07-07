@@ -16,6 +16,7 @@ import '../sessions/teacher_sessions_screen.dart';
 import '../subjects/teacher_subjects_screen.dart';
 import '../video_courses/teacher_video_courses_screen.dart';
 import '../wallet/teacher_wallet_screen.dart';
+import '../advertisements/teacher_ads_list_screen.dart';
 import 'design/teacher_design.dart';
 import 'teacher_app_bar.dart';
 import 'teacher_bottom_nav.dart';
@@ -106,6 +107,7 @@ class TeacherWorkspaceState extends State<TeacherWorkspace> {
   static const int profileIdx             = 12;
   static const int chatsIdx               = 13;
   static const int attendanceQrIdx        = 14;
+  static const int advertisementsIdx      = 15;
 
   late final List<Widget> _pages = const [
     TeacherHomeScreen(),                  // 0
@@ -123,6 +125,7 @@ class TeacherWorkspaceState extends State<TeacherWorkspace> {
     TeacherProfileScreen(),               // 12
     TeacherConversationsScreen(),         // 13 — chat (Phase 6)
     TeacherAttendanceQrScreen(),          // 14 — attendance QR
+    TeacherAdsListScreen(),               // 15 — paid advertisements
   ];
 
   // -- State ------------------------------------------------------------------

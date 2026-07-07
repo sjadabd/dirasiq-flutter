@@ -840,6 +840,20 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
   }
 
+  Future<List<Map<String, dynamic>>> fetchTeacherPlatformNews({int limit = 8}) async {
+    final res = await _dio.get('/teacher/news', queryParameters: {'page': 1, 'limit': limit});
+    final raw = res.data?['data'];
+    final List list = raw is List
+        ? raw
+        : (raw is Map && raw['data'] is List ? raw['data'] as List : const []);
+    return list.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+  }
+
+  Future<Map<String, dynamic>> fetchTeacherPlatformNewsDetail(String id) async {
+    final res = await _dio.get('/teacher/news/$id');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
   /// Defensive list-extractor for backend responses that don't share a single
   /// envelope. Tries:
   ///   1. `value` is a List directly.

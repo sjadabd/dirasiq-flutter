@@ -28,7 +28,6 @@ import 'features/student/video_courses/student_video_course_detail_screen.dart';
 import 'features/video_marketplace/screens/video_marketplace_screen.dart';
 import 'features/root/root_shell.dart';
 import 'features/content_feed/screens/content_detail_screen.dart';
-import 'features/teacher/advertisements/teacher_ads_list_screen.dart';
 import 'features/bookings/screens/bookings_list_screen.dart';
 import 'features/bookings/screens/booking_details_screen.dart';
 import 'features/enrollments/screens/enrollments_screen.dart';
@@ -263,7 +262,9 @@ class MyApp extends StatelessWidget {
           ),
           GetPage(
             name: TeacherRoutes.advertisements,
-            page: () => const TeacherAdsListScreen(),
+            page: () => const TeacherWorkspace(
+              initialIndex: TeacherWorkspaceState.advertisementsIdx,
+            ),
             transition: Transition.fadeIn,
             transitionDuration: const Duration(milliseconds: 300),
           ),

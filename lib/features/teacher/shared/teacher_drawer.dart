@@ -3,10 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:get/get.dart';
-
 import 'design/teacher_design.dart';
-import 'teacher_routes.dart';
 import 'teacher_workspace.dart';
 
 /// Teacher drawer — drives the workspace's IndexedStack index, NOT route nav.
@@ -31,12 +28,7 @@ class TeacherDrawer extends StatelessWidget {
 
   void _go(BuildContext ctx, int index) {
     Navigator.of(ctx).pop(); // close drawer first
-    TeacherWorkspace.switchTo(ctx, index);
-  }
-
-  void _goRoute(BuildContext ctx, String route) {
-    Navigator.of(ctx).pop();
-    Get.toNamed(route);
+    TeacherWorkspace.jumpTo(ctx, index);
   }
 
   @override
@@ -71,7 +63,7 @@ class TeacherDrawer extends StatelessWidget {
                     _Item(active: active, index: TeacherWorkspaceState.subjectsIdx,            icon: Icons.menu_book_outlined,             label: 'المواد',             onTap: _go),
                     _Item(active: active, index: TeacherWorkspaceState.coursesIdx,             icon: Icons.school_outlined,                label: 'الكورسات',           onTap: _go),
                     _Item(active: active, index: TeacherWorkspaceState.videoCoursesIdx,        icon: Icons.video_library_outlined,         label: 'الدورات المرئية',    onTap: _go),
-                    _RouteItem(icon: Icons.campaign_outlined, label: 'الإعلانات', route: TeacherRoutes.advertisements, onTap: _goRoute),
+                    _Item(active: active, index: TeacherWorkspaceState.advertisementsIdx, icon: Icons.campaign_outlined, label: 'الإعلانات', onTap: _go),
                     _Item(active: active, index: TeacherWorkspaceState.sessionsIdx,            icon: Icons.calendar_today_outlined,        label: 'الجدول الأسبوعي',    onTap: _go),
 
                     const _Section('الطلاب'),
@@ -198,68 +190,6 @@ class _Section extends StatelessWidget {
           color: context.mq.ink3,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-}
-
-class _RouteItem extends StatelessWidget {
-  const _RouteItem({
-    required this.icon,
-    required this.label,
-    required this.route,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String route;
-  final void Function(BuildContext, String) onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final mq = context.mq;
-    final isActive = Get.currentRoute == route;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: 2),
-      child: Material(
-        color: isActive ? mq.accentSoft : Colors.transparent,
-        borderRadius: MqRadius.brMd,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => onTap(context, route),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: MqSpacing.sm),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: isActive ? mq.accent : mq.fill,
-                    borderRadius: MqRadius.brSm,
-                    border: Border.all(color: isActive ? mq.accent : mq.line),
-                  ),
-                  child: Icon(icon, size: 18, color: isActive ? mq.onAccent : mq.ink2),
-                ),
-                const SizedBox(width: MqSpacing.md),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.text.bodyMedium?.copyWith(
-                      color: isActive ? mq.accent : mq.ink,
-                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Icon(Icons.chevron_left_rounded, size: 20, color: mq.ink3),
-              ],
-            ),
-          ),
         ),
       ),
     );
