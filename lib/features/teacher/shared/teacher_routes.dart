@@ -20,11 +20,13 @@ class TeacherRoutes {
   static const bookings           = '/teacher/bookings';
   static const notifications      = '/teacher/notifications';
   static const profile            = '/teacher/profile';
+  static const advertisements     = '/teacher/advertisements';
 
   /// Stable list of all named routes (used to detect if a current route is
   /// one of "our" pages — for the drawer highlight).
   static const all = <String>[
     home, reservationPayments, invoices, expenses, reports, wallet,
     subjects, courses, videoCourses, sessions, bookings, notifications, profile,
+    advertisements,
   ];
 }

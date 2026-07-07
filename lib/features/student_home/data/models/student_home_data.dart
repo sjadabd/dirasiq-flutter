@@ -289,8 +289,52 @@ class NewsItem {
     return NewsItem(
       id: _str(m, ['id', '_id']),
       title: _str(m, ['title', 'headline', 'name']),
-      imageUrl: resolveAssetUrl(_firstOf<Object>(m, ['image', 'imageUrl', 'image_url', 'cover', 'thumbnail'])),
+      imageUrl: resolveAssetUrl(_firstOf<Object>(m, ['image', 'imageUrl', 'image_url', 'cover', 'thumbnail', 'coverImageUrl', 'cover_image_url'])),
       createdAt: _date(_firstOf<Object>(m, ['createdAt', 'created_at', 'publishedAt', 'published_at', 'date'])),
+    );
+  }
+}
+
+/// Unified news + advertisement card for the student home feed.
+class ContentFeedItem {
+  const ContentFeedItem({
+    required this.id,
+    required this.itemType,
+    required this.title,
+    required this.imageUrl,
+    this.publisherName,
+    required this.badge,
+    this.publishedAt,
+    this.governorate,
+  });
+
+  final String id;
+  final String itemType;
+  final String title;
+  final String imageUrl;
+  final String? publisherName;
+  final String badge;
+  final DateTime? publishedAt;
+  final String? governorate;
+
+  bool get isAd => itemType == 'advertisement' || badge == 'ad';
+  bool get isNews => !isAd;
+  String get badgeLabel => isAd ? 'إعلان' : 'خبر';
+
+  factory ContentFeedItem.fromJson(Map<String, dynamic> m) {
+    final itemType = _str(m, ['itemType', 'item_type']);
+    final badge = _str(m, ['badge']);
+    return ContentFeedItem(
+      id: _str(m, ['id', '_id']),
+      itemType: itemType.isEmpty ? (badge == 'ad' ? 'advertisement' : 'news') : itemType,
+      title: _str(m, ['title', 'headline', 'name']),
+      imageUrl: resolveAssetUrl(_firstOf<Object>(m, [
+        'coverImageUrl', 'cover_image_url', 'image', 'imageUrl', 'image_url', 'cover', 'thumbnail',
+      ])),
+      publisherName: _firstOf<Object>(m, ['publisherName', 'publisher_name'])?.toString(),
+      badge: badge.isEmpty ? (itemType == 'advertisement' ? 'ad' : 'news') : badge,
+      publishedAt: _date(_firstOf<Object>(m, ['publishedAt', 'published_at', 'createdAt', 'created_at', 'date'])),
+      governorate: _firstOf<Object>(m, ['governorate', 'teacherGovernorate', 'teacher_governorate'])?.toString(),
     );
   }
 }
@@ -360,7 +404,7 @@ class StudentHomeData {
     this.weeklySchedule = const [],
     this.myTeachers = const [],
     this.myVideoCourses = const [],
-    this.news = const [],
+    this.contentFeed = const [],
     this.recommendedTeachers = const [],
     this.recommendedCourses = const [],
     this.recommendedVideoCourses = const [],
@@ -374,7 +418,7 @@ class StudentHomeData {
   final List<WeeklyScheduleDay> weeklySchedule;
   final List<MyTeacher> myTeachers;
   final List<VideoCourseItem> myVideoCourses;
-  final List<NewsItem> news;
+  final List<ContentFeedItem> contentFeed;
   final List<RecommendedTeacher> recommendedTeachers;
   final List<RecommendedCourse> recommendedCourses;
   final List<VideoCourseItem> recommendedVideoCourses;

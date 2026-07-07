@@ -515,6 +515,42 @@ class ApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchContentFeed({int page = 1, int limit = 8}) async {
+    try {
+      final response = await _dio.get(
+        '/student/content-feed',
+        queryParameters: {'page': page, 'limit': limit},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final raw = response.data['data'];
+        final List list = raw is List
+            ? raw
+            : (raw is Map && raw['data'] is List ? raw['data'] as List : const []);
+        return List<Map<String, dynamic>>.from(
+          list.whereType<Map>().map((m) => Map<String, dynamic>.from(m)),
+        );
+      }
+      throw Exception(response.data['message'] ?? 'فشل تحميل الأخبار والإعلانات');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data?['message'] ?? e.message ?? 'فشل تحميل الأخبار والإعلانات');
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchContentFeedNewsDetail(String id) async {
+    final res = await _dio.get('/student/content-feed/news/$id');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchAdvertisementDetail(String id) async {
+    final res = await _dio.get('/student/advertisements/$id');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> recordAdvertisementView(String id) async {
+    final res = await _dio.post('/student/advertisements/$id/record-view');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
   /// ✅ جلب آخر الأخبار (ثابت: newsType = mobile)
   Future<List<Map<String, dynamic>>> fetchLatestNews({
     int page = 1,

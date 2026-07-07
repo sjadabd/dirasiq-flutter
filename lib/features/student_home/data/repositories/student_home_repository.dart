@@ -62,7 +62,7 @@ class StudentHomeRepository {
       _call(_service.weeklySchedule()),    // 2 — CRITICAL: weekly schedule
       _call(_service.enrollments()),       // 3 — CRITICAL: my teachers
       _call(_service.myVideoLibrary()),    // 4 — CRITICAL: my video courses
-      _call(_service.latestNews()),        // 5
+      _call(_service.contentFeed()),        // 5
       _call(_service.suggestedTeachers()), // 6
       _call(_service.suggestedCourses()),  // 7
       _call(_service.videoMarketplace()),  // 8
@@ -73,7 +73,7 @@ class StudentHomeRepository {
     final schedule = _asMap(_unwrapData(outcomes[2].value));
     final enrollments = outcomes[3].value;
     final videoLib = outcomes[4].value;
-    final news = outcomes[5].value;
+    final feed = outcomes[5].value;
     final sgTeachers = outcomes[6].value;
     final sgCourses = outcomes[7].value;
     final marketplace = outcomes[8].value;
@@ -104,7 +104,7 @@ class StudentHomeRepository {
       weeklySchedule: _parseSchedule(schedule),
       myTeachers: myTeachers,
       myVideoCourses: _parseVideoList(videoLib, ['items', 'courses', 'library', 'videoCourses']),
-      news: _parseNews(news),
+      contentFeed: _parseContentFeed(feed),
       recommendedTeachers: recommendedTeachers,
       recommendedCourses: _parseRecommendedCourses(sgCourses),
       recommendedVideoCourses: _parseMarketplaceRecommended(marketplace),
@@ -205,10 +205,10 @@ class StudentHomeRepository {
     return const [];
   }
 
-  List<NewsItem> _parseNews(Object? raw) {
-    if (raw is List) return _listOf(raw).map(NewsItem.fromJson).toList();
+  List<ContentFeedItem> _parseContentFeed(Object? raw) {
+    if (raw is List) return _listOf(raw).map(ContentFeedItem.fromJson).toList();
     final data = _unwrapData(raw);
-    return _listOf(data).map(NewsItem.fromJson).toList();
+    return _listOf(data).map(ContentFeedItem.fromJson).toList();
   }
 
   List<RecommendedTeacher> _parseRecommendedTeachers(Object? raw) {

@@ -793,6 +793,48 @@ class TeacherApiService {
     return _extractList(res.data, const ['grades', 'items', 'data']);
   }
 
+  // ===========================================================================
+  // Teacher advertisements
+  // ===========================================================================
+
+  Future<Map<String, dynamic>> fetchAdvertisements({int page = 1, int limit = 20, String? status}) async {
+    final res = await _dio.get('/teacher/advertisements', queryParameters: {
+      'page': page,
+      'limit': limit,
+      if (status != null && status.isNotEmpty) 'status': status,
+    });
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchAdvertisementStatistics() async {
+    final res = await _dio.get('/teacher/advertisements/statistics');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> fetchAdvertisementById(String id) async {
+    final res = await _dio.get('/teacher/advertisements/$id');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> createAdvertisement(Map<String, dynamic> body) async {
+    final res = await _dio.post('/teacher/advertisements', data: body);
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> updateAdvertisement(String id, Map<String, dynamic> body) async {
+    final res = await _dio.patch('/teacher/advertisements/$id', data: body);
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
+  Future<void> deleteAdvertisement(String id) async {
+    await _dio.delete('/teacher/advertisements/$id');
+  }
+
+  Future<Map<String, dynamic>> submitAdvertisement(String id) async {
+    final res = await _dio.post('/teacher/advertisements/$id/submit');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
   /// Defensive list-extractor for backend responses that don't share a single
   /// envelope. Tries:
   ///   1. `value` is a List directly.

@@ -72,11 +72,11 @@ class _NewsCarouselState extends State<NewsCarousel>
   Future<void> _fetchLatestNews() async {
     try {
       final api = ApiService(); // ✅ استدعاء الخدمة
-      final newsList = await api.fetchLatestNews(page: 1, limit: 5);
+      final feedList = await api.fetchContentFeed(page: 1, limit: 5);
 
       if (mounted) {
         setState(() {
-          _newsList = newsList;
+          _newsList = feedList;
           _isLoading = false;
         });
 

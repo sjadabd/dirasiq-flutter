@@ -173,6 +173,10 @@ class _Content extends StatelessWidget {
     }
   }
 
+  void _openContentFeedItem(ContentFeedItem item) {
+    Get.toNamed('/content-detail', arguments: item);
+  }
+
   int get _activeCourses => data.myTeachers.fold<int>(0, (sum, t) => sum + t.courses.length);
 
   @override
@@ -247,6 +251,9 @@ class _Content extends StatelessWidget {
     final exam = data.upcomingExam;
 
     return [
+      if (data.contentFeed.isNotEmpty)
+        NewsSection(items: data.contentFeed, onOpen: _openContentFeedItem),
+
       // Upcoming lecture + exam (only the ones present).
       if (lecture != null || exam != null)
         _titled(
@@ -295,8 +302,6 @@ class _Content extends StatelessWidget {
           onAction: () => Get.toNamed('/student/video-courses'),
         ),
 
-      if (data.news.isNotEmpty) NewsSection(items: data.news, onOpen: (_) {}),
-
       if (data.recommendedTeachers.isNotEmpty)
         RecommendedTeachersSection(
           teachers: data.recommendedTeachers,
@@ -325,10 +330,11 @@ class _Content extends StatelessWidget {
   /// Discovery-focused layout for brand-new students.
   List<Widget> _newStudentSections(BuildContext context) {
     return [
+      if (data.contentFeed.isNotEmpty)
+        NewsSection(items: data.contentFeed, onOpen: _openContentFeedItem),
+
       StartLearningCard(onExplore: () => Get.toNamed('/suggested-courses')),
       ExploreSearchBar(onTap: () => Get.toNamed('/suggested-courses')),
-
-      if (data.news.isNotEmpty) NewsSection(items: data.news, onOpen: (_) {}),
 
       if (data.recommendedTeachers.isNotEmpty)
         RecommendedTeachersSection(

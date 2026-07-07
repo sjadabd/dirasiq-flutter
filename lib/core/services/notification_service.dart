@@ -123,7 +123,12 @@ class NotificationService {
     final route = data["route"]?.toString();
 
     if (route != null && route.isNotEmpty) {
-      Get.toNamed(route, arguments: data);
+      final adId = data["advertisementId"]?.toString();
+      if (adId != null && adId.isNotEmpty) {
+        Get.toNamed(route, arguments: {"advertisementId": adId});
+      } else {
+        Get.toNamed(route, arguments: data);
+      }
       return;
     }
 

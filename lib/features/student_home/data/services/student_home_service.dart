@@ -67,7 +67,7 @@ class StudentHomeService {
 
   Future<Map<String, dynamic>> myVideoLibrary() => _api.fetchMyVideoLibrary();
 
-  Future<List<Map<String, dynamic>>> latestNews() => _api.fetchLatestNews(limit: 8);
+  Future<List<Map<String, dynamic>>> contentFeed() => _api.fetchContentFeed(limit: 8);
 
   Future<Map<String, dynamic>> suggestedTeachers() => _api.fetchSuggestedTeachers();
 
