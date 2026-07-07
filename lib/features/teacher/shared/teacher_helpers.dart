@@ -11,6 +11,19 @@ String fmtNum(dynamic n) {
 
 String fmtIQD(dynamic n) => '${fmtNum(n)} د.ع';
 
+/// Actual ad spend from unique student clicks × CPC (not budget_total − remaining).
+num adClickSpend(Map<String, dynamic> ad) {
+  num n(dynamic v) {
+    if (v is num) return v;
+    if (v is String) return num.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  final clicks = n(ad['uniqueClicks'] ?? ad['unique_clicks']);
+  final cpc = n(ad['costPerClick'] ?? ad['cost_per_click']);
+  return clicks * cpc;
+}
+
 // Amounts always render with thousands separators and no decimals — no K/M
 // abbreviation (kept as a named alias so existing call sites don't change).
 String fmtIQDShort(dynamic n) => fmtNum(n);

@@ -6,7 +6,7 @@ import '../../../core/services/teacher_api_service.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
-import '../shared/teacher_helpers.dart' show fmtIQD;
+import '../shared/teacher_helpers.dart' show fmtIQD, adClickSpend;
 import 'teacher_ad_detail_screen.dart';
 import 'teacher_ad_form_screen.dart';
 
@@ -126,7 +126,7 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
                           child: ListTile(
                             title: Text((ad['title'] ?? '').toString()),
                             subtitle: Text(
-                              '${_label(status)} • ${fmtIQD(ad['budgetTotal'] ?? ad['budget_total'])} د.ع',
+                              '${_label(status)} • مصروف ${fmtIQD(adClickSpend(ad))}',
                             ),
                             trailing: Wrap(
                               spacing: 4,

@@ -6,7 +6,7 @@ import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
-import '../shared/teacher_helpers.dart' show fmtIQD;
+import '../shared/teacher_helpers.dart' show fmtIQD, adClickSpend;
 import 'teacher_ad_form_screen.dart';
 
 class TeacherAdDetailScreen extends StatefulWidget {
@@ -104,7 +104,8 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
                   const SizedBox(height: 16),
                   _row('الحالة', status),
                   _row('الميزانية', '${fmtIQD(_ad['budgetTotal'] ?? _ad['budget_total'])} د.ع'),
-                  _row('المتبقي', '${fmtIQD(_ad['budgetRemaining'] ?? _ad['budget_remaining'])} د.ع'),
+                  _row('المصروف على النقرات', '${fmtIQD(adClickSpend(_ad))} د.ع'),
+                  _row('المتبقي المحجوز', '${fmtIQD(_ad['budgetRemaining'] ?? _ad['budget_remaining'])} د.ع'),
                   _row('سعر النقرة', '${fmtIQD(_ad['costPerClick'] ?? _ad['cost_per_click'])} د.ع'),
                   _row('النقرات الفريدة', (_ad['uniqueClicks'] ?? _ad['unique_clicks'] ?? 0).toString()),
                   if (status == 'draft') ...[

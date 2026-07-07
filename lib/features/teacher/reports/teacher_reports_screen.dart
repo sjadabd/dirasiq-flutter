@@ -5,7 +5,7 @@ import '../../../core/services/teacher_api_service.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
-import '../shared/teacher_helpers.dart' show fmtIQD, fmtIQDShort;
+import '../shared/teacher_helpers.dart' show fmtIQD, fmtIQDShort, adClickSpend;
 
 /// Teacher → "التقارير المالية" (Teacher Design System pass).
 ///
@@ -551,9 +551,8 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
       tone: TeacherTone.info,
       child: Column(
         children: _adItems.map((ad) {
-          final total = _n(ad['budgetTotal'] ?? ad['budget_total']);
+          final spent = adClickSpend(ad);
           final rem = _n(ad['budgetRemaining'] ?? ad['budget_remaining']);
-          final deducted = total - rem;
           final title = (ad['title'] ?? 'إعلان').toString();
           final status = statusLabel((ad['status'] ?? '').toString());
           return Container(
@@ -573,11 +572,11 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text('مستقطع: ${fmtIQD(deducted)}',
+                      child: Text('مصروف النقرات: ${fmtIQD(spent)}',
                           style: context.text.labelSmall),
                     ),
                     Expanded(
-                      child: Text('متبقي: ${fmtIQD(rem)}',
+                      child: Text('محجوز: ${fmtIQD(rem)}',
                           style: context.text.labelSmall),
                     ),
                   ],
