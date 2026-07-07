@@ -1,7 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../../../core/config/app_config.dart';
 import '../shared/design/teacher_design.dart';
+import '../shared/teacher_routes.dart';
+import '../shared/teacher_workspace.dart';
+import 'teacher_ad_detail_screen.dart';
+
+/// Increment to request a reload on [TeacherAdsListScreen] (still mounted in workspace).
+final teacherAdsListRefreshTick = ValueNotifier<int>(0);
+
+void requestTeacherAdsListRefresh() {
+  teacherAdsListRefreshTick.value++;
+}
+
+/// After submit/republish: switch to الإعلانات tab, refresh list, pop form/detail overlays.
+void completeTeacherAdSubmitFlow(BuildContext context) {
+  TeacherWorkspace.jumpTo(context, TeacherWorkspaceState.advertisementsIdx);
+  requestTeacherAdsListRefresh();
+  Get.until((route) {
+    final name = route.settings.name;
+    return name != null && TeacherRoutes.all.contains(name);
+  });
+}
+
+bool isAdvertisementNotification(String? type, String? routeOrPath) {
+  final t = type?.toLowerCase() ?? '';
+  if (t.startsWith('advertisement_')) return true;
+  final p = routeOrPath?.split('?').first.trim();
+  if (p == null || p.isEmpty) return false;
+  return p == '/teacher/advertisements' || p.startsWith('/teacher/advertisements/');
+}
+
+/// In-app notification tap → الإعلانات tab, optionally open ad details.
+void openTeacherAdvertisementFromNotification(
+  BuildContext context,
+  Map<String, dynamic> payload,
+  Map<String, dynamic> n,
+) {
+  final adId = (payload['advertisementId'] ??
+          payload['advertisement_id'] ??
+          n['advertisementId'] ??
+          n['advertisement_id'])
+      ?.toString()
+      .trim();
+  TeacherWorkspace.jumpTo(context, TeacherWorkspaceState.advertisementsIdx);
+  if (adId != null && adId.isNotEmpty) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Get.to(() => TeacherAdDetailScreen(adId: adId));
+    });
+  }
+}
 
 const adStatusLabels = <String, String>{
   'draft': 'مسودة',

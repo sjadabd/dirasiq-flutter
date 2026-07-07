@@ -8,6 +8,8 @@ import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
 import '../shared/teacher_helpers.dart' show fmtRelative;
 import '../shared/teacher_workspace.dart';
+import '../advertisements/teacher_ad_ui.dart';
+import '../shared/teacher_notification_routing.dart';
 
 /// Teacher → "الإشعارات" (Teacher Design System pass).
 ///
@@ -124,13 +126,36 @@ class _TeacherNotificationsScreenState
   /// takes the teacher straight to the bookings screen.
   void _openReceived(Map<String, dynamic> n) {
     _markRead(n);
-    final data = (n['data'] is Map) ? Map<String, dynamic>.from(n['data']) : const {};
-    final type = (n['type'] ?? n['notificationType'] ?? n['notification_type'] ?? data['type'])
+    final data =
+        (n['data'] is Map) ? Map<String, dynamic>.from(n['data']) : const {};
+    final type = (n['type'] ??
+            n['notificationType'] ??
+            n['notification_type'] ??
+            data['type'])
         ?.toString()
         .toLowerCase() ??
         '';
+    final route = (data['route'] ?? data['url'])?.toString();
+    final subType =
+        (data['subType'] ?? data['sub_type'] ?? n['subType'])?.toString();
     if (type.contains('booking')) {
       TeacherWorkspace.jumpTo(context, TeacherWorkspaceState.bookingsIdx);
+      return;
+    }
+    if (isAdvertisementNotification(type, route)) {
+      openTeacherAdvertisementFromNotification(
+        context,
+        Map<String, dynamic>.from(data),
+        Map<String, dynamic>.from(n),
+      );
+      return;
+    }
+    if (isVideoCourseNotification(subType, route)) {
+      openTeacherVideoCourseFromNotification(
+        context,
+        courseId: (data['courseId'] ?? data['videoCourseId'])?.toString(),
+      );
+      return;
     }
   }
 

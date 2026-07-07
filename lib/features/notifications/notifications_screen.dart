@@ -18,6 +18,8 @@ import 'package:mulhimiq/features/exams/screens/student_exam_grades_screen.dart'
 import 'package:mulhimiq/features/evaluations/screens/student_evaluations_screen.dart';
 import 'package:mulhimiq/features/invoices/screens/invoice_details_screen.dart';
 import 'package:mulhimiq/features/teacher/shared/teacher_workspace.dart';
+import 'package:mulhimiq/features/teacher/advertisements/teacher_ad_ui.dart';
+import 'package:mulhimiq/features/teacher/shared/teacher_notification_routing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -308,12 +310,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
 
-    final String? link = (() {
-      final raw = (payload['link'] ?? payload['url'])?.toString();
-      if (raw == null || raw.isEmpty) return null;
-      if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-      return _resolveUrl(raw);
-    })();
+    final String? link = _externalLinkFromPayload(payload);
 
     final studyYear =
         (payload['studyYear'] ??
@@ -629,7 +626,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       MqSpacing.gapSm,
                       Expanded(
                         child: MqButton(
-                          label: 'التفاصيل',
+                          label: 'عرض التفاصيل',
                           onPressed: () {
                             Navigator.of(context).pop();
                             _openNotificationTarget(n);
@@ -822,7 +819,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     // Withdrawal (payout) routing → the teacher wallet, which hosts the
     // "السحوبات" section. Fires on approve / reject / paid notifications.
-    final route = (payload['route'] ?? n['route'])?.toString();
+    final route = _inAppRouteFromPayload(payload, n);
     final isWithdrawal =
         (subType?.startsWith('withdrawal') ?? false) ||
         route == '/teacher/wallet';
@@ -832,6 +829,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       } else {
         Navigator.pop(context);
       }
+      return;
+    }
+
+    // Teacher advertisement routing (budget exhausted, rejected, approved, etc.)
+    if (_isTeacher && isAdvertisementNotification(typeLower, route)) {
+      openTeacherAdvertisementFromNotification(context, payload, n);
+      return;
+    }
+
+    // Teacher video course routing (approval, lesson ready, rejection, etc.)
+    if (_isTeacher && isVideoCourseNotification(subType, route)) {
+      final videoCourseId = (payload['courseId'] ??
+              payload['videoCourseId'] ??
+              payload['video_course_id'] ??
+              n['courseId'])
+          ?.toString();
+      openTeacherVideoCourseFromNotification(context, courseId: videoCourseId);
       return;
     }
 
@@ -942,23 +956,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
-    // Course update routing
-    if (type == 'course_update') {
+    // Course update routing (live courses for students; sessions hub for teachers)
+    if (typeLower == 'course_update') {
       final courseId =
           (payload['courseId'] ??
                   payload['course_id'] ??
                   n['courseId'] ??
                   n['course_id'])
               ?.toString();
-      final hasAttendanceMarkers =
-          payload.containsKey('status') ||
-          payload.containsKey('attendanceStatus') ||
-          payload.containsKey('date') ||
-          n.containsKey('status') ||
-          n.containsKey('attendanceStatus') ||
-          n.containsKey('date');
+      if (_isTeacher) {
+        TeacherWorkspace.jumpTo(context, TeacherWorkspaceState.sessionsIdx);
+        return;
+      }
       if (courseId != null && courseId.isNotEmpty) {
-        if (hasAttendanceMarkers) {
+        if (hasAttendancePayload(payload)) {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -1050,6 +1061,72 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } else {
       return '$base/${s.replaceFirst(RegExp(r"^/+"), '')}';
     }
+  }
+
+  bool _isInAppPath(String? raw) {
+    final path = raw?.split('?').first.trim();
+    if (path == null || path.isEmpty) return false;
+    return path.startsWith('/teacher/') ||
+        path.startsWith('/student/') ||
+        path.startsWith('/admin/') ||
+        path == '/notifications';
+  }
+
+  bool _isApiInAppUrl(String url) {
+    try {
+      return _isInAppPath(Uri.parse(url).path);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String? _inAppRouteFromPayload(
+    Map<String, dynamic> payload,
+    Map<String, dynamic> n,
+  ) {
+    for (final raw in [
+      payload['route'],
+      n['route'],
+      payload['url'],
+      n['url'],
+    ]) {
+      final s = raw?.toString().trim();
+      if (s != null && s.isNotEmpty && _isInAppPath(s)) return s.split('?').first;
+    }
+    return null;
+  }
+
+  /// Only real external links (news URLs, http assets). In-app paths are excluded.
+  String? _externalLinkFromPayload(Map<String, dynamic> payload) {
+    final explicitLink = payload['link']?.toString().trim();
+    if (explicitLink != null && explicitLink.isNotEmpty) {
+      if (_isInAppPath(explicitLink)) return null;
+      if (explicitLink.startsWith('http://') || explicitLink.startsWith('https://')) {
+        return _isApiInAppUrl(explicitLink) ? null : explicitLink;
+      }
+      return _resolveUrl(explicitLink);
+    }
+
+    final rawUrl = payload['url']?.toString().trim();
+    if (rawUrl == null || rawUrl.isEmpty) return null;
+    if (_isInAppPath(rawUrl)) return null;
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      return _isApiInAppUrl(rawUrl) ? null : rawUrl;
+    }
+
+    // File/asset paths on the API host (uploads, PDFs) — not app routes.
+    final lower = rawUrl.toLowerCase();
+    if (lower.startsWith('/uploads') ||
+        lower.startsWith('/files') ||
+        lower.startsWith('/storage') ||
+        lower.contains('.pdf') ||
+        lower.contains('.png') ||
+        lower.contains('.jpg') ||
+        lower.contains('.jpeg') ||
+        lower.contains('.webp')) {
+      return _resolveUrl(rawUrl);
+    }
+    return null;
   }
 
   Future<void> _launchUrl(String url) async {
@@ -1335,6 +1412,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  bool _isVideoCourseNotif(Map<String, dynamic> n) {
+    final payload = _parsePayload(n);
+    final subType =
+        (payload['subType'] ?? payload['sub_type'] ?? n['subType'])?.toString();
+    final route = _inAppRouteFromPayload(payload, n);
+    return isVideoCourseNotification(subType, route);
+  }
+
   ({IconData icon, Color color, String label}) _typeStyle(BuildContext context, Map<String, dynamic> n) {
     final mq = context.mq;
     final t = (_canonicalType(n) ?? '').toLowerCase();
@@ -1344,7 +1429,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (has('exam') || t == 'class_reminder' || has('quiz')) return (icon: Icons.quiz_rounded, color: mq.accent, label: 'اختبار');
     if (has('message') || has('chat') || t == 'teacher_message') return (icon: Icons.forum_rounded, color: mq.accent, label: 'رسالة');
     if (has('payment') || has('invoice') || has('installment')) return (icon: Icons.payments_rounded, color: mq.orange, label: 'دفع');
-    if (has('attendance') || has('course_update') || has('session') || has('lecture')) return (icon: Icons.event_available_rounded, color: mq.accent, label: 'محاضرة');
+    if (has('attendance') || has('session') || has('lecture')) {
+      return (icon: Icons.event_available_rounded, color: mq.accent, label: 'محاضرة');
+    }
+    if (has('course_update') && _isVideoCourseNotif(n)) {
+      return (icon: Icons.video_library_outlined, color: mq.accent, label: 'دورة مرئية');
+    }
+    if (has('course_update')) {
+      return (icon: Icons.event_available_rounded, color: mq.accent, label: 'محاضرة');
+    }
     if (has('booking')) return (icon: Icons.event_note_rounded, color: mq.accent, label: 'حجز');
     if (has('system') || has('announcement') || has('news')) return (icon: Icons.campaign_rounded, color: mq.orange, label: 'إعلان');
     return (icon: Icons.notifications_rounded, color: mq.accent, label: 'إشعار');
@@ -1512,14 +1605,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (rawType == null || rawType.isEmpty) return null;
 
     final payload = _parsePayload(n);
-    final hasAttendanceMarkers =
-        payload.containsKey('status') ||
-        payload.containsKey('attendanceStatus') ||
-        payload.containsKey('date') ||
-        n.containsKey('status') ||
-        n.containsKey('attendanceStatus') ||
-        n.containsKey('date');
-    if (rawType == 'course_update' && hasAttendanceMarkers) return 'attendance';
+    if (rawType == 'course_update' && hasAttendancePayload(payload)) {
+      return 'attendance';
+    }
 
     return rawType;
   }

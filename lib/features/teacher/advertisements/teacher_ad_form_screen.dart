@@ -109,10 +109,11 @@ class _TeacherAdFormScreenState extends State<TeacherAdFormScreen> {
               ? 'تم إرسال طلب إعادة النشر للمراجعة'
               : 'تم إرسال الإعلان للمراجعة',
         );
+        if (mounted) completeTeacherAdSubmitFlow(context);
       } else {
         Get.snackbar('تم', _isEdit ? 'تم تحديث المسودة' : 'تم إنشاء المسودة');
+        Get.back(result: true);
       }
-      Get.back(result: true);
     } catch (e) {
       Get.snackbar('خطأ', e.toString().replaceFirst('Exception: ', ''));
     } finally {

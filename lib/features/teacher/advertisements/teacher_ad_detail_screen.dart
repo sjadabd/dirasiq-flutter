@@ -74,16 +74,12 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
   }
 
   Future<void> _republish() async {
-    final ok = await Get.to(() => TeacherAdFormScreen(republishMode: true, initial: _ad));
-    if (ok == true && mounted) Get.back(result: true);
+    await Get.to(() => TeacherAdFormScreen(republishMode: true, initial: _ad));
   }
 
   Future<void> _continueDraft() async {
     final ok = await Get.to(() => TeacherAdFormScreen(adId: widget.adId, initial: _ad));
-    if (ok == true) {
-      await _load();
-      if (mounted) Get.back(result: true);
-    }
+    if (ok == true && mounted) await _load();
   }
 
   @override

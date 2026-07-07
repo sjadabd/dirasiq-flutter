@@ -29,6 +29,7 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
   @override
   void initState() {
     super.initState();
+    teacherAdsListRefreshTick.addListener(_onRefreshTick);
     _unsubscribeStatusChanged = RealtimeService.instance.subscribe(
       'advertisement:status_changed',
       (_) => _fetch(),
@@ -42,8 +43,14 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
     }
   }
 
+  void _onRefreshTick() {
+    if (!mounted) return;
+    _fetch();
+  }
+
   @override
   void dispose() {
+    teacherAdsListRefreshTick.removeListener(_onRefreshTick);
     _unsubscribeStatusChanged?.call();
     super.dispose();
   }
@@ -91,8 +98,7 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
   }
 
   Future<void> _republish(Map<String, dynamic> ad) async {
-    final ok = await Get.to(() => TeacherAdFormScreen(republishMode: true, initial: ad));
-    if (ok == true) await _fetch();
+    await Get.to(() => TeacherAdFormScreen(republishMode: true, initial: ad));
   }
 
   @override
@@ -113,10 +119,7 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: () async {
-            final created = await Get.to(() => const TeacherAdFormScreen());
-            if (created == true) _fetch();
-          },
+          onPressed: () => Get.to(() => const TeacherAdFormScreen()),
           icon: const Icon(Icons.add_rounded),
           label: const Text('إعلان جديد'),
         ),
