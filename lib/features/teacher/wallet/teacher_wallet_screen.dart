@@ -33,6 +33,7 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
   bool _awaitingPayment = false;
   bool _walletTopupsEnabled = false;
   Map<String, dynamic> _wallet = const {};
+  Map<String, dynamic> _adStats = const {};
   List<Map<String, dynamic>> _withdrawals = const [];
 
   static const _minTopup = 1000;
@@ -70,6 +71,10 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
   num get _total => _n(_wallet['total'] ?? _wallet['balance']);
   num get _topup => _n(_wallet['topupBalance']);
   num get _videoAvailable => _n(_wallet['videoEarningsAvailable']);
+  Map<String, dynamic> get _adReport =>
+      (_wallet['advertisementReport'] is Map) ? Map<String, dynamic>.from(_wallet['advertisementReport']) : const {};
+  num get _adSpent => _n(_adReport['spent'] ?? _adStats['totalMoneySpent']);
+  num get _adRemainingBudget => _n(_adReport['remainingBudget'] ?? _adStats['remainingBudget']);
   Map<String, dynamic> get _videoReport =>
       (_wallet['videoReport'] is Map) ? Map<String, dynamic>.from(_wallet['videoReport']) : const {};
 
@@ -80,11 +85,13 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
     try {
       final results = await Future.wait([
         _api.fetchWallet(),
+        _api.fetchAdvertisementStatistics(),
         _api.fetchWalletWithdrawals(),
       ]);
       final wRes = results[0];
       _wallet = (wRes['data'] is Map) ? Map<String, dynamic>.from(wRes['data']) : {};
-      final dRes = results[1];
+      _adStats = Map<String, dynamic>.from(results[1] as Map);
+      final dRes = results[2];
       final list = (dRes['data'] is List)
           ? dRes['data'] as List
           : (dRes['data'] is Map && (dRes['data'] as Map)['items'] is List)
@@ -505,6 +512,8 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
                   const SizedBox(height: MqSpacing.md),
                   _bucketsRow(context),
                   const SizedBox(height: MqSpacing.md),
+                  _adsImpactCard(context),
+                  const SizedBox(height: MqSpacing.md),
                   Row(
                     children: [
                       Expanded(
@@ -682,6 +691,37 @@ class _TeacherWalletScreenState extends State<TeacherWalletScreen>
                 style: context.text.titleMedium
                     ?.copyWith(fontWeight: FontWeight.w800)),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adsImpactCard(BuildContext context) {
+    final mq = context.mq;
+    return Container(
+      padding: const EdgeInsets.all(MqSpacing.lg),
+      decoration: BoxDecoration(
+        color: mq.card,
+        borderRadius: MqRadius.brLg,
+        border: Border.all(color: mq.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.campaign_outlined, size: MqSize.iconSm, color: mq.accent),
+              const SizedBox(width: MqSpacing.sm),
+              Text('ملخص الإعلانات', style: context.text.titleSmall),
+            ],
+          ),
+          const SizedBox(height: MqSpacing.md),
+          _reportRow(context, 'المبلغ المستقطع للنقرات', _adSpent,
+              color: mq.error, strong: true),
+          _reportRow(context, 'ميزانية الإعلانات المتبقية', _adRemainingBudget),
+          const Divider(height: MqSpacing.lg),
+          _reportRow(context, 'صافي المبلغ المتبقي في المحفظة', _n(_adReport['netWalletAvailable'] ?? _total),
+              color: mq.accent, strong: true),
         ],
       ),
     );
