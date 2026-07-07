@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_helpers.dart' show fmtIQD, adClickSpend;
 import 'teacher_ad_form_screen.dart';
+import 'teacher_ad_ui.dart';
 
 class TeacherAdDetailScreen extends StatefulWidget {
   const TeacherAdDetailScreen({super.key, required this.adId});
@@ -48,47 +48,55 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
     setState(() => _loading = true);
     try {
       _ad = await _api.fetchAdvertisementById(widget.adId);
-    } catch (e) {
+    } catch (_) {
       Get.snackbar('خطأ', 'تعذّر تحميل الإعلان');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _imgUrl(Object? path) {
-    final p = path?.toString().trim() ?? '';
-    if (p.isEmpty) return '';
-    if (p.startsWith('http')) return p;
-    final base = AppConfig.serverBaseUrl.replaceAll(RegExp(r'/$'), '');
-    return p.startsWith('/') ? '$base$p' : '$base/$p';
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
   }
 
-  bool get _canEdit {
-    final s = (_ad['status'] ?? '').toString();
-    return s == 'draft' || s == 'pending_review';
+  Future<void> _stop() async {
+    if (!await confirmStopAdvertisement(context)) return;
+    try {
+      await _api.cancelAdvertisement(widget.adId);
+      _toast('تم إيقاف الإعلان');
+      if (mounted) Get.back(result: true);
+    } catch (e) {
+      _toast(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<void> _republish() async {
+    final ok = await Get.to(() => TeacherAdFormScreen(republishMode: true, initial: _ad));
+    if (ok == true && mounted) Get.back(result: true);
+  }
+
+  Future<void> _continueDraft() async {
+    final ok = await Get.to(() => TeacherAdFormScreen(adId: widget.adId, initial: _ad));
+    if (ok == true) {
+      await _load();
+      if (mounted) Get.back(result: true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final mq = context.mq;
     final status = (_ad['status'] ?? '').toString();
-    final cover = _imgUrl(_ad['coverImageUrl'] ?? _ad['cover_image_url']);
+    final cover = adCoverUrl(_ad['coverImageUrl'] ?? _ad['cover_image_url']);
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: TeacherAppBar(
-          title: (_ad['title'] ?? 'تفاصيل الإعلان').toString(),
-          actions: [
-            if (_canEdit)
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () async {
-                  final ok = await Get.to(() => TeacherAdFormScreen(adId: widget.adId, initial: _ad));
-                  if (ok == true) _load();
-                },
-              ),
-          ],
-        ),
+        backgroundColor: mq.page,
+        appBar: TeacherAppBar(title: (_ad['title'] ?? 'تفاصيل الإعلان').toString()),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
@@ -96,60 +104,103 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
                 children: [
                   if (cover.isNotEmpty)
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(cover, height: 180, width: double.infinity, fit: BoxFit.cover),
+                      borderRadius: MqRadius.brLg,
+                      child: Image.network(
+                        cover,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  const SizedBox(height: 16),
-                  Text((_ad['description'] ?? '').toString()),
-                  const SizedBox(height: 16),
-                  _row('الحالة', status),
-                  _row('الميزانية', '${fmtIQD(_ad['budgetTotal'] ?? _ad['budget_total'])} د.ع'),
-                  _row('المصروف على النقرات', '${fmtIQD(adClickSpend(_ad))} د.ع'),
-                  _row('المتبقي المحجوز', '${fmtIQD(_ad['budgetRemaining'] ?? _ad['budget_remaining'])} د.ع'),
-                  _row('سعر النقرة', '${fmtIQD(_ad['costPerClick'] ?? _ad['cost_per_click'])} د.ع'),
-                  _row('النقرات الفريدة', (_ad['uniqueClicks'] ?? _ad['unique_clicks'] ?? 0).toString()),
-                  if (status == 'draft') ...[
-                    const SizedBox(height: 24),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        try {
-                          await _api.deleteAdvertisement(widget.adId);
-                          if (mounted) Get.back(result: true);
-                        } catch (e) {
-                          Get.snackbar('خطأ', e.toString().replaceFirst('Exception: ', ''));
-                        }
-                      },
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('حذف المسودة'),
+                  const SizedBox(height: MqSpacing.md),
+                  Row(
+                    children: [
+                      TeacherStatusPill(
+                        label: adStatusLabel(status),
+                        tone: adStatusTone(status),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: MqSpacing.md),
+                  Text(
+                    (_ad['description'] ?? '').toString(),
+                    style: context.text.bodyMedium?.copyWith(height: 1.55),
+                  ),
+                  const SizedBox(height: MqSpacing.lg),
+                  TeacherDashboardCard(
+                    title: 'إحصائيات الإعلان',
+                    icon: Icons.insights_outlined,
+                    tone: TeacherTone.info,
+                    child: Column(
+                      children: [
+                        _row(context, 'الميزانية', fmtIQD(_ad['budgetTotal'] ?? _ad['budget_total'])),
+                        _row(context, 'مصروف النقرات', fmtIQD(adClickSpend(_ad))),
+                        _row(context, 'المتبقي المحجوز',
+                            fmtIQD(_ad['budgetRemaining'] ?? _ad['budget_remaining'])),
+                        _row(context, 'سعر النقرة',
+                            fmtIQD(_ad['costPerClick'] ?? _ad['cost_per_click'])),
+                        _row(context, 'النقرات الفريدة',
+                            (_ad['uniqueClicks'] ?? _ad['unique_clicks'] ?? 0).toString()),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    FilledButton(
-                      onPressed: () async {
-                        try {
-                          await _api.submitAdvertisement(widget.adId);
-                          Get.snackbar('تم', 'تم الإرسال للمراجعة');
-                          if (mounted) Get.back(result: true);
-                        } catch (e) {
-                          Get.snackbar('خطأ', e.toString());
-                        }
-                      },
-                      child: const Text('إرسال للمراجعة'),
+                  ),
+                  const SizedBox(height: MqSpacing.lg),
+                  if (canContinueDraft(status)) ...[
+                    MqButton(
+                      label: 'متابعة التحرير والإرسال',
+                      icon: Icons.edit_note_rounded,
+                      onPressed: _continueDraft,
+                    ),
+                    if (status == 'draft') ...[
+                      const SizedBox(height: MqSpacing.sm),
+                      MqButton.secondary(
+                        label: 'حذف المسودة',
+                        icon: Icons.delete_outline,
+                        onPressed: () async {
+                          try {
+                            await _api.deleteAdvertisement(widget.adId);
+                            if (mounted) Get.back(result: true);
+                          } catch (e) {
+                            _toast(e.toString().replaceFirst('Exception: ', ''));
+                          }
+                        },
+                      ),
+                    ],
+                  ],
+                  if (canStopAd(status)) ...[
+                    MqButton.secondary(
+                      label: 'إيقاف الإعلان',
+                      icon: Icons.pause_circle_outline,
+                      onPressed: _stop,
                     ),
                   ],
-                  if (status == 'approved' || status == 'running') ...[
-                    const SizedBox(height: 24),
-                    FilledButton.tonalIcon(
-                      onPressed: () async {
-                        try {
-                          await _api.cancelAdvertisement(widget.adId);
-                          Get.snackbar('تم', 'تم إيقاف الإعلان');
-                          if (mounted) Get.back(result: true);
-                        } catch (e) {
-                          Get.snackbar('خطأ', e.toString().replaceFirst('Exception: ', ''));
-                        }
-                      },
-                      icon: const Icon(Icons.pause_circle_outline),
-                      label: const Text('إيقاف الإعلان'),
+                  if (canRepublishAd(status)) ...[
+                    MqButton(
+                      label: 'إعادة نشر الإعلان',
+                      icon: Icons.replay_rounded,
+                      onPressed: _republish,
+                    ),
+                    const SizedBox(height: MqSpacing.sm),
+                    Text(
+                      'يمكنك تعديل البيانات والصورة وتحديد ميزانية جديدة. '
+                      'سيُرسل الطلب للسوبر أدمن للموافقة.',
+                      textAlign: TextAlign.center,
+                      style: context.text.labelSmall?.copyWith(color: mq.ink3, height: 1.5),
+                    ),
+                  ],
+                  if (status == 'rejected') ...[
+                    const SizedBox(height: MqSpacing.md),
+                    Container(
+                      padding: const EdgeInsets.all(MqSpacing.md),
+                      decoration: BoxDecoration(
+                        color: context.teacher.dangerSoft,
+                        borderRadius: MqRadius.brMd,
+                        border: Border.all(color: context.teacher.dangerLine),
+                      ),
+                      child: Text(
+                        'سبب الرفض: ${(_ad['rejectionReason'] ?? _ad['rejection_reason'] ?? '—')}',
+                        style: context.text.bodySmall?.copyWith(color: mq.error),
+                      ),
                     ),
                   ],
                 ],
@@ -158,13 +209,16 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
     );
   }
 
-  Widget _row(String label, String value) {
+  Widget _row(BuildContext context, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
-          Expanded(child: Text(value)),
+          Expanded(
+            child: Text(label, style: context.text.bodySmall?.copyWith(color: context.mq.ink2)),
+          ),
+          Text(value,
+              style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
         ],
       ),
     );
