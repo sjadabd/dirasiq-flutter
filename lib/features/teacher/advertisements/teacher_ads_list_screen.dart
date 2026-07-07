@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
@@ -32,10 +33,15 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
   bool _loading = false;
   List<Map<String, dynamic>> _items = [];
   Map<String, dynamic> _stats = {};
+  void Function()? _unsubscribeStatusChanged;
 
   @override
   void initState() {
     super.initState();
+    _unsubscribeStatusChanged = RealtimeService.instance.subscribe(
+      'advertisement:status_changed',
+      (_) => _fetch(),
+    );
     _fetch();
     final args = Get.arguments;
     if (args is Map && args['advertisementId'] != null) {
@@ -43,6 +49,12 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
         Get.to(() => TeacherAdDetailScreen(adId: args['advertisementId'].toString()));
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _unsubscribeStatusChanged?.call();
+    super.dispose();
   }
 
   Future<void> _fetch() async {
@@ -107,6 +119,8 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
                       ..._items.map((ad) {
                         final id = (ad['id'] ?? '').toString();
                         final status = (ad['status'] ?? '').toString();
+                        final canDelete = status == 'draft';
+                        final canCancel = status == 'approved' || status == 'running';
                         return Card(
                           margin: const EdgeInsets.only(bottom: MqSpacing.md),
                           child: ListTile(
@@ -114,10 +128,33 @@ class _TeacherAdsListScreenState extends State<TeacherAdsListScreen> {
                             subtitle: Text(
                               '${_label(status)} • ${fmtIQD(ad['budgetTotal'] ?? ad['budget_total'])} د.ع',
                             ),
-                            trailing: const Icon(Icons.chevron_left),
+                            trailing: Wrap(
+                              spacing: 4,
+                              children: [
+                                if (canDelete)
+                                  IconButton(
+                                    tooltip: 'حذف المسودة',
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () async {
+                                      await _api.deleteAdvertisement(id);
+                                      await _fetch();
+                                    },
+                                  ),
+                                if (canCancel)
+                                  IconButton(
+                                    tooltip: 'إيقاف الإعلان',
+                                    icon: const Icon(Icons.pause_circle_outline),
+                                    onPressed: () async {
+                                      await _api.cancelAdvertisement(id);
+                                      await _fetch();
+                                    },
+                                  ),
+                                const Icon(Icons.chevron_left),
+                              ],
+                            ),
                             onTap: () async {
-                              await Get.to(() => TeacherAdDetailScreen(adId: id));
-                              _fetch();
+                              final changed = await Get.to(() => TeacherAdDetailScreen(adId: id));
+                              if (changed == true) await _fetch();
                             },
                           ),
                         );
@@ -136,9 +173,9 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final running = stats['runningCount'] ?? stats['running_count'] ?? 0;
-    final clicks = stats['totalUniqueClicks'] ?? stats['total_unique_clicks'] ?? 0;
-    final spent = stats['totalSpent'] ?? stats['total_spent'] ?? 0;
+    final running = stats['runningAdvertisements'] ?? stats['running_advertisements'] ?? 0;
+    final clicks = stats['uniqueStudentClicks'] ?? stats['unique_student_clicks'] ?? 0;
+    final spent = stats['totalMoneySpent'] ?? stats['total_money_spent'] ?? 0;
     return Row(
       children: [
         Expanded(child: _pill('نشطة', running.toString())),

@@ -128,7 +128,7 @@ class _TeacherAdFormScreenState extends State<TeacherAdFormScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _visibility,
+                initialValue: _visibility,
                 decoration: const InputDecoration(labelText: 'الظهور'),
                 items: const [
                   DropdownMenuItem(value: 'public', child: Text('عام — كل الطلاب')),

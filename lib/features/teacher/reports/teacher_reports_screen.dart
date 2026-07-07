@@ -23,6 +23,8 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
   final _api = TeacherApiService();
   bool _loading = false;
   Map<String, dynamic> _report = const {};
+  Map<String, dynamic> _adStats = const {};
+  List<Map<String, dynamic>> _adItems = const [];
   String? _studyYear;
   List<String> _years = [];
 
@@ -53,8 +55,27 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
   Future<void> _fetch() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.fetchFinancialReport(studyYear: _studyYear);
+      final results = await Future.wait([
+        _api.fetchFinancialReport(studyYear: _studyYear),
+        _api.fetchAdvertisementStatistics(),
+        _api.fetchAdvertisements(limit: 100),
+      ]);
+      final res = results[0];
+      final adStatsRes = results[1];
+      final adListRes = results[2];
       _report = (res['data'] is Map) ? Map<String, dynamic>.from(res['data']) : {};
+      _adStats = Map<String, dynamic>.from(adStatsRes);
+      final adData = adListRes['data'];
+      if (adData is List) {
+        _adItems = adData.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      } else if (adData is Map && adData['data'] is List) {
+        _adItems = (adData['data'] as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      } else {
+        _adItems = const [];
+      }
     } catch (_) {
       Get.snackbar('خطأ', 'تعذّر جلب التقرير',
           snackPosition: SnackPosition.BOTTOM);
@@ -97,6 +118,10 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
           final netDue = _n(summary['netProfitDueBasis']); // الأرباح المتوقّعة
           final remaining =
               _n(student['totalRemaining']) + _n(reservation['totalRemaining']);
+          final adSpent = _n(_adStats['totalMoneySpent']);
+          final adRemaining = _n(_adStats['remainingBudget']);
+          final adClicks = _n(_adStats['uniqueStudentClicks']);
+          final adRunning = _n(_adStats['runningAdvertisements']);
 
           return Scaffold(
             backgroundColor: mq.page,
@@ -134,6 +159,16 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                       icon: Icons.savings_outlined,
                       tone: TeacherTone.warning,
                       data: reservation),
+                  const SizedBox(height: MqSpacing.md),
+                  _adsSummaryCard(
+                    context,
+                    adSpent: adSpent,
+                    adRemaining: adRemaining,
+                    adClicks: adClicks,
+                    adRunning: adRunning,
+                  ),
+                  const SizedBox(height: MqSpacing.md),
+                  _adsBreakdownTable(context),
                 ],
               ),
             ),
@@ -425,6 +460,132 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
             mono: true,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _adsSummaryCard(
+    BuildContext context, {
+    required num adSpent,
+    required num adRemaining,
+    required num adClicks,
+    required num adRunning,
+  }) {
+    final t = context.teacher;
+    return TeacherDashboardCard(
+      title: 'تقارير الإعلانات',
+      icon: Icons.campaign_outlined,
+      tone: TeacherTone.warning,
+      child: Column(
+        children: [
+          TeacherDataRow(
+            label: 'استقطاعات الإعلانات',
+            value: fmtIQD(adSpent),
+            icon: Icons.remove_circle_outline,
+            iconTone: TeacherTone.danger,
+            valueColor: t.danger,
+            mono: true,
+          ),
+          TeacherDataRow(
+            label: 'صافي المبلغ المتبقي',
+            value: fmtIQD(adRemaining),
+            icon: Icons.account_balance_wallet_outlined,
+            iconTone: TeacherTone.success,
+            valueColor: t.success,
+            mono: true,
+          ),
+          TeacherDataRow(
+            label: 'النقرات الفريدة',
+            value: adClicks.toStringAsFixed(0),
+            icon: Icons.touch_app_outlined,
+            iconTone: TeacherTone.info,
+          ),
+          TeacherDataRow(
+            label: 'إعلانات نشطة',
+            value: adRunning.toStringAsFixed(0),
+            icon: Icons.play_circle_outline,
+            iconTone: TeacherTone.warning,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adsBreakdownTable(BuildContext context) {
+    if (_adItems.isEmpty) {
+      return TeacherDashboardCard(
+        title: 'تفاصيل الإعلانات',
+        icon: Icons.table_rows_outlined,
+        tone: TeacherTone.info,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: MqSpacing.md),
+          child: Text('لا توجد إعلانات لعرض تفاصيلها'),
+        ),
+      );
+    }
+
+    String statusLabel(String status) {
+      switch (status) {
+        case 'draft':
+          return 'مسودة';
+        case 'pending_review':
+          return 'قيد المراجعة';
+        case 'approved':
+          return 'موافق عليه';
+        case 'running':
+          return 'نشط';
+        case 'rejected':
+          return 'مرفوض';
+        case 'finished':
+          return 'منتهي';
+        case 'budget_exhausted':
+          return 'نفدت الميزانية';
+        default:
+          return status;
+      }
+    }
+
+    return TeacherDashboardCard(
+      title: 'تفاصيل الإعلانات',
+      icon: Icons.table_rows_outlined,
+      tone: TeacherTone.info,
+      child: Column(
+        children: _adItems.map((ad) {
+          final total = _n(ad['budgetTotal'] ?? ad['budget_total']);
+          final rem = _n(ad['budgetRemaining'] ?? ad['budget_remaining']);
+          final deducted = total - rem;
+          final title = (ad['title'] ?? 'إعلان').toString();
+          final status = statusLabel((ad['status'] ?? '').toString());
+          return Container(
+            margin: const EdgeInsets.only(bottom: MqSpacing.sm),
+            padding: const EdgeInsets.all(MqSpacing.sm),
+            decoration: BoxDecoration(
+              border: Border.all(color: context.mq.line),
+              borderRadius: MqRadius.brMd,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: context.text.titleSmall),
+                const SizedBox(height: 4),
+                Text('الحالة: $status', style: context.text.labelSmall),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('مستقطع: ${fmtIQD(deducted)}',
+                          style: context.text.labelSmall),
+                    ),
+                    Expanded(
+                      child: Text('متبقي: ${fmtIQD(rem)}',
+                          style: context.text.labelSmall),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }

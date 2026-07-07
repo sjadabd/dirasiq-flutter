@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/services/realtime_service.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
@@ -21,11 +22,26 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
   final _api = TeacherApiService();
   bool _loading = true;
   Map<String, dynamic> _ad = {};
+  void Function()? _unsubscribeStatusChanged;
 
   @override
   void initState() {
     super.initState();
+    _unsubscribeStatusChanged = RealtimeService.instance.subscribe(
+      'advertisement:status_changed',
+      (data) {
+        final ad = data is Map ? data['advertisement'] : null;
+        final id = ad is Map ? ad['id']?.toString() : null;
+        if (id == widget.adId) _load();
+      },
+    );
     _load();
+  }
+
+  @override
+  void dispose() {
+    _unsubscribeStatusChanged?.call();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -93,17 +109,46 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
                   _row('النقرات الفريدة', (_ad['uniqueClicks'] ?? _ad['unique_clicks'] ?? 0).toString()),
                   if (status == 'draft') ...[
                     const SizedBox(height: 24),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await _api.deleteAdvertisement(widget.adId);
+                          if (mounted) Get.back(result: true);
+                        } catch (e) {
+                          Get.snackbar('خطأ', e.toString().replaceFirst('Exception: ', ''));
+                        }
+                      },
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('حذف المسودة'),
+                    ),
+                    const SizedBox(height: 8),
                     FilledButton(
                       onPressed: () async {
                         try {
                           await _api.submitAdvertisement(widget.adId);
                           Get.snackbar('تم', 'تم الإرسال للمراجعة');
-                          _load();
+                          if (mounted) Get.back(result: true);
                         } catch (e) {
                           Get.snackbar('خطأ', e.toString());
                         }
                       },
                       child: const Text('إرسال للمراجعة'),
+                    ),
+                  ],
+                  if (status == 'approved' || status == 'running') ...[
+                    const SizedBox(height: 24),
+                    FilledButton.tonalIcon(
+                      onPressed: () async {
+                        try {
+                          await _api.cancelAdvertisement(widget.adId);
+                          Get.snackbar('تم', 'تم إيقاف الإعلان');
+                          if (mounted) Get.back(result: true);
+                        } catch (e) {
+                          Get.snackbar('خطأ', e.toString().replaceFirst('Exception: ', ''));
+                        }
+                      },
+                      icon: const Icon(Icons.pause_circle_outline),
+                      label: const Text('إيقاف الإعلان'),
                     ),
                   ],
                 ],

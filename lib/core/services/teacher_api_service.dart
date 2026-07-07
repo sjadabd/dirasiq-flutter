@@ -835,6 +835,11 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
   }
 
+  Future<Map<String, dynamic>> cancelAdvertisement(String id) async {
+    final res = await _dio.post('/teacher/advertisements/$id/cancel');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
   /// Defensive list-extractor for backend responses that don't share a single
   /// envelope. Tries:
   ///   1. `value` is a List directly.
