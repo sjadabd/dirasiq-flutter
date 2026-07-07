@@ -26,6 +26,7 @@ import 'features/courses/screens/course_details_screen.dart';
 import 'features/student/video_courses/student_video_courses_screen.dart';
 import 'features/student/video_courses/student_video_course_detail_screen.dart';
 import 'features/video_marketplace/screens/video_marketplace_screen.dart';
+import 'features/root/root_shell.dart';
 import 'features/content_feed/screens/content_detail_screen.dart';
 import 'features/teacher/advertisements/teacher_ads_list_screen.dart';
 import 'features/bookings/screens/bookings_list_screen.dart';
