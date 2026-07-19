@@ -619,41 +619,39 @@ class _CourseCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: MqSpacing.sm),
-            if (!ended) ...[
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed:
-                      updatingRegistration ? null : onToggleRegistration,
-                  icon: updatingRegistration
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(
-                          registrationOpen
-                              ? Icons.lock_outline_rounded
-                              : Icons.lock_open_rounded,
-                        ),
-                  label: Text(
-                    registrationOpen
-                        ? 'غلق باب التسجيل'
-                        : 'فتح باب التسجيل',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        registrationOpen ? t.warning : t.success,
-                    side: BorderSide(
-                      color: registrationOpen
-                          ? t.warningLine
-                          : t.successLine,
-                    ),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed:
+                    updatingRegistration ? null : onToggleRegistration,
+                icon: updatingRegistration
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        registrationOpen
+                            ? Icons.lock_outline_rounded
+                            : Icons.lock_open_rounded,
+                      ),
+                label: Text(
+                  registrationOpen
+                      ? 'غلق باب التسجيل'
+                      : 'فتح باب التسجيل',
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor:
+                      registrationOpen ? t.warning : t.success,
+                  side: BorderSide(
+                    color: registrationOpen
+                        ? t.warningLine
+                        : t.successLine,
                   ),
                 ),
               ),
-              const SizedBox(height: MqSpacing.sm),
-            ],
+            ),
+            const SizedBox(height: MqSpacing.sm),
             // quick-action chips → open management at the matching tab
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,

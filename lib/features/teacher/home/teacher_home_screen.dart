@@ -116,15 +116,19 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
     final coursesRes = results[3] as Map<String, dynamic>?;
     if (coursesRes != null) {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      courses = _dataList(coursesRes).where((c) {
-        final raw = (c['end_date'] ?? c['endDate'] ?? '').toString();
-        final end = DateTime.tryParse(raw);
-        if (end == null) return true;
-        final endDay = DateTime(end.year, end.month, end.day);
-        return !endDay.isBefore(today);
-      }).toList();
+      // Home shows the teacher's courses (not only date-active). Sort live
+      // courses first, then recently ended, and keep a short list for the card.
+      final all = _dataList(coursesRes);
+      all.sort((a, b) {
+        final aEnded = _isCourseEnded(a);
+        final bEnded = _isCourseEnded(b);
+        if (aEnded != bEnded) return aEnded ? 1 : -1;
+        final aEnd = _courseEndDay(a);
+        final bEnd = _courseEndDay(b);
+        if (aEnd != null && bEnd != null) return bEnd.compareTo(aEnd);
+        return 0;
+      });
+      courses = all.take(5).toList();
     }
 
     final newsRaw = results[4];
@@ -667,18 +671,46 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     );
   }
 
-  // ---- active courses (tap → course management) -----------------------------
+  // ---- courses (tap → course management) ------------------------------------
+
+  DateTime? _courseEndDay(Map<String, dynamic> c) {
+    final raw = (c['end_date'] ?? c['endDate'] ?? '').toString();
+    final end = DateTime.tryParse(raw);
+    if (end == null) return null;
+    return DateTime(end.year, end.month, end.day);
+  }
+
+  bool _isCourseEnded(Map<String, dynamic> c) {
+    final endDay = _courseEndDay(c);
+    if (endDay == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return endDay.isBefore(today);
+  }
 
   Widget _activeCourses(BuildContext context) {
     final n = _activeCoursesList.length;
+    final activeCount =
+        _activeCoursesList.where((c) => !_isCourseEnded(c)).length;
+    final endedCount = n - activeCount;
+    final subtitle = n == 0
+        ? null
+        : [
+            if (activeCount > 0) '$activeCount نشطة',
+            if (endedCount > 0) '$endedCount منتهية',
+          ].join(' · ');
     return TeacherDashboardCard(
-      title: 'الدورات النشطة',
-      subtitle: n > 0 ? '$n دورة' : null,
+      title: 'دوراتي',
+      subtitle: subtitle,
       icon: Icons.menu_book_outlined,
       tone: TeacherTone.success,
+      trailing: _SeeAll(
+        label: 'الكل',
+        onTap: () => _go(TeacherWorkspaceState.coursesIdx),
+      ),
       child: _activeCoursesList.isEmpty
           ? const TeacherEmptyState(
-              message: 'لا توجد دورات نشطة',
+              message: 'لا توجد دورات بعد',
               icon: Icons.menu_book_outlined,
               dense: true,
             )
@@ -705,6 +737,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     final grade = (c['grade_name'] ?? c['gradeName'] ?? '').toString();
     final year = (c['study_year'] ?? c['studyYear'] ?? '').toString();
     final meta = [grade, year].where((s) => s.isNotEmpty).join(' · ');
+    final ended = _isCourseEnded(c);
 
     final row = InkWell(
       borderRadius: MqRadius.brMd,
@@ -748,6 +781,12 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                 ],
               ),
             ),
+            TeacherStatusPill(
+              label: ended ? 'منتهية' : 'نشطة',
+              tone: ended ? TeacherTone.neutral : TeacherTone.success,
+              dense: true,
+            ),
+            const SizedBox(width: MqSpacing.xs),
             Icon(Icons.chevron_left_rounded, color: mq.ink3),
           ],
         ),
