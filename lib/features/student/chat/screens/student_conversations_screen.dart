@@ -18,6 +18,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/utils/time_format.dart';
 import '../../../teacher/chat/controllers/conversations_controller.dart';
 import '../../../teacher/chat/models/chat_models.dart';
 import '../../../teacher/chat/services/chat_socket_service.dart';
@@ -101,8 +102,12 @@ class _StudentConversationsScreenState
                     if (_ctrl.loading.value && _ctrl.conversations.isEmpty) {
                       return _Skeleton();
                     }
-                    if (_ctrl.error.value != null && _ctrl.conversations.isEmpty) {
-                      return _ErrorView(message: _ctrl.error.value!, onRetry: _ctrl.fetch);
+                    if (_ctrl.error.value != null &&
+                        _ctrl.conversations.isEmpty) {
+                      return _ErrorView(
+                        message: _ctrl.error.value!,
+                        onRetry: _ctrl.fetch,
+                      );
                     }
                     final items = _filtered(_ctrl.conversations);
                     return RefreshIndicator(
@@ -110,27 +115,40 @@ class _StudentConversationsScreenState
                       child: _ctrl.conversations.isEmpty
                           ? ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              children: const [SizedBox(height: 100), _EmptyConversations()],
+                              children: const [
+                                SizedBox(height: 100),
+                                _EmptyConversations(),
+                              ],
                             )
                           : items.isEmpty
-                              ? ListView(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  children: [
-                                    const SizedBox(height: 80),
-                                    Center(child: Text('لا نتائج للبحث', style: context.text.bodyMedium)),
-                                  ],
-                                )
-                              : ListView.separated(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  padding: const EdgeInsets.fromLTRB(
-                                      MqSpacing.lg, MqSpacing.md, MqSpacing.lg, MqSpacing.xxxl),
-                                  itemCount: items.length,
-                                  separatorBuilder: (_, _) => const SizedBox(height: MqSpacing.sm),
-                                  itemBuilder: (ctx, i) => _ConversationTile(
-                                    conversation: items[i],
-                                    onTap: () => _openConversation(items[i]),
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                const SizedBox(height: 80),
+                                Center(
+                                  child: Text(
+                                    'لا نتائج للبحث',
+                                    style: context.text.bodyMedium,
                                   ),
                                 ),
+                              ],
+                            )
+                          : ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(
+                                MqSpacing.lg,
+                                MqSpacing.md,
+                                MqSpacing.lg,
+                                MqSpacing.xxxl,
+                              ),
+                              itemCount: items.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: MqSpacing.sm),
+                              itemBuilder: (ctx, i) => _ConversationTile(
+                                conversation: items[i],
+                                onTap: () => _openConversation(items[i]),
+                              ),
+                            ),
                     );
                   }),
                 ),
@@ -149,7 +167,12 @@ class _StudentConversationsScreenState
         color: mq.page,
         border: Border(bottom: BorderSide(color: mq.line)),
       ),
-      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        MqSpacing.lg,
+        MqSpacing.sm,
+        MqSpacing.lg,
+        MqSpacing.md,
+      ),
       child: TextField(
         controller: _search,
         decoration: InputDecoration(
@@ -205,14 +228,23 @@ class _StudentConversationsScreenState
 String? resolveProfileUrl(String? path) {
   final p = path?.trim() ?? '';
   if (p.isEmpty) return null;
-  if (p.startsWith('http://') || p.startsWith('https://') || p.startsWith('data:')) return p;
+  if (p.startsWith('http://') ||
+      p.startsWith('https://') ||
+      p.startsWith('data:'))
+    return p;
   final base = AppConfig.serverBaseUrl.replaceAll(RegExp(r'/+$'), '');
   return p.startsWith('/') ? '$base$p' : '$base/$p';
 }
 
 /// Chat avatar: image when available, group icon for groups, else initials.
 class ChatAvatar extends StatelessWidget {
-  const ChatAvatar({super.key, required this.name, required this.isGroup, this.imagePath, this.size = 48});
+  const ChatAvatar({
+    super.key,
+    required this.name,
+    required this.isGroup,
+    this.imagePath,
+    this.size = 48,
+  });
   final String name;
   final bool isGroup;
   final String? imagePath;
@@ -227,8 +259,10 @@ class ChatAvatar extends StatelessWidget {
       alignment: Alignment.center,
       child: isGroup
           ? Icon(Icons.groups_rounded, color: mq.orangeDeep, size: size * 0.5)
-          : Text(name.isNotEmpty ? name.characters.first : '؟',
-              style: context.text.titleMedium?.copyWith(color: mq.accent)),
+          : Text(
+              name.isNotEmpty ? name.characters.first : '؟',
+              style: context.text.titleMedium?.copyWith(color: mq.accent),
+            ),
     );
     return ClipOval(
       child: SizedBox(
@@ -236,7 +270,11 @@ class ChatAvatar extends StatelessWidget {
         height: size,
         child: (url == null || isGroup)
             ? fallback
-            : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, _, _) => fallback),
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+              ),
       ),
     );
   }
@@ -256,7 +294,9 @@ class _ConversationTile extends StatelessWidget {
     final mq = context.mq;
     final unread = conversation.unreadCount > 0;
     final role = chatRoleBadge(conversation);
-    final timeStr = conversation.lastMessageAt != null ? _relativeTime(conversation.lastMessageAt!) : '';
+    final timeStr = conversation.lastMessageAt != null
+        ? _relativeTime(conversation.lastMessageAt!)
+        : '';
 
     return MqCard(
       onTap: onTap,
@@ -278,10 +318,12 @@ class _ConversationTile extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(conversation.displayName(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.text.titleSmall),
+                      child: Text(
+                        conversation.displayName(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.text.titleSmall,
+                      ),
                     ),
                     MqSpacing.gapXs,
                     Text(timeStr, style: context.text.labelSmall),
@@ -305,14 +347,18 @@ class _ConversationTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: context.text.bodySmall?.copyWith(
                           color: unread ? mq.ink : mq.ink2,
-                          fontWeight: unread ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: unread
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                         ),
                       ),
                     ),
                     if (unread) ...[
                       MqSpacing.gapXs,
                       MqBadge(
-                        label: conversation.unreadCount > 99 ? '99+' : '${conversation.unreadCount}',
+                        label: conversation.unreadCount > 99
+                            ? '99+'
+                            : '${conversation.unreadCount}',
                         tone: MqBadgeTone.accent,
                         solid: true,
                       ),
@@ -342,7 +388,7 @@ class _ConversationTile extends StatelessWidget {
     final diff = now.difference(t);
     if (diff.inMinutes < 1) return 'الآن';
     if (diff.inHours < 1) return '${diff.inMinutes} د';
-    if (diff.inDays < 1) return DateFormat('HH:mm').format(t);
+    if (diff.inDays < 1) return formatTime12(t);
     if (diff.inDays < 7) return DateFormat('EEE', 'ar').format(t);
     return DateFormat('dd/MM').format(t);
   }
@@ -352,24 +398,43 @@ class _Skeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mq = context.mq;
-    Widget bar(double w, double h) =>
-        Container(width: w, height: h, decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brSm));
+    Widget bar(double w, double h) => Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brSm),
+    );
     return ListView.separated(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.md, MqSpacing.lg, MqSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        MqSpacing.lg,
+        MqSpacing.md,
+        MqSpacing.lg,
+        MqSpacing.lg,
+      ),
       itemCount: 7,
       separatorBuilder: (_, _) => const SizedBox(height: MqSpacing.sm),
       itemBuilder: (_, _) => MqCard(
         padding: const EdgeInsets.all(MqSpacing.md),
         child: Row(
           children: [
-            Container(width: 48, height: 48, decoration: BoxDecoration(color: mq.fill2, shape: BoxShape.circle)),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: mq.fill2,
+                shape: BoxShape.circle,
+              ),
+            ),
             MqSpacing.gapMd,
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
-                children: [bar(150, 12), const SizedBox(height: 8), bar(210, 10)],
+                children: [
+                  bar(150, 12),
+                  const SizedBox(height: 8),
+                  bar(210, 10),
+                ],
               ),
             ),
           ],
@@ -390,14 +455,20 @@ class _EmptyConversations extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(MqSpacing.lg),
-            decoration: BoxDecoration(color: mq.accentSoft, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: mq.accentSoft,
+              shape: BoxShape.circle,
+            ),
             child: Icon(Icons.forum_outlined, size: 44, color: mq.accent),
           ),
           MqSpacing.gapMd,
           Text('لا توجد محادثات بعد', style: context.text.titleMedium),
           MqSpacing.gapXs,
-          Text('سيظهر هنا تواصلك مع معلميك والمجموعات التي تنتمي إليها.',
-              textAlign: TextAlign.center, style: context.text.bodySmall),
+          Text(
+            'سيظهر هنا تواصلك مع معلميك والمجموعات التي تنتمي إليها.',
+            textAlign: TextAlign.center,
+            style: context.text.bodySmall,
+          ),
         ],
       ),
     );
@@ -419,9 +490,18 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(Icons.wifi_off_rounded, size: 44, color: mq.error),
             MqSpacing.gapMd,
-            Text(message, textAlign: TextAlign.center, style: context.text.bodyMedium),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: context.text.bodyMedium,
+            ),
             MqSpacing.gapMd,
-            MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: () => onRetry()),
+            MqButton(
+              label: 'إعادة المحاولة',
+              icon: Icons.refresh_rounded,
+              expand: false,
+              onPressed: () => onRetry(),
+            ),
           ],
         ),
       ),
@@ -465,18 +545,26 @@ class ChatConnectionBannerState extends State<ChatConnectionBanner> {
     return Container(
       width: double.infinity,
       color: mq.orangeSoft,
-      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.lg, vertical: MqSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MqSpacing.lg,
+        vertical: MqSpacing.sm,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(
             width: 12,
             height: 12,
-            child: CircularProgressIndicator(strokeWidth: 2, color: mq.orangeDeep),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: mq.orangeDeep,
+            ),
           ),
           MqSpacing.gapSm,
-          Text('جارٍ إعادة الاتصال…',
-              style: context.text.labelMedium?.copyWith(color: mq.orangeDeep)),
+          Text(
+            'جارٍ إعادة الاتصال…',
+            style: context.text.labelMedium?.copyWith(color: mq.orangeDeep),
+          ),
         ],
       ),
     );

@@ -10,13 +10,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/utils/time_format.dart';
 import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class CourseAttendanceScreen extends StatefulWidget {
   final String courseId;
   final String? courseName;
 
-  const CourseAttendanceScreen({super.key, required this.courseId, this.courseName});
+  const CourseAttendanceScreen({
+    super.key,
+    required this.courseId,
+    this.courseName,
+  });
 
   @override
   State<CourseAttendanceScreen> createState() => _CourseAttendanceScreenState();
@@ -42,10 +47,17 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
     });
     try {
       final res = await _api.fetchMyAttendanceByCourse(widget.courseId);
-      final dynamic rawItems = res['items'] ?? res['records'] ?? res['attendance'] ?? res['data'] ?? res;
+      final dynamic rawItems =
+          res['items'] ??
+          res['records'] ??
+          res['attendance'] ??
+          res['data'] ??
+          res;
       final list = (rawItems is List) ? rawItems : [];
       setState(() {
-        _items = List<Map<String, dynamic>>.from(list.map((e) => Map<String, dynamic>.from(e as Map)));
+        _items = List<Map<String, dynamic>>.from(
+          list.map((e) => Map<String, dynamic>.from(e as Map)),
+        );
         _loading = false;
       });
     } catch (e) {
@@ -59,8 +71,11 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
   // ── status / counts / filters (logic preserved) ────────────────────────────
 
   String _statusKey(Map<String, dynamic> r) {
-    final s = (r['status'] ?? r['attendanceStatus'] ?? r['type'] ?? '').toString().toLowerCase();
-    if (s.contains('present') || s == 'حضور' || s == 'presented') return 'present';
+    final s = (r['status'] ?? r['attendanceStatus'] ?? r['type'] ?? '')
+        .toString()
+        .toLowerCase();
+    if (s.contains('present') || s == 'حضور' || s == 'presented')
+      return 'present';
     if (s.contains('absent') || s == 'غياب') return 'absent';
     if (s.contains('leave') || s == 'اجازة' || s == 'إجازة') return 'leave';
     return 'other';
@@ -78,18 +93,31 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
           leave++;
       }
     }
-    return {'total': _items.length, 'present': present, 'absent': absent, 'leave': leave};
+    return {
+      'total': _items.length,
+      'present': present,
+      'absent': absent,
+      'leave': leave,
+    };
   }
 
   List<Map<String, dynamic>> _filteredItems() {
-    final list = _filter == 'all' ? _items : _items.where((r) => _statusKey(r) == _filter).toList();
+    final list = _filter == 'all'
+        ? _items
+        : _items.where((r) => _statusKey(r) == _filter).toList();
     final copy = [...list];
-    copy.sort((a, b) => _parseDate(_dateOf(b)).compareTo(_parseDate(_dateOf(a))));
+    copy.sort(
+      (a, b) => _parseDate(_dateOf(b)).compareTo(_parseDate(_dateOf(a))),
+    );
     return copy;
   }
 
   dynamic _dateOf(Map<String, dynamic> r) =>
-      r['checkin_at'] ?? r['occurred_on'] ?? r['date'] ?? r['sessionDate'] ?? r['createdAt'];
+      r['checkin_at'] ??
+      r['occurred_on'] ??
+      r['date'] ??
+      r['sessionDate'] ??
+      r['createdAt'];
 
   DateTime _parseDate(dynamic v) {
     try {
@@ -121,7 +149,10 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
                       preferredSize: const Size.fromHeight(20),
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: MqSpacing.sm),
-                        child: Text(widget.courseName!, style: context.text.bodySmall),
+                        child: Text(
+                          widget.courseName!,
+                          style: context.text.bodySmall,
+                        ),
                       ),
                     )
                   : null,
@@ -136,7 +167,12 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
   Widget _body(BuildContext context) {
     if (_loading) return _skeleton(context);
     if (_error != null) return _errorView(context);
-    if (_items.isEmpty) return _empty(context, 'لا توجد سجلات حضور بعد', 'سيظهر هنا سجل حضورك وغيابك في هذه الدورة.');
+    if (_items.isEmpty)
+      return _empty(
+        context,
+        'لا توجد سجلات حضور بعد',
+        'سيظهر هنا سجل حضورك وغيابك في هذه الدورة.',
+      );
 
     final c = _computeCounts();
     final filtered = _filteredItems();
@@ -146,19 +182,56 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
+      padding: const EdgeInsets.fromLTRB(
+        MqSpacing.lg,
+        MqSpacing.lg,
+        MqSpacing.lg,
+        MqSpacing.xxxl,
+      ),
       children: [
         // Summary
         Row(
           children: [
-            Expanded(child: _summary(context, '$pct%', 'نسبة الحضور', mq(context).accent, Icons.insights_outlined)),
+            Expanded(
+              child: _summary(
+                context,
+                '$pct%',
+                'نسبة الحضور',
+                mq(context).accent,
+                Icons.insights_outlined,
+              ),
+            ),
             MqSpacing.gapSm,
-            Expanded(child: _summary(context, '$present', 'حضور', mq(context).success, Icons.check_circle_outline)),
+            Expanded(
+              child: _summary(
+                context,
+                '$present',
+                'حضور',
+                mq(context).success,
+                Icons.check_circle_outline,
+              ),
+            ),
             MqSpacing.gapSm,
-            Expanded(child: _summary(context, '${c['absent']}', 'غياب', mq(context).error, Icons.cancel_outlined)),
+            Expanded(
+              child: _summary(
+                context,
+                '${c['absent']}',
+                'غياب',
+                mq(context).error,
+                Icons.cancel_outlined,
+              ),
+            ),
             if ((c['leave'] ?? 0) > 0) ...[
               MqSpacing.gapSm,
-              Expanded(child: _summary(context, '${c['leave']}', 'إجازة', mq(context).orange, Icons.event_busy_outlined)),
+              Expanded(
+                child: _summary(
+                  context,
+                  '${c['leave']}',
+                  'إجازة',
+                  mq(context).orange,
+                  Icons.event_busy_outlined,
+                ),
+              ),
             ],
           ],
         ),
@@ -185,18 +258,32 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
         if (filtered.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: MqSpacing.xl),
-            child: Center(child: Text('لا توجد سجلات لهذه الحالة', style: context.text.bodySmall)),
+            child: Center(
+              child: Text(
+                'لا توجد سجلات لهذه الحالة',
+                style: context.text.bodySmall,
+              ),
+            ),
           )
         else
           for (final r in filtered)
-            Padding(padding: const EdgeInsets.only(bottom: MqSpacing.sm), child: _recordCard(context, r)),
+            Padding(
+              padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+              child: _recordCard(context, r),
+            ),
       ],
     );
   }
 
   MqColors mq(BuildContext context) => context.mq;
 
-  Widget _summary(BuildContext context, String value, String label, Color color, IconData icon) {
+  Widget _summary(
+    BuildContext context,
+    String value,
+    String label,
+    Color color,
+    IconData icon,
+  ) {
     return MqCard(
       padding: const EdgeInsets.all(MqSpacing.md),
       child: Column(
@@ -205,31 +292,75 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
         children: [
           Icon(icon, color: color, size: MqSize.iconMd),
           MqSpacing.gapXs,
-          Text(value, style: MqTypography.mono(color: color, size: 18, weight: FontWeight.w700)),
-          Text(label, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(
+            value,
+            style: MqTypography.mono(
+              color: color,
+              size: 18,
+              weight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            label,
+            style: context.text.labelSmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
   }
 
   Widget _chip(BuildContext context, String key, String label) {
-    return MqChip(label: label, selected: _filter == key, onTap: () => setState(() => _filter = key));
+    return MqChip(
+      label: label,
+      selected: _filter == key,
+      onTap: () => setState(() => _filter = key),
+    );
   }
 
   Widget _recordCard(BuildContext context, Map<String, dynamic> r) {
     final m = context.mq;
     final key = _statusKey(r);
-    final (String label, IconData icon, Color color, MqBadgeTone tone) = switch (key) {
-      'present' => ('حضور', Icons.check_circle_outline, m.success, MqBadgeTone.success),
+    final (
+      String label,
+      IconData icon,
+      Color color,
+      MqBadgeTone tone,
+    ) = switch (key) {
+      'present' => (
+        'حضور',
+        Icons.check_circle_outline,
+        m.success,
+        MqBadgeTone.success,
+      ),
       'absent' => ('غياب', Icons.cancel_outlined, m.error, MqBadgeTone.error),
-      'leave' => ('إجازة', Icons.event_busy_outlined, m.orange, MqBadgeTone.orange),
-      _ => ('غير محدد', Icons.help_outline_rounded, m.ink3, MqBadgeTone.neutral),
+      'leave' => (
+        'إجازة',
+        Icons.event_busy_outlined,
+        m.orange,
+        MqBadgeTone.orange,
+      ),
+      _ => (
+        'غير محدد',
+        Icons.help_outline_rounded,
+        m.ink3,
+        MqBadgeTone.neutral,
+      ),
     };
 
-    final occurred = _fmtDay(r['occurred_on'] ?? r['date'] ?? r['sessionDate'] ?? r['createdAt']);
+    final occurred = _fmtDay(
+      r['occurred_on'] ?? r['date'] ?? r['sessionDate'] ?? r['createdAt'],
+    );
     final checkin12h = r['checkin_at_12h']?.toString();
-    final checkin = (checkin12h != null && checkin12h.isNotEmpty) ? checkin12h : _fmtTime(r['checkin_at']);
-    final sessionTitle = (r['sessionTitle'] ?? r['title'] ?? r['session']?['title'] ?? '').toString();
+    final checkin = formatTime12(
+      (checkin12h != null && checkin12h.isNotEmpty)
+          ? checkin12h
+          : r['checkin_at'],
+    );
+    final sessionTitle =
+        (r['sessionTitle'] ?? r['title'] ?? r['session']?['title'] ?? '')
+            .toString();
     final notes = (r['notes'] ?? r['reason'] ?? '').toString().trim();
 
     return MqCard(
@@ -240,14 +371,22 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
           Row(
             children: [
               Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: MqRadius.brMd),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: MqRadius.brMd,
+                ),
                 child: Icon(icon, color: color, size: MqSize.iconSm),
               ),
               MqSpacing.gapMd,
               Expanded(
-                child: Text(sessionTitle.isNotEmpty ? sessionTitle : 'جلسة',
-                    style: context.text.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  sessionTitle.isNotEmpty ? sessionTitle : 'جلسة',
+                  style: context.text.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               MqBadge(label: label, tone: tone),
             ],
@@ -272,12 +411,22 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
             MqSpacing.gapSm,
             MqSurface(
               tone: MqSurfaceTone.neutral,
-              padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: MqSpacing.xs),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MqSpacing.sm,
+                vertical: MqSpacing.xs,
+              ),
               child: Row(
                 children: [
                   Icon(Icons.sticky_note_2_outlined, size: 13, color: m.ink3),
                   MqSpacing.gapXs,
-                  Expanded(child: Text(notes, style: context.text.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis)),
+                  Expanded(
+                    child: Text(
+                      notes,
+                      style: context.text.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -296,17 +445,32 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
       padding: const EdgeInsets.all(MqSpacing.lg),
       children: [
         const SizedBox(height: MqSpacing.xxl),
-        Center(child: Column(children: [
-          Container(
-            padding: const EdgeInsets.all(MqSpacing.lg),
-            decoration: BoxDecoration(color: m.accentSoft, shape: BoxShape.circle),
-            child: Icon(Icons.event_available_outlined, size: 44, color: m.accent),
+        Center(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(MqSpacing.lg),
+                decoration: BoxDecoration(
+                  color: m.accentSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.event_available_outlined,
+                  size: 44,
+                  color: m.accent,
+                ),
+              ),
+              MqSpacing.gapMd,
+              Text(title, style: context.text.titleMedium),
+              MqSpacing.gapXs,
+              Text(
+                body,
+                textAlign: TextAlign.center,
+                style: context.text.bodySmall,
+              ),
+            ],
           ),
-          MqSpacing.gapMd,
-          Text(title, style: context.text.titleMedium),
-          MqSpacing.gapXs,
-          Text(body, textAlign: TextAlign.center, style: context.text.bodySmall),
-        ])),
+        ),
       ],
     );
   }
@@ -318,36 +482,83 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
       padding: const EdgeInsets.all(MqSpacing.lg),
       children: [
         const SizedBox(height: MqSpacing.xxl),
-        Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.wifi_off_rounded, size: 44, color: m.error),
-          MqSpacing.gapMd,
-          Text(_error ?? 'حدث خطأ', textAlign: TextAlign.center, style: context.text.bodyMedium),
-          MqSpacing.gapMd,
-          MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: _fetch),
-        ])),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.wifi_off_rounded, size: 44, color: m.error),
+              MqSpacing.gapMd,
+              Text(
+                _error ?? 'حدث خطأ',
+                textAlign: TextAlign.center,
+                style: context.text.bodyMedium,
+              ),
+              MqSpacing.gapMd,
+              MqButton(
+                label: 'إعادة المحاولة',
+                icon: Icons.refresh_rounded,
+                expand: false,
+                onPressed: _fetch,
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
   Widget _skeleton(BuildContext context) {
     final m = context.mq;
-    Widget block(double h) => Container(height: h, decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brLg));
+    Widget block(double h) => Container(
+      height: h,
+      decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brLg),
+    );
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        MqSpacing.lg,
+        MqSpacing.lg,
+        MqSpacing.lg,
+        MqSpacing.lg,
+      ),
       children: [
-        Row(children: [Expanded(child: block(72)), MqSpacing.gapSm, Expanded(child: block(72)), MqSpacing.gapSm, Expanded(child: block(72))]),
+        Row(
+          children: [
+            Expanded(child: block(72)),
+            MqSpacing.gapSm,
+            Expanded(child: block(72)),
+            MqSpacing.gapSm,
+            Expanded(child: block(72)),
+          ],
+        ),
         MqSpacing.gapLg,
         for (var i = 0; i < 4; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: MqSpacing.sm),
             child: MqCard(
               padding: const EdgeInsets.all(MqSpacing.md),
-              child: Row(children: [
-                Container(width: 40, height: 40, decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brMd)),
-                MqSpacing.gapMd,
-                Expanded(child: Container(height: 14, decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brSm))),
-              ]),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: m.fill2,
+                      borderRadius: MqRadius.brMd,
+                    ),
+                  ),
+                  MqSpacing.gapMd,
+                  Expanded(
+                    child: Container(
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: m.fill2,
+                        borderRadius: MqRadius.brSm,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -368,7 +579,7 @@ class _CourseAttendanceScreenState extends State<CourseAttendanceScreen> {
     final iso = v?.toString();
     if (iso == null || iso.isEmpty) return '';
     try {
-      return DateFormat('HH:mm').format(DateTime.parse(iso).toLocal());
+      return formatTime12(DateTime.parse(iso));
     } catch (_) {
       return '';
     }

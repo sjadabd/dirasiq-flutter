@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:get/get.dart';
 
 import '../../../core/services/teacher_api_service.dart';
+import '../../../core/utils/time_format.dart';
 import '../shared/design/teacher_design.dart';
 
 /// Opens the "add new exam" sheet for [courseId]. Mirrors the dashboard
@@ -59,7 +60,13 @@ class _ExamFormState extends State<_ExamForm> {
 
   static const _examTypes = {'daily': 'يومي', 'monthly': 'شهري'};
   static const _weekdays = [
-    'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'
+    'الأحد',
+    'الإثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
   ];
 
   bool get _isEdit => widget.existing != null;
@@ -104,7 +111,11 @@ class _ExamFormState extends State<_ExamForm> {
     try {
       final results = await Future.wait([
         widget.api.fetchMySubjectsCatalog(),
-        widget.api.fetchSessions(courseId: widget.courseId, page: 1, limit: 100),
+        widget.api.fetchSessions(
+          courseId: widget.courseId,
+          page: 1,
+          limit: 100,
+        ),
       ]);
       _subjects = (results[0] as List)
           .whereType<Map>()
@@ -121,7 +132,10 @@ class _ExamFormState extends State<_ExamForm> {
   List<Map<String, dynamic>> _listOf(Map<String, dynamic> res) {
     final d = res['data'];
     if (d is List) {
-      return d.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+      return d
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
     }
     if (d is Map && d['items'] is List) {
       return (d['items'] as List)
@@ -162,6 +176,10 @@ class _ExamFormState extends State<_ExamForm> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _time ?? const TimeOfDay(hour: 9, minute: 0),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: child!,
+      ),
     );
     if (picked != null) setState(() => _time = picked);
   }
@@ -169,7 +187,7 @@ class _ExamFormState extends State<_ExamForm> {
   String _sessionLabel(Map<String, dynamic> s) {
     final wd = (s['weekday'] is num) ? (s['weekday'] as num).toInt() : -1;
     final day = (wd >= 0 && wd < 7) ? _weekdays[wd] : '';
-    final start = (s['start_time'] ?? '').toString();
+    final start = formatTime12(s['start_time']);
     final parts = [day, start].where((x) => x.isNotEmpty).toList();
     return parts.isEmpty ? 'حصة' : parts.join(' · ');
   }
@@ -180,19 +198,30 @@ class _ExamFormState extends State<_ExamForm> {
       return;
     }
     if (_date == null || _time == null) {
-      Get.snackbar('تنبيه', 'حدّد تاريخ ووقت الاختبار',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تنبيه',
+        'حدّد تاريخ ووقت الاختبار',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
     final score = int.tryParse(_score.text.trim());
     if (score == null || score <= 0) {
-      Get.snackbar('تنبيه', 'أدخل درجة قصوى صحيحة',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تنبيه',
+        'أدخل درجة قصوى صحيحة',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
-    final examAt = DateTime(_date!.year, _date!.month, _date!.day, _time!.hour,
-        _time!.minute);
+    final examAt = DateTime(
+      _date!.year,
+      _date!.month,
+      _date!.day,
+      _time!.hour,
+      _time!.minute,
+    );
     final payload = <String, dynamic>{
       'course_id': widget.courseId,
       'subject_id': _subjectId,
@@ -207,18 +236,23 @@ class _ExamFormState extends State<_ExamForm> {
     setState(() => _saving = true);
     try {
       if (_isEdit) {
-        await widget.api
-            .updateExam(widget.existing!['id'].toString(), payload);
+        await widget.api.updateExam(widget.existing!['id'].toString(), payload);
       } else {
         await widget.api.createExam(payload);
       }
       if (mounted) Navigator.pop(context, true);
-      Get.snackbar('تم', _isEdit ? 'تم حفظ التعديلات' : 'تم إنشاء الاختبار',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تم',
+        _isEdit ? 'تم حفظ التعديلات' : 'تم إنشاء الاختبار',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } catch (_) {
       if (mounted) setState(() => _saving = false);
-      Get.snackbar('خطأ', _isEdit ? 'تعذّر حفظ التعديلات' : 'تعذّر إنشاء الاختبار',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'خطأ',
+        _isEdit ? 'تعذّر حفظ التعديلات' : 'تعذّر إنشاء الاختبار',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
@@ -228,18 +262,24 @@ class _ExamFormState extends State<_ExamForm> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
-        constraints:
-            BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.9),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+        ),
         decoration: BoxDecoration(
           color: mq.card,
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(MqRadius.xl)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(MqRadius.xl),
+          ),
         ),
         child: SafeArea(
           top: false,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
-                MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.lg),
+              MqSpacing.lg,
+              MqSpacing.sm,
+              MqSpacing.lg,
+              MqSpacing.lg,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -250,7 +290,9 @@ class _ExamFormState extends State<_ExamForm> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: MqSpacing.md),
                     decoration: BoxDecoration(
-                        color: mq.line, borderRadius: MqRadius.brPill),
+                      color: mq.line,
+                      borderRadius: MqRadius.brPill,
+                    ),
                   ),
                 ),
                 _header(context),
@@ -289,13 +331,21 @@ class _ExamFormState extends State<_ExamForm> {
                 Row(
                   children: [
                     Expanded(
-                      child: _pickField('تاريخ الاختبار *', _dateLabel,
-                          Icons.calendar_today_outlined, _pickDate),
+                      child: _pickField(
+                        'تاريخ الاختبار *',
+                        _dateLabel,
+                        Icons.calendar_today_outlined,
+                        _pickDate,
+                      ),
                     ),
                     const SizedBox(width: MqSpacing.sm),
                     Expanded(
-                      child: _pickField('وقت الاختبار *', _timeLabel,
-                          Icons.schedule_outlined, _pickTime),
+                      child: _pickField(
+                        'وقت الاختبار *',
+                        _timeLabel,
+                        Icons.schedule_outlined,
+                        _pickTime,
+                      ),
                     ),
                   ],
                 ),
@@ -303,7 +353,9 @@ class _ExamFormState extends State<_ExamForm> {
                 TextField(
                   controller: _score,
                   keyboardType: const TextInputType.numberWithOptions(
-                      decimal: false, signed: false),
+                    decimal: false,
+                    signed: false,
+                  ),
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'الدرجة القصوى *',
@@ -380,15 +432,22 @@ class _ExamFormState extends State<_ExamForm> {
       children: [
         Container(
           padding: const EdgeInsets.all(7),
-          decoration:
-              BoxDecoration(color: mq.accentSoft, borderRadius: MqRadius.brSm),
-          child: Icon(Icons.quiz_outlined,
-              size: MqSize.iconSm, color: mq.accent),
+          decoration: BoxDecoration(
+            color: mq.accentSoft,
+            borderRadius: MqRadius.brSm,
+          ),
+          child: Icon(
+            Icons.quiz_outlined,
+            size: MqSize.iconSm,
+            color: mq.accent,
+          ),
         ),
         const SizedBox(width: MqSpacing.sm),
         Expanded(
-          child: Text(_isEdit ? 'تعديل الاختبار' : 'إضافة اختبار جديد',
-              style: context.text.titleMedium),
+          child: Text(
+            _isEdit ? 'تعديل الاختبار' : 'إضافة اختبار جديد',
+            style: context.text.titleMedium,
+          ),
         ),
         InkWell(
           onTap: () => Navigator.pop(context),
@@ -432,7 +491,11 @@ class _ExamFormState extends State<_ExamForm> {
   }
 
   Widget _pickField(
-      String label, String value, IconData icon, VoidCallback onTap) {
+    String label,
+    String value,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     final mq = context.mq;
     final isPlaceholder = value.startsWith('اختر');
     return InkWell(
@@ -444,11 +507,14 @@ class _ExamFormState extends State<_ExamForm> {
           isDense: true,
           prefixIcon: Icon(icon),
         ),
-        child: Text(value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.bodyMedium
-                ?.copyWith(color: isPlaceholder ? mq.ink3 : mq.ink)),
+        child: Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.text.bodyMedium?.copyWith(
+            color: isPlaceholder ? mq.ink3 : mq.ink,
+          ),
+        ),
       ),
     );
   }

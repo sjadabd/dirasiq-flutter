@@ -37,6 +37,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:mulhimiq/core/utils/time_format.dart';
 import 'package:mulhimiq/shared/controllers/global_controller.dart';
 
 class VideoWatermark extends StatefulWidget {
@@ -92,12 +93,13 @@ class _VideoWatermarkState extends State<VideoWatermark> {
       final u = Get.find<GlobalController>().user.value;
       if (u == null) return;
       _name = (u['name'] ?? u['fullName'] ?? u['full_name'] ?? '').toString();
-      _phone = (u['phone'] ??
-              u['studentPhone'] ??
-              u['phoneNumber'] ??
-              u['phone_number'] ??
-              '')
-          .toString();
+      _phone =
+          (u['phone'] ??
+                  u['studentPhone'] ??
+                  u['phoneNumber'] ??
+                  u['phone_number'] ??
+                  '')
+              .toString();
       final id = (u['id'] ?? u['_id'] ?? '').toString();
       if (id.isNotEmpty) {
         _idShort = id.length > 8 ? id.substring(id.length - 8) : id;
@@ -116,7 +118,7 @@ class _VideoWatermarkState extends State<VideoWatermark> {
   String get _clock {
     String two(int v) => v.toString().padLeft(2, '0');
     return '${_now.year}/${two(_now.month)}/${two(_now.day)} '
-        '${two(_now.hour)}:${two(_now.minute)}';
+        '${formatTime12(_now)}';
   }
 
   @override
@@ -146,8 +148,7 @@ class _VideoWatermarkState extends State<VideoWatermark> {
           opacity: 0.42,
           child: Container(
             margin: const EdgeInsets.all(12),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.28),
               borderRadius: BorderRadius.circular(8),
@@ -160,8 +161,12 @@ class _VideoWatermarkState extends State<VideoWatermark> {
                 const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.verified_user_outlined,
-                        size: 12, color: Colors.white, shadows: shadow),
+                    Icon(
+                      Icons.verified_user_outlined,
+                      size: 12,
+                      color: Colors.white,
+                      shadows: shadow,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'ملهم IQ • محتوى محمي',

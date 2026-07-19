@@ -12,9 +12,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/utils/time_format.dart';
 import '../../shared/design/teacher_design.dart';
 import '../controllers/conversation_controller.dart';
 import '../models/chat_models.dart';
@@ -86,87 +86,103 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
       data: isDark ? MqTheme.dark() : MqTheme.light(),
       child: Directionality(
         textDirection: TextDirection.rtl,
-        child: Builder(builder: (context) {
-          final mq = context.mq;
-          return Scaffold(
-            backgroundColor: mq.page,
-            resizeToAvoidBottomInset: true,
-            appBar: _appBar(context),
-            body: Obx(() {
-              if (_ctrl.loading.value && _ctrl.messages.isEmpty) {
-                return Center(
-                    child: CircularProgressIndicator(color: mq.accent));
-              }
-              if (_ctrl.error.value != null && _ctrl.messages.isEmpty) {
-                return _ErrorView(
-                    message: _ctrl.error.value!, onRetry: _ctrl.fetch);
-              }
-              return Column(
-                children: [
-                  _AnnounceOnlyBanner(controller: _ctrl),
-                  Expanded(
-                    child: _ctrl.messages.isEmpty
-                        ? const _EmptyMessages()
-                        : ListView.builder(
-                            controller: _scroll,
-                            reverse: true,
-                            padding: const EdgeInsets.symmetric(
+        child: Builder(
+          builder: (context) {
+            final mq = context.mq;
+            return Scaffold(
+              backgroundColor: mq.page,
+              resizeToAvoidBottomInset: true,
+              appBar: _appBar(context),
+              body: Obx(() {
+                if (_ctrl.loading.value && _ctrl.messages.isEmpty) {
+                  return Center(
+                    child: CircularProgressIndicator(color: mq.accent),
+                  );
+                }
+                if (_ctrl.error.value != null && _ctrl.messages.isEmpty) {
+                  return _ErrorView(
+                    message: _ctrl.error.value!,
+                    onRetry: _ctrl.fetch,
+                  );
+                }
+                return Column(
+                  children: [
+                    _AnnounceOnlyBanner(controller: _ctrl),
+                    Expanded(
+                      child: _ctrl.messages.isEmpty
+                          ? const _EmptyMessages()
+                          : ListView.builder(
+                              controller: _scroll,
+                              reverse: true,
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: MqSpacing.sm,
-                                vertical: MqSpacing.sm),
-                            itemCount: _ctrl.messages.length +
-                                (_ctrl.loadingMore.value ? 1 : 0),
-                            itemBuilder: (ctx, idx) {
-                              if (_ctrl.loadingMore.value &&
-                                  idx == _ctrl.messages.length) {
-                                return const Padding(
-                                  padding:
-                                      EdgeInsets.symmetric(vertical: MqSpacing.md),
-                                  child: Center(
-                                    child: SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
+                                vertical: MqSpacing.sm,
+                              ),
+                              itemCount:
+                                  _ctrl.messages.length +
+                                  (_ctrl.loadingMore.value ? 1 : 0),
+                              itemBuilder: (ctx, idx) {
+                                if (_ctrl.loadingMore.value &&
+                                    idx == _ctrl.messages.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: MqSpacing.md,
                                     ),
-                                  ),
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                final m = _ctrl.messages[idx];
+                                final isMine = m.senderId == widget.myUserId;
+                                return _Bubble(
+                                  message: m,
+                                  isMine: isMine,
+                                  onLongPress: () =>
+                                      _showMessageMenu(m, isMine),
                                 );
-                              }
-                              final m = _ctrl.messages[idx];
-                              final isMine = m.senderId == widget.myUserId;
-                              return _Bubble(
-                                message: m,
-                                isMine: isMine,
-                                onLongPress: () => _showMessageMenu(m, isMine),
-                              );
-                            },
-                          ),
-                  ),
-                  Obx(() {
-                    final typing = _ctrl.typingUserName.value;
-                    if (typing == null) return const SizedBox.shrink();
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: MqSpacing.lg, vertical: MqSpacing.xs),
-                      child: Text('$typing يكتب…',
+                              },
+                            ),
+                    ),
+                    Obx(() {
+                      final typing = _ctrl.typingUserName.value;
+                      if (typing == null) return const SizedBox.shrink();
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MqSpacing.lg,
+                          vertical: MqSpacing.xs,
+                        ),
+                        child: Text(
+                          '$typing يكتب…',
                           style: context.text.labelSmall?.copyWith(
-                              color: mq.ink3, fontStyle: FontStyle.italic)),
-                    );
-                  }),
-                  _Composer(
-                    controller: _composer,
-                    focusNode: _messageFocus,
-                    canSend: _canSend(),
-                    uploading: _uploading,
-                    onSubmit: _submit,
-                    onAttach: _pickImage,
-                    onTyping: _ctrl.typing,
-                  ),
-                ],
-              );
-            }),
-          );
-        }),
+                            color: mq.ink3,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      );
+                    }),
+                    _Composer(
+                      controller: _composer,
+                      focusNode: _messageFocus,
+                      canSend: _canSend(),
+                      uploading: _uploading,
+                      onSubmit: _submit,
+                      onAttach: _pickImage,
+                      onTyping: _ctrl.typing,
+                    ),
+                  ],
+                );
+              }),
+            );
+          },
+        ),
       ),
     );
   }
@@ -201,21 +217,33 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
                 color: isGroup ? mq.orangeSoft : mq.accentSoft,
                 shape: BoxShape.circle,
                 border: Border.all(
-                    color: isGroup ? mq.orangeLine : mq.accentLine),
+                  color: isGroup ? mq.orangeLine : mq.accentLine,
+                ),
               ),
               alignment: Alignment.center,
               child: isGroup
-                  ? Icon(Icons.groups_2_outlined, size: 18, color: mq.orangeDeep)
-                  : Text(name.isNotEmpty ? name.characters.first : '؟',
+                  ? Icon(
+                      Icons.groups_2_outlined,
+                      size: 18,
+                      color: mq.orangeDeep,
+                    )
+                  : Text(
+                      name.isNotEmpty ? name.characters.first : '؟',
                       style: MqTypography.mono(
-                          color: mq.accent, size: 14, weight: FontWeight.w700)),
+                        color: mq.accent,
+                        size: 14,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
             ),
             const SizedBox(width: MqSpacing.sm),
             Expanded(
-              child: Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.text.titleSmall),
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.titleSmall,
+              ),
             ),
           ],
         );
@@ -254,8 +282,10 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? picked =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final XFile? picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     setState(() => _uploading = true);
     try {
@@ -311,65 +341,78 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
         data: isDark ? MqTheme.dark() : MqTheme.light(),
         child: Directionality(
           textDirection: TextDirection.rtl,
-          child: Builder(builder: (ctx) {
-            final mq = ctx.mq;
-            return Container(
-              decoration: BoxDecoration(
-                color: mq.card,
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(MqRadius.xl)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
-                      decoration: BoxDecoration(
-                          color: mq.line, borderRadius: MqRadius.brPill),
-                    ),
-                    if (canPin)
-                      ListTile(
-                        leading: Icon(
+          child: Builder(
+            builder: (ctx) {
+              final mq = ctx.mq;
+              return Container(
+                decoration: BoxDecoration(
+                  color: mq.card,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(MqRadius.xl),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.symmetric(
+                          vertical: MqSpacing.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: mq.line,
+                          borderRadius: MqRadius.brPill,
+                        ),
+                      ),
+                      if (canPin)
+                        ListTile(
+                          leading: Icon(
                             m.isPinned
                                 ? Icons.push_pin
                                 : Icons.push_pin_outlined,
-                            color: mq.accent),
-                        title: Text(
-                            m.isPinned ? 'إلغاء التثبيت' : 'تثبيت الرسالة'),
-                        onTap: () async {
-                          Navigator.of(ctx).pop();
-                          try {
-                            await _ctrl.togglePin(m);
-                          } catch (e) {
-                            _showError(e);
-                          }
-                        },
-                      ),
-                    if (canDelete)
-                      ListTile(
-                        leading:
-                            Icon(Icons.delete_outline_rounded, color: mq.error),
-                        title: Text('حذف الرسالة',
-                            style: TextStyle(color: mq.error)),
-                        onTap: () async {
-                          Navigator.of(ctx).pop();
-                          try {
-                            await _ctrl.deleteMessage(m);
-                          } catch (e) {
-                            _showError(e);
-                          }
-                        },
-                      ),
-                    const SizedBox(height: MqSpacing.sm),
-                  ],
+                            color: mq.accent,
+                          ),
+                          title: Text(
+                            m.isPinned ? 'إلغاء التثبيت' : 'تثبيت الرسالة',
+                          ),
+                          onTap: () async {
+                            Navigator.of(ctx).pop();
+                            try {
+                              await _ctrl.togglePin(m);
+                            } catch (e) {
+                              _showError(e);
+                            }
+                          },
+                        ),
+                      if (canDelete)
+                        ListTile(
+                          leading: Icon(
+                            Icons.delete_outline_rounded,
+                            color: mq.error,
+                          ),
+                          title: Text(
+                            'حذف الرسالة',
+                            style: TextStyle(color: mq.error),
+                          ),
+                          onTap: () async {
+                            Navigator.of(ctx).pop();
+                            try {
+                              await _ctrl.deleteMessage(m);
+                            } catch (e) {
+                              _showError(e);
+                            }
+                          },
+                        ),
+                      const SizedBox(height: MqSpacing.sm),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          }),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -377,9 +420,9 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
 
   void _showError(Object e) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('فشلت العملية: ${_errorMsg(e)}')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('فشلت العملية: ${_errorMsg(e)}')));
   }
 }
 
@@ -388,8 +431,11 @@ class _TeacherConversationScreenState extends State<TeacherConversationScreen> {
 // ---------------------------------------------------------------------------
 
 class _HeaderChip extends StatelessWidget {
-  const _HeaderChip(
-      {required this.icon, required this.tooltip, required this.onTap});
+  const _HeaderChip({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
@@ -434,7 +480,9 @@ class _AnnounceOnlyBanner extends StatelessWidget {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(
-            horizontal: MqSpacing.lg, vertical: MqSpacing.sm),
+          horizontal: MqSpacing.lg,
+          vertical: MqSpacing.sm,
+        ),
         color: t.warningSoft,
         child: Row(
           children: [
@@ -471,8 +519,10 @@ class _EmptyMessages extends StatelessWidget {
             child: Icon(Icons.chat_bubble_outline, size: 30, color: mq.ink3),
           ),
           const SizedBox(height: MqSpacing.md),
-          Text('لا توجد رسائل بعد',
-              style: context.text.bodyMedium?.copyWith(color: mq.ink2)),
+          Text(
+            'لا توجد رسائل بعد',
+            style: context.text.bodyMedium?.copyWith(color: mq.ink2),
+          ),
         ],
       ),
     );
@@ -494,32 +544,38 @@ class _Bubble extends StatelessWidget {
     final mq = context.mq;
     final t = context.teacher;
     final deleted = message.isDeleted;
-    final bg = deleted
-        ? mq.fill2
-        : (isMine ? mq.accent : mq.card);
+    final bg = deleted ? mq.fill2 : (isMine ? mq.accent : mq.card);
     final fg = deleted ? mq.ink3 : (isMine ? mq.onAccent : mq.ink);
-    final time = DateFormat('HH:mm').format(message.createdAt.toLocal());
+    final time = formatTime12(message.createdAt);
 
     return Align(
       alignment: isMine ? Alignment.centerLeft : Alignment.centerRight,
       child: GestureDetector(
         onLongPress: onLongPress,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: MqSpacing.xs),
+          margin: const EdgeInsets.symmetric(
+            vertical: 2,
+            horizontal: MqSpacing.xs,
+          ),
           padding: const EdgeInsets.symmetric(
-              horizontal: MqSpacing.md, vertical: MqSpacing.sm),
+            horizontal: MqSpacing.md,
+            vertical: MqSpacing.sm,
+          ),
           constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.76),
+            maxWidth: MediaQuery.of(context).size.width * 0.76,
+          ),
           decoration: BoxDecoration(
             color: bg,
             border: (!isMine && !deleted) ? Border.all(color: mq.line) : null,
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(16),
               topRight: const Radius.circular(16),
-              bottomLeft:
-                  isMine ? const Radius.circular(4) : const Radius.circular(16),
-              bottomRight:
-                  isMine ? const Radius.circular(16) : const Radius.circular(4),
+              bottomLeft: isMine
+                  ? const Radius.circular(4)
+                  : const Radius.circular(16),
+              bottomRight: isMine
+                  ? const Radius.circular(16)
+                  : const Radius.circular(4),
             ),
           ),
           child: Column(
@@ -527,9 +583,13 @@ class _Bubble extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (!isMine && !deleted && message.sender != null) ...[
-                Text(message.sender!.name,
-                    style: context.text.labelSmall?.copyWith(
-                        color: mq.accent, fontWeight: FontWeight.w700)),
+                Text(
+                  message.sender!.name,
+                  style: context.text.labelSmall?.copyWith(
+                    color: mq.accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 2),
               ],
               if (message.isPinned)
@@ -538,35 +598,52 @@ class _Bubble extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.push_pin,
-                          size: 12,
-                          color: isMine ? mq.onAccent : t.warning),
+                      Icon(
+                        Icons.push_pin,
+                        size: 12,
+                        color: isMine ? mq.onAccent : t.warning,
+                      ),
                       const SizedBox(width: MqSpacing.xs),
-                      Text('مثبّتة',
-                          style: context.text.labelSmall?.copyWith(
-                              color: isMine ? mq.onAccent : t.warning,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        'مثبّتة',
+                        style: context.text.labelSmall?.copyWith(
+                          color: isMine ? mq.onAccent : t.warning,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               if (deleted)
-                Text('تم حذف هذه الرسالة',
-                    style: context.text.bodySmall?.copyWith(
-                        color: mq.ink3, fontStyle: FontStyle.italic))
+                Text(
+                  'تم حذف هذه الرسالة',
+                  style: context.text.bodySmall?.copyWith(
+                    color: mq.ink3,
+                    fontStyle: FontStyle.italic,
+                  ),
+                )
               else ...[
                 for (final a in message.attachments) _AttachmentView(att: a),
                 if ((message.body ?? '').isNotEmpty)
-                  Text(message.body!,
-                      style: context.text.bodyMedium
-                          ?.copyWith(color: fg, height: 1.35)),
+                  Text(
+                    message.body!,
+                    style: context.text.bodyMedium?.copyWith(
+                      color: fg,
+                      height: 1.35,
+                    ),
+                  ),
               ],
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(time,
-                      style: context.text.labelSmall?.copyWith(
-                          color: fg.withValues(alpha: 0.6), fontSize: 10)),
+                  Text(
+                    time,
+                    style: context.text.labelSmall?.copyWith(
+                      color: fg.withValues(alpha: 0.6),
+                      fontSize: 10,
+                    ),
+                  ),
                   if (isMine && !deleted) ...[
                     const SizedBox(width: MqSpacing.xs),
                     _StatusGlyph(status: message.status, color: fg),
@@ -589,7 +666,11 @@ class _StatusGlyph extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (status) {
       case MessageStatus.sending:
-        return Icon(Icons.schedule, size: 11, color: color.withValues(alpha: 0.6));
+        return Icon(
+          Icons.schedule,
+          size: 11,
+          color: color.withValues(alpha: 0.6),
+        );
       case MessageStatus.failed:
         return Icon(Icons.error_outline, size: 11, color: context.mq.error);
       case MessageStatus.sent:
@@ -610,8 +691,8 @@ class _AttachmentView extends StatelessWidget {
     final thumb = att.thumbnailUrl == null
         ? null
         : (att.thumbnailUrl!.startsWith('http')
-            ? att.thumbnailUrl!
-            : '${AppConfig.chatBaseUrl}${att.thumbnailUrl!}');
+              ? att.thumbnailUrl!
+              : '${AppConfig.chatBaseUrl}${att.thumbnailUrl!}');
 
     if (att.isImage) {
       return Padding(
@@ -637,8 +718,8 @@ class _AttachmentView extends StatelessWidget {
     final iconData = att.isVideo
         ? Icons.video_file_outlined
         : (att.isPdf
-            ? Icons.picture_as_pdf_outlined
-            : Icons.insert_drive_file_outlined);
+              ? Icons.picture_as_pdf_outlined
+              : Icons.insert_drive_file_outlined);
     return Padding(
       padding: const EdgeInsets.only(bottom: MqSpacing.xs),
       child: Container(
@@ -654,11 +735,14 @@ class _AttachmentView extends StatelessWidget {
             Icon(iconData, size: 22, color: mq.accent),
             const SizedBox(width: MqSpacing.sm),
             Flexible(
-              child: Text(att.originalName ?? att.url.split('/').last,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.text.labelMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              child: Text(
+                att.originalName ?? att.url.split('/').last,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
@@ -693,7 +777,11 @@ class _Composer extends StatelessWidget {
       bottom: true,
       child: Container(
         padding: const EdgeInsets.fromLTRB(
-            MqSpacing.sm, MqSpacing.sm, MqSpacing.sm, MqSpacing.sm),
+          MqSpacing.sm,
+          MqSpacing.sm,
+          MqSpacing.sm,
+          MqSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: mq.card,
           border: Border(top: BorderSide(color: mq.line)),
@@ -730,7 +818,9 @@ class _Composer extends StatelessWidget {
                         ? 'اكتب رسالتك…'
                         : 'لا يمكنك الإرسال في هذه المجموعة',
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: MqSpacing.md, vertical: MqSpacing.sm),
+                      horizontal: MqSpacing.md,
+                      vertical: MqSpacing.sm,
+                    ),
                     border: const OutlineInputBorder(
                       borderRadius: MqRadius.brPill,
                       borderSide: BorderSide.none,
@@ -776,9 +866,7 @@ class _RoundIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final mq = context.mq;
     final disabled = onTap == null;
-    final bg = filled
-        ? (disabled ? mq.fill2 : mq.accent)
-        : mq.fill;
+    final bg = filled ? (disabled ? mq.fill2 : mq.accent) : mq.fill;
     final fg = filled ? mq.onAccent : mq.ink2;
     return Material(
       color: bg,
@@ -786,7 +874,8 @@ class _RoundIcon extends StatelessWidget {
           ? const CircleBorder()
           : RoundedRectangleBorder(
               borderRadius: MqRadius.brMd,
-              side: BorderSide(color: mq.line)),
+              side: BorderSide(color: mq.line),
+            ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -796,7 +885,10 @@ class _RoundIcon extends StatelessWidget {
           child: loading
               ? Padding(
                   padding: const EdgeInsets.all(13),
-                  child: CircularProgressIndicator(strokeWidth: 2, color: mq.ink3),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: mq.ink3,
+                  ),
                 )
               : Icon(icon, size: MqSize.iconMd, color: fg),
         ),
@@ -820,8 +912,11 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(Icons.error_outline_rounded, size: 48, color: mq.error),
             const SizedBox(height: MqSpacing.md),
-            Text(message,
-                textAlign: TextAlign.center, style: context.text.bodyMedium),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: context.text.bodyMedium,
+            ),
             const SizedBox(height: MqSpacing.lg),
             MqButton(
               label: 'إعادة المحاولة',

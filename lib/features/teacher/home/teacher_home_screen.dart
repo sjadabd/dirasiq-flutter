@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/teacher_api_service.dart';
+import '../../../core/utils/time_format.dart';
 import '../courses/teacher_course_manage_screen.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
@@ -64,7 +65,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     if (raw == null) return;
     try {
       final user = jsonDecode(raw) as Map<String, dynamic>;
-      if (mounted) setState(() => _teacherName = (user['name'] ?? '').toString());
+      if (mounted)
+        setState(() => _teacherName = (user['name'] ?? '').toString());
     } catch (_) {}
   }
 
@@ -104,7 +106,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         _todaySessions = sessions;
         _activeCoursesList = courses;
         _platformNews = newsRaw is List
-            ? newsRaw.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList()
+            ? newsRaw
+                  .whereType<Map>()
+                  .map((m) => Map<String, dynamic>.from(m))
+                  .toList()
             : const [];
         _pendingBookings = pending;
         _studyYear = studyYear;
@@ -114,8 +119,11 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _online = false);
-        Get.snackbar('خطأ', 'تعذّر جلب بيانات اللوحة',
-            snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar(
+          'خطأ',
+          'تعذّر جلب بيانات اللوحة',
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -132,7 +140,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   List<Map<String, dynamic>> _dataList(Map<String, dynamic> envelope) {
     final d = envelope['data'];
     if (d is List) {
-      return d.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+      return d
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
     }
     return const [];
   }
@@ -140,7 +151,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   String _activeStudyYear(Map<String, dynamic> envelope) {
     final d = _dataMap(envelope);
     final active = d['active'];
-    if (active is Map && active['year'] != null) return active['year'].toString();
+    if (active is Map && active['year'] != null)
+      return active['year'].toString();
     final now = DateTime.now();
     final y = now.year;
     return now.month >= 9 ? '$y-${y + 1}' : '${y - 1}-$y';
@@ -150,10 +162,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   num _num(dynamic n) => (n is num) ? n : (num.tryParse('${n ?? ''}') ?? 0);
 
-  String _int(dynamic n) => _num(n)
-      .toInt()
-      .toString()
-      .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
+  String _int(dynamic n) => _num(n).toInt().toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (m) => ',',
+  );
 
   int _pct(num part, num whole) =>
       whole <= 0 ? 0 : (part / whole * 100).round().clamp(0, 100);
@@ -165,8 +177,29 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   String _fullDate() {
     final d = DateTime.now();
-    const days = ['الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
-    const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const days = [
+      'الإثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+      'الأحد',
+    ];
+    const months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
     return '${days[d.weekday - 1]}، ${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
@@ -189,16 +222,12 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   }
 
   String _time(dynamic raw) {
-    final s = (raw ?? '').toString();
-    return s.length >= 5 ? s.substring(0, 5) : s;
+    return formatTime12(raw).split(' ').first;
   }
 
   String _period(dynamic raw) {
-    final s = (raw ?? '').toString();
-    final h = int.tryParse(s.length >= 2 ? s.substring(0, 2) : '') ?? 0;
-    if (h < 12) return 'صباحاً';
-    if (h < 16) return 'ظهراً';
-    return 'مساءً';
+    final parts = formatTime12(raw).split(' ');
+    return parts.length > 1 ? parts.last : '';
   }
 
   (String, TeacherTone) _sessionState(dynamic raw) {
@@ -225,48 +254,55 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       data: isDark ? MqTheme.dark() : MqTheme.light(),
       child: Directionality(
         textDirection: TextDirection.rtl,
-        child: Builder(builder: (context) {
-          final mq = context.mq;
-          return Scaffold(
-            backgroundColor: mq.page,
-            appBar: const TeacherAppBar(title: 'لوحة التحكم'),
-            drawer: const TeacherDrawer(),
-            body: RefreshIndicator(
-              onRefresh: _fetch,
-              color: mq.accent,
-              child: _firstLoad && _loading
-                  ? const _DashboardSkeleton()
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                          MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xl),
-                      children: [
-                        if (_platformNews.isNotEmpty) ...[
-                          TeacherPlatformNewsSection(
-                            items: _platformNews,
-                            onOpen: (item) => showTeacherPlatformNewsDetail(context, item),
-                          ),
+        child: Builder(
+          builder: (context) {
+            final mq = context.mq;
+            return Scaffold(
+              backgroundColor: mq.page,
+              appBar: const TeacherAppBar(title: 'لوحة التحكم'),
+              drawer: const TeacherDrawer(),
+              body: RefreshIndicator(
+                onRefresh: _fetch,
+                color: mq.accent,
+                child: _firstLoad && _loading
+                    ? const _DashboardSkeleton()
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(
+                          MqSpacing.lg,
+                          MqSpacing.lg,
+                          MqSpacing.lg,
+                          MqSpacing.xl,
+                        ),
+                        children: [
+                          if (_platformNews.isNotEmpty) ...[
+                            TeacherPlatformNewsSection(
+                              items: _platformNews,
+                              onOpen: (item) =>
+                                  showTeacherPlatformNewsDetail(context, item),
+                            ),
+                            const SizedBox(height: MqSpacing.md),
+                          ],
+                          _hero(context),
                           const SizedBox(height: MqSpacing.md),
+                          _revenuePair(context),
+                          const SizedBox(height: MqSpacing.md),
+                          _todaySchedule(context),
+                          const SizedBox(height: MqSpacing.md),
+                          _activeCourses(context),
+                          const SizedBox(height: MqSpacing.md),
+                          _quickActions(context),
+                          const SizedBox(height: MqSpacing.md),
+                          _performance(context),
+                          const SizedBox(height: MqSpacing.md),
+                          _financialSummary(context),
+                          const SizedBox(height: MqSpacing.md),
+                          _recentActivity(context),
                         ],
-                        _hero(context),
-                        const SizedBox(height: MqSpacing.md),
-                        _revenuePair(context),
-                        const SizedBox(height: MqSpacing.md),
-                        _todaySchedule(context),
-                        const SizedBox(height: MqSpacing.md),
-                        _activeCourses(context),
-                        const SizedBox(height: MqSpacing.md),
-                        _quickActions(context),
-                        const SizedBox(height: MqSpacing.md),
-                        _performance(context),
-                        const SizedBox(height: MqSpacing.md),
-                        _financialSummary(context),
-                        const SizedBox(height: MqSpacing.md),
-                        _recentActivity(context),
-                      ],
-                    ),
-            ),
-          );
-        }),
+                      ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -302,9 +338,14 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   radius: 24,
                   backgroundColor: context.mq.orange,
                   child: Text(
-                    _teacherName.isNotEmpty ? _teacherName.characters.first : '؟',
+                    _teacherName.isNotEmpty
+                        ? _teacherName.characters.first
+                        : '؟',
                     style: const TextStyle(
-                        color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -313,13 +354,21 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_greeting(),
-                        style: context.text.labelMedium?.copyWith(color: t.heroInk2)),
+                    Text(
+                      _greeting(),
+                      style: context.text.labelMedium?.copyWith(
+                        color: t.heroInk2,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text('أ. $name',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.text.titleLarge?.copyWith(color: t.heroInk)),
+                    Text(
+                      'أ. $name',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.titleLarge?.copyWith(
+                        color: t.heroInk,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -333,10 +382,12 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
               Icon(Icons.calendar_today_outlined, size: 13, color: t.heroInk2),
               const SizedBox(width: MqSpacing.xs),
               Expanded(
-                child: Text('${_fullDate()} • ${_term()}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.text.labelSmall?.copyWith(color: t.heroInk2)),
+                child: Text(
+                  '${_fullDate()} • ${_term()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.labelSmall?.copyWith(color: t.heroInk2),
+                ),
               ),
             ],
           ),
@@ -386,7 +437,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     final t = context.teacher;
     final color = _online ? t.success : t.heroInk2;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.sm, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MqSpacing.sm,
+        vertical: 3,
+      ),
       decoration: BoxDecoration(
         color: t.heroTile,
         borderRadius: MqRadius.brPill,
@@ -401,8 +455,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: MqSpacing.xs),
-          Text(_online ? 'متصل' : 'غير متصل',
-              style: context.text.labelSmall?.copyWith(color: t.heroInk)),
+          Text(
+            _online ? 'متصل' : 'غير متصل',
+            style: context.text.labelSmall?.copyWith(color: t.heroInk),
+          ),
         ],
       ),
     );
@@ -450,7 +506,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       subtitle: n > 0 ? '$n حصص قادمة' : null,
       icon: Icons.today_outlined,
       tone: TeacherTone.info,
-      trailing: _SeeAll(label: 'الجدول الكامل', onTap: () => _go(TeacherWorkspaceState.sessionsIdx)),
+      trailing: _SeeAll(
+        label: 'الجدول الكامل',
+        onTap: () => _go(TeacherWorkspaceState.sessionsIdx),
+      ),
       child: _todaySessions.isEmpty
           ? const TeacherEmptyState(
               message: 'لا توجد حصص متبقّية لهذا اليوم',
@@ -460,14 +519,21 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           : Column(
               children: [
                 for (var i = 0; i < _todaySessions.length; i++)
-                  _scheduleRow(context, _todaySessions[i],
-                      last: i == _todaySessions.length - 1),
+                  _scheduleRow(
+                    context,
+                    _todaySessions[i],
+                    last: i == _todaySessions.length - 1,
+                  ),
               ],
             ),
     );
   }
 
-  Widget _scheduleRow(BuildContext context, Map<String, dynamic> s, {required bool last}) {
+  Widget _scheduleRow(
+    BuildContext context,
+    Map<String, dynamic> s, {
+    required bool last,
+  }) {
     final mq = context.mq;
     final (label, tone) = _sessionState(s['state']);
     final title = (s['courseName'] ?? s['title'] ?? 'حصة').toString();
@@ -489,11 +555,18 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
               ),
               child: Column(
                 children: [
-                  Text(_time(s['startTime']),
-                      style: MqTypography.mono(
-                          color: mq.ink, size: 14, weight: FontWeight.w700)),
-                  Text(_period(s['startTime']),
-                      style: context.text.labelSmall?.copyWith(color: mq.ink3)),
+                  Text(
+                    _time(s['startTime']),
+                    style: MqTypography.mono(
+                      color: mq.ink,
+                      size: 14,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    _period(s['startTime']),
+                    style: context.text.labelSmall?.copyWith(color: mq.ink3),
+                  ),
                 ],
               ),
             ),
@@ -502,11 +575,14 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.text.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 3),
                   TeacherStatusPill(label: label, tone: tone, dense: true),
                 ],
@@ -519,7 +595,12 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     );
 
     if (last) return row;
-    return Column(children: [row, Divider(height: 1, color: mq.line)]);
+    return Column(
+      children: [
+        row,
+        Divider(height: 1, color: mq.line),
+      ],
+    );
   }
 
   // ---- active courses (tap → course management) -----------------------------
@@ -540,15 +621,21 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           : Column(
               children: [
                 for (var i = 0; i < _activeCoursesList.length; i++)
-                  _courseRow(context, _activeCoursesList[i],
-                      last: i == _activeCoursesList.length - 1),
+                  _courseRow(
+                    context,
+                    _activeCoursesList[i],
+                    last: i == _activeCoursesList.length - 1,
+                  ),
               ],
             ),
     );
   }
 
-  Widget _courseRow(BuildContext context, Map<String, dynamic> c,
-      {required bool last}) {
+  Widget _courseRow(
+    BuildContext context,
+    Map<String, dynamic> c, {
+    required bool last,
+  }) {
     final mq = context.mq;
     final name = (c['course_name'] ?? 'دورة').toString();
     final grade = (c['grade_name'] ?? '').toString();
@@ -570,26 +657,29 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                 borderRadius: MqRadius.brMd,
                 border: Border.all(color: mq.accentLine),
               ),
-              child:
-                  Icon(Icons.menu_book_outlined, color: mq.accent, size: 20),
+              child: Icon(Icons.menu_book_outlined, color: mq.accent, size: 20),
             ),
             const SizedBox(width: MqSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.text.bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   if (meta.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text(meta,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.text.labelSmall
-                            ?.copyWith(color: mq.ink3)),
+                    Text(
+                      meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.labelSmall?.copyWith(color: mq.ink3),
+                    ),
                   ],
                 ],
               ),
@@ -601,14 +691,18 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     );
 
     if (last) return row;
-    return Column(children: [row, Divider(height: 1, color: mq.line)]);
+    return Column(
+      children: [
+        row,
+        Divider(height: 1, color: mq.line),
+      ],
+    );
   }
 
   Future<void> _openManage(Map<String, dynamic> c) async {
-    await Get.to(() => TeacherCourseManageScreen(
-          courseId: c['id'].toString(),
-          course: c,
-        ));
+    await Get.to(
+      () => TeacherCourseManageScreen(courseId: c['id'].toString(), course: c),
+    );
     _fetch();
   }
 
@@ -695,20 +789,35 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       subtitle: 'فواتير الطلاب${_studyYear != null ? ' · $_studyYear' : ''}',
       icon: Icons.bar_chart_outlined,
       tone: TeacherTone.info,
-      trailing: _SeeAll(label: 'الفواتير', onTap: () => _go(TeacherWorkspaceState.invoicesIdx)),
+      trailing: _SeeAll(
+        label: 'الفواتير',
+        onTap: () => _go(TeacherWorkspaceState.invoicesIdx),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('الإيراد المتوقّع', style: context.text.labelMedium?.copyWith(color: mq.ink2)),
+          Text(
+            'الإيراد المتوقّع',
+            style: context.text.labelMedium?.copyWith(color: mq.ink2),
+          ),
           const SizedBox(height: 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(_int(due),
-                  style: MqTypography.mono(color: mq.ink, size: 24, weight: FontWeight.w700)),
+              Text(
+                _int(due),
+                style: MqTypography.mono(
+                  color: mq.ink,
+                  size: 24,
+                  weight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(width: MqSpacing.xs),
-              Text('د.ع', style: context.text.labelMedium?.copyWith(color: mq.ink3)),
+              Text(
+                'د.ع',
+                style: context.text.labelMedium?.copyWith(color: mq.ink3),
+              ),
             ],
           ),
           const SizedBox(height: MqSpacing.md),
@@ -726,7 +835,11 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
             iconTone: TeacherTone.success,
             valueColor: t.success,
             mono: true,
-            trailing: TeacherStatusPill(label: '$paidPct٪', tone: TeacherTone.success, dense: true),
+            trailing: TeacherStatusPill(
+              label: '$paidPct٪',
+              tone: TeacherTone.success,
+              dense: true,
+            ),
           ),
           TeacherDataRow(
             label: 'المتبقّي (مستحق)',
@@ -735,7 +848,11 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
             iconTone: TeacherTone.danger,
             valueColor: t.danger,
             mono: true,
-            trailing: TeacherStatusPill(label: '$remPct٪', tone: TeacherTone.danger, dense: true),
+            trailing: TeacherStatusPill(
+              label: '$remPct٪',
+              tone: TeacherTone.danger,
+              dense: true,
+            ),
           ),
         ],
       ),
@@ -797,7 +914,9 @@ class _HeroStat extends StatelessWidget {
 
     final tile = Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: MqSpacing.sm, vertical: MqSpacing.sm),
+        horizontal: MqSpacing.sm,
+        vertical: MqSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: t.heroTile,
         borderRadius: MqRadius.brMd,
@@ -807,18 +926,25 @@ class _HeroStat extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: context.text.labelSmall?.copyWith(color: t.heroInk2)),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: context.text.labelSmall?.copyWith(color: t.heroInk2),
+          ),
           const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: AlignmentDirectional.centerStart,
-            child: Text(value,
-                maxLines: 1,
-                style: MqTypography.mono(
-                    color: valueColor, size: 20, weight: FontWeight.w700)),
+            child: Text(
+              value,
+              maxLines: 1,
+              style: MqTypography.mono(
+                color: valueColor,
+                size: 20,
+                weight: FontWeight.w700,
+              ),
+            ),
           ),
           const SizedBox(height: 1),
           Row(
@@ -828,15 +954,20 @@ class _HeroStat extends StatelessWidget {
                 Container(
                   width: 6,
                   height: 6,
-                  decoration: BoxDecoration(color: subColor, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: subColor,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 3),
               ],
               Flexible(
-                child: Text(sub,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.text.labelSmall?.copyWith(color: subColor)),
+                child: Text(
+                  sub,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.labelSmall?.copyWith(color: subColor),
+                ),
               ),
             ],
           ),
@@ -907,21 +1038,31 @@ class _RevenueCard extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: AlignmentDirectional.centerStart,
-                  child: Text(value,
-                      maxLines: 1,
-                      style: MqTypography.mono(
-                          color: mq.ink, size: 20, weight: FontWeight.w700)),
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: MqTypography.mono(
+                      color: mq.ink,
+                      size: 20,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: MqSpacing.xs),
-              Text('د.ع', style: context.text.labelSmall?.copyWith(color: mq.ink3)),
+              Text(
+                'د.ع',
+                style: context.text.labelSmall?.copyWith(color: mq.ink3),
+              ),
             ],
           ),
           const SizedBox(height: 2),
-          Text(label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.text.labelMedium?.copyWith(color: mq.ink2)),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.text.labelMedium?.copyWith(color: mq.ink2),
+          ),
         ],
       ),
     );
@@ -965,14 +1106,19 @@ class _QuickAction extends StatelessWidget {
               Container(
                 height: 46,
                 width: 46,
-                decoration: BoxDecoration(color: soft, borderRadius: MqRadius.brMd),
+                decoration: BoxDecoration(
+                  color: soft,
+                  borderRadius: MqRadius.brMd,
+                ),
                 child: Icon(icon, color: base, size: MqSize.iconMd),
               ),
               const SizedBox(height: MqSpacing.sm),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  style: context.text.labelSmall?.copyWith(color: mq.ink2)),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: context.text.labelSmall?.copyWith(color: mq.ink2),
+              ),
             ],
           ),
         ),
@@ -995,13 +1141,19 @@ class _SeeAll extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: MqSpacing.sm, vertical: MqSpacing.xxs),
+          horizontal: MqSpacing.sm,
+          vertical: MqSpacing.xxs,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label,
-                style: context.text.labelSmall
-                    ?.copyWith(color: mq.accent, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: context.text.labelSmall?.copyWith(
+                color: mq.accent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             Icon(Icons.chevron_left_rounded, size: 16, color: mq.accent),
           ],
         ),
@@ -1021,27 +1173,33 @@ class _DashboardSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final mq = context.mq;
     Widget block(double h, {BorderRadius? r}) => Container(
-          height: h,
-          decoration:
-              BoxDecoration(color: mq.fill2, borderRadius: r ?? MqRadius.brMd),
-        );
+      height: h,
+      decoration: BoxDecoration(
+        color: mq.fill2,
+        borderRadius: r ?? MqRadius.brMd,
+      ),
+    );
 
     return ListView(
       padding: const EdgeInsets.all(MqSpacing.lg),
       children: [
         block(108, r: MqRadius.brXl),
         const SizedBox(height: MqSpacing.lg),
-        Row(children: [
-          Expanded(child: block(92)),
-          const SizedBox(width: MqSpacing.md),
-          Expanded(child: block(92)),
-        ]),
+        Row(
+          children: [
+            Expanded(child: block(92)),
+            const SizedBox(width: MqSpacing.md),
+            Expanded(child: block(92)),
+          ],
+        ),
         const SizedBox(height: MqSpacing.md),
-        Row(children: [
-          Expanded(child: block(92)),
-          const SizedBox(width: MqSpacing.md),
-          Expanded(child: block(92)),
-        ]),
+        Row(
+          children: [
+            Expanded(child: block(92)),
+            const SizedBox(width: MqSpacing.md),
+            Expanded(child: block(92)),
+          ],
+        ),
         const SizedBox(height: MqSpacing.lg),
         block(150, r: MqRadius.brLg),
         const SizedBox(height: MqSpacing.md),

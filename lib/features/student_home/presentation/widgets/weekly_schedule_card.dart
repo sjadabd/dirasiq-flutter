@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:mulhimiq/core/utils/time_format.dart';
 import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 import '../../data/models/student_home_data.dart';
@@ -24,11 +25,14 @@ class _WeeklyScheduleCardState extends State<WeeklyScheduleCard> {
     super.initState();
     // Default to today if it has lessons, else the first day that does.
     // DOW convention (0=Sun..6=Sat) to match the backend's scheduleByDay keys.
-    final today = DateTime.now().weekday % 7; // Dart Mon=1..Sun=7 → DOW Sun=0..Sat=6
+    final today =
+        DateTime.now().weekday % 7; // Dart Mon=1..Sun=7 → DOW Sun=0..Sat=6
     final hasToday = widget.days.any((d) => d.weekday == today && d.count > 0);
     _selected = hasToday
         ? today
-        : (widget.days.firstWhere((d) => d.count > 0, orElse: () => widget.days.first).weekday);
+        : (widget.days
+              .firstWhere((d) => d.count > 0, orElse: () => widget.days.first)
+              .weekday);
   }
 
   @override
@@ -73,8 +77,10 @@ class _WeeklyScheduleCardState extends State<WeeklyScheduleCard> {
               children: [
                 Text('تقدّم الخطة الأسبوعية', style: context.text.labelMedium),
                 const Spacer(),
-                Text('$totalLessons حصة',
-                    style: context.text.labelMedium?.copyWith(color: mq.ink)),
+                Text(
+                  '$totalLessons حصة',
+                  style: context.text.labelMedium?.copyWith(color: mq.ink),
+                ),
               ],
             ),
           ],
@@ -106,15 +112,23 @@ class _LessonRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(lesson.courseName,
-                    style: context.text.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  lesson.courseName,
+                  style: context.text.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 if (lesson.teacherName.isNotEmpty)
                   Text(lesson.teacherName, style: context.text.bodySmall),
               ],
             ),
           ),
           if (lesson.startTime.isNotEmpty)
-            MqBadge(label: lesson.startTime, tone: MqBadgeTone.neutral, icon: Icons.schedule_rounded),
+            MqBadge(
+              label: formatTime12(lesson.startTime),
+              tone: MqBadgeTone.neutral,
+              icon: Icons.schedule_rounded,
+            ),
         ],
       ),
     );

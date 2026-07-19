@@ -3,7 +3,7 @@ import 'package:mulhimiq/features/bookings/screens/booking_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
-import 'package:intl/intl.dart' hide TextDirection;
+import 'package:mulhimiq/core/utils/time_format.dart';
 import 'package:mulhimiq/features/courses/screens/course_details_screen.dart';
 import 'package:mulhimiq/features/enrollments/screens/course_attendance_screen.dart';
 import 'package:mulhimiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
@@ -327,320 +327,338 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           data: dsTheme,
           child: Directionality(
             textDirection: TextDirection.rtl,
-            child: Builder(builder: (context) {
-              final m = context.mq;
-              return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-            decoration: BoxDecoration(
-              color: m.card,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Compact Header
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: m.accent,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
+            child: Builder(
+              builder: (context) {
+                final m = context.mq;
+                return Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxWidth: 500,
+                      maxHeight: 600,
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.notifications_active_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Content
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: m.card,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (message.isNotEmpty) ...[
-                          Text(
-                            message,
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 1.4,
-                              color: theme.colorScheme.onSurface,
+                        // Compact Header
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: m.accent,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(20),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                        ],
-
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time_rounded,
-                              size: 13,
-                              color: m.accent,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              time,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: theme.colorScheme.onSurfaceVariant,
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_active_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
 
-                        if (senderName.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person_rounded,
-                                size: 13,
-                                color: m.accent,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                'المرسل: $senderName',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                        // Content
+                        Flexible(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (message.isNotEmpty) ...[
+                                  Text(
+                                    message,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
 
-                        // Display Images Inline
-                        if (imageUrls.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.image_rounded,
-                                size: 15,
-                                color: m.orange,
-                              ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'الصور المرفقة',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time_rounded,
+                                      size: 13,
+                                      color: m.accent,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      time,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 3,
-                                  crossAxisSpacing: 8,
-                                  mainAxisSpacing: 8,
-                                ),
-                            itemCount: imageUrls.length,
-                            itemBuilder: (_, i) {
-                              final url = imageUrls[i];
-                              return GestureDetector(
-                                onTap: () => _openImagePreview(url),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: m.accent.withValues(
-                                          alpha: 0.15,
+
+                                if (senderName.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person_rounded,
+                                        size: 13,
+                                        color: m.accent,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'المرسل: $senderName',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: theme
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                         ),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 3),
                                       ),
                                     ],
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.network(
-                                      url,
-                                      fit: BoxFit.cover,
-                                      loadingBuilder: (_, child, progress) {
-                                        if (progress == null) return child;
-                                        return Container(
-                                          color: theme
-                                              .colorScheme
-                                              .surfaceContainerHighest,
-                                          child: Center(
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              value:
-                                                  progress.expectedTotalBytes !=
-                                                      null
-                                                  ? progress.cumulativeBytesLoaded /
-                                                        progress
-                                                            .expectedTotalBytes!
-                                                  : null,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      errorBuilder: (_, _, _) => Container(
-                                        color: theme
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                        child: Icon(
-                                          Icons.broken_image,
-                                          color: theme.colorScheme.outline,
+                                ],
+
+                                // Display Images Inline
+                                if (imageUrls.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  const Divider(height: 1),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.image_rounded,
+                                        size: 15,
+                                        color: m.orange,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Text(
+                                        'الصور المرفقة',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
                                         ),
                                       ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 3,
+                                          crossAxisSpacing: 8,
+                                          mainAxisSpacing: 8,
+                                        ),
+                                    itemCount: imageUrls.length,
+                                    itemBuilder: (_, i) {
+                                      final url = imageUrls[i];
+                                      return GestureDetector(
+                                        onTap: () => _openImagePreview(url),
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: m.accent.withValues(
+                                                  alpha: 0.15,
+                                                ),
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            child: Image.network(
+                                              url,
+                                              fit: BoxFit.cover,
+                                              loadingBuilder: (_, child, progress) {
+                                                if (progress == null)
+                                                  return child;
+                                                return Container(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .surfaceContainerHighest,
+                                                  child: Center(
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      value:
+                                                          progress.expectedTotalBytes !=
+                                                              null
+                                                          ? progress.cumulativeBytesLoaded /
+                                                                progress
+                                                                    .expectedTotalBytes!
+                                                          : null,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              errorBuilder: (_, _, _) =>
+                                                  Container(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .surfaceContainerHighest,
+                                                    child: Icon(
+                                                      Icons.broken_image,
+                                                      color: theme
+                                                          .colorScheme
+                                                          .outline,
+                                                    ),
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+
+                                // Display PDF Buttons
+                                if (pdfUrls.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  const Divider(height: 1),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.picture_as_pdf_rounded,
+                                        size: 15,
+                                        color: m.error,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Text(
+                                        'ملفات PDF',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ...pdfUrls.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final pdfUrl = entry.value;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 6),
+                                      child: _buildCompactPdfButton(
+                                        pdfUrl: pdfUrl,
+                                        label: pdfUrls.length > 1
+                                            ? 'ملف PDF ${index + 1}'
+                                            : 'فتح ملف PDF',
+                                        m: m,
+                                      ),
+                                    );
+                                  }),
+                                ],
+
+                                if (link != null && link.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  _buildCompactLinkButton(link: link, m: m),
+                                ],
+
+                                if (studyYear != null &&
+                                    studyYear.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: m.accent.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.school_rounded,
+                                          size: 14,
+                                          color: m.accent,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'السنة: $studyYear',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: m.accent,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                              );
-                            },
+                                ],
+                              ],
+                            ),
                           ),
-                        ],
+                        ),
 
-                        // Display PDF Buttons
-                        if (pdfUrls.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          const SizedBox(height: 10),
-                          Row(
+                        // Compact Actions
+                        Padding(
+                          padding: const EdgeInsets.all(MqSpacing.md),
+                          child: Row(
                             children: [
-                              Icon(
-                                Icons.picture_as_pdf_rounded,
-                                size: 15,
-                                color: m.error,
+                              Expanded(
+                                child: MqButton(
+                                  label: 'إغلاق',
+                                  variant: MqButtonVariant.secondary,
+                                  onPressed: () => Navigator.of(context).pop(),
+                                ),
                               ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'ملفات PDF',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                              MqSpacing.gapSm,
+                              Expanded(
+                                child: MqButton(
+                                  label: 'عرض التفاصيل',
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _openNotificationTarget(n);
+                                  },
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          ...pdfUrls.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final pdfUrl = entry.value;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: _buildCompactPdfButton(
-                                pdfUrl: pdfUrl,
-                                label: pdfUrls.length > 1
-                                    ? 'ملف PDF ${index + 1}'
-                                    : 'فتح ملف PDF',
-                                m: m,
-                              ),
-                            );
-                          }),
-                        ],
-
-                        if (link != null && link.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          _buildCompactLinkButton(link: link, m: m),
-                        ],
-
-                        if (studyYear != null && studyYear.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: m.accent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.school_rounded,
-                                  size: 14,
-                                  color: m.accent,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'السنة: $studyYear',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: m.accent,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
-                ),
-
-                // Compact Actions
-                Padding(
-                  padding: const EdgeInsets.all(MqSpacing.md),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: MqButton(
-                          label: 'إغلاق',
-                          variant: MqButtonVariant.secondary,
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ),
-                      MqSpacing.gapSm,
-                      Expanded(
-                        child: MqButton(
-                          label: 'عرض التفاصيل',
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            _openNotificationTarget(n);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                );
+              },
             ),
-          ),
-        );
-            }),
           ),
         );
       },
@@ -672,7 +690,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: m.error),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: m.error,
+                  ),
                 ),
               ),
               Icon(Icons.open_in_new_rounded, size: 14, color: m.error),
@@ -683,10 +705,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildCompactLinkButton({
-    required String link,
-    required MqColors m,
-  }) {
+  Widget _buildCompactLinkButton({required String link, required MqColors m}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -707,7 +726,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               Expanded(
                 child: Text(
                   'فتح الرابط',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: m.accent),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: m.accent,
+                  ),
                 ),
               ),
               Icon(Icons.open_in_new_rounded, size: 14, color: m.accent),
@@ -840,11 +863,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     // Teacher video course routing (approval, lesson ready, rejection, etc.)
     if (_isTeacher && isVideoCourseNotification(subType, route)) {
-      final videoCourseId = (payload['courseId'] ??
-              payload['videoCourseId'] ??
-              payload['video_course_id'] ??
-              n['courseId'])
-          ?.toString();
+      final videoCourseId =
+          (payload['courseId'] ??
+                  payload['videoCourseId'] ??
+                  payload['video_course_id'] ??
+                  n['courseId'])
+              ?.toString();
       openTeacherVideoCourseFromNotification(context, courseId: videoCourseId);
       return;
     }
@@ -991,7 +1015,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // Booking routing — role-aware. A teacher receives a booking REQUEST
     // ('new_booking') and must land on the teacher bookings screen; a student
     // receives a 'booking_status' update and should see that booking's details.
-    final isBooking = type == 'booking_status' ||
+    final isBooking =
+        type == 'booking_status' ||
         type == 'new_booking' ||
         type == 'booking' ||
         (type?.toLowerCase().contains('booking') ?? false);
@@ -1091,7 +1116,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       n['url'],
     ]) {
       final s = raw?.toString().trim();
-      if (s != null && s.isNotEmpty && _isInAppPath(s)) return s.split('?').first;
+      if (s != null && s.isNotEmpty && _isInAppPath(s))
+        return s.split('?').first;
     }
     return null;
   }
@@ -1101,7 +1127,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final explicitLink = payload['link']?.toString().trim();
     if (explicitLink != null && explicitLink.isNotEmpty) {
       if (_isInAppPath(explicitLink)) return null;
-      if (explicitLink.startsWith('http://') || explicitLink.startsWith('https://')) {
+      if (explicitLink.startsWith('http://') ||
+          explicitLink.startsWith('https://')) {
         return _isApiInAppUrl(explicitLink) ? null : explicitLink;
       }
       return _resolveUrl(explicitLink);
@@ -1216,7 +1243,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 preferredSize: const Size.fromHeight(20),
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: MqSpacing.sm),
-                  child: Text('تابع آخر التحديثات والتنبيهات', style: context.text.bodySmall),
+                  child: Text(
+                    'تابع آخر التحديثات والتنبيهات',
+                    style: context.text.bodySmall,
+                  ),
                 ),
               ),
             ),
@@ -1276,36 +1306,59 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final groups = _groupedSections();
     final children = <Widget>[];
     for (final g in groups) {
-      children.add(Padding(
-        padding: const EdgeInsets.fromLTRB(MqSpacing.xs, MqSpacing.md, MqSpacing.xs, MqSpacing.sm),
-        child: Row(
-          children: [
-            Container(width: 4, height: 16, decoration: BoxDecoration(color: context.mq.accent, borderRadius: MqRadius.brPill)),
-            MqSpacing.gapSm,
-            Text(g.title, style: context.text.titleSmall),
-            MqSpacing.gapXs,
-            MqBadge(label: '${g.items.length}', tone: MqBadgeTone.neutral),
-          ],
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MqSpacing.xs,
+            MqSpacing.md,
+            MqSpacing.xs,
+            MqSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: context.mq.accent,
+                  borderRadius: MqRadius.brPill,
+                ),
+              ),
+              MqSpacing.gapSm,
+              Text(g.title, style: context.text.titleSmall),
+              MqSpacing.gapXs,
+              MqBadge(label: '${g.items.length}', tone: MqBadgeTone.neutral),
+            ],
+          ),
         ),
-      ));
+      );
       for (final n in g.items) {
-        children.add(Padding(
-          padding: const EdgeInsets.only(bottom: MqSpacing.sm),
-          child: _notificationCard(context, n),
-        ));
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: MqSpacing.sm),
+            child: _notificationCard(context, n),
+          ),
+        );
       }
     }
     if (_hasMore) {
-      children.add(const Padding(
-        padding: EdgeInsets.all(MqSpacing.md),
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      ));
+      children.add(
+        const Padding(
+          padding: EdgeInsets.all(MqSpacing.md),
+          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
     }
 
     return ListView(
       controller: _scroll,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.xxxl),
+      padding: const EdgeInsets.fromLTRB(
+        MqSpacing.lg,
+        MqSpacing.sm,
+        MqSpacing.lg,
+        MqSpacing.xxxl,
+      ),
       children: children,
     );
   }
@@ -1322,13 +1375,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(MqSpacing.md),
-                decoration: BoxDecoration(color: mq.error.withValues(alpha: 0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: mq.error.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(Icons.wifi_off_rounded, size: 32, color: mq.error),
               ),
               MqSpacing.gapMd,
               Text('تعذّر تحميل الإشعارات', style: context.text.titleMedium),
               MqSpacing.gapSm,
-              MqButton(label: 'إعادة المحاولة', icon: Icons.refresh_rounded, expand: false, onPressed: () => _fetch(refresh: true)),
+              MqButton(
+                label: 'إعادة المحاولة',
+                icon: Icons.refresh_rounded,
+                expand: false,
+                onPressed: () => _fetch(refresh: true),
+              ),
             ],
           ),
         ),
@@ -1350,15 +1411,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(MqSpacing.lg),
-                decoration: BoxDecoration(color: mq.accentSoft, shape: BoxShape.circle),
-                child: Icon(Icons.notifications_off_outlined, size: 44, color: mq.accent),
+                decoration: BoxDecoration(
+                  color: mq.accentSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.notifications_off_outlined,
+                  size: 44,
+                  color: mq.accent,
+                ),
               ),
               MqSpacing.gapMd,
-              Text(filtered ? 'لا توجد إشعارات لهذا الفلتر' : 'لا توجد إشعارات بعد',
-                  style: context.text.titleMedium, textAlign: TextAlign.center),
+              Text(
+                filtered
+                    ? 'لا توجد إشعارات لهذا الفلتر'
+                    : 'لا توجد إشعارات بعد',
+                style: context.text.titleMedium,
+                textAlign: TextAlign.center,
+              ),
               MqSpacing.gapXs,
-              Text('ستظهر هنا تنبيهات محاضراتك واختباراتك ودرجاتك.',
-                  style: context.text.bodySmall, textAlign: TextAlign.center),
+              Text(
+                'ستظهر هنا تنبيهات محاضراتك واختباراتك ودرجاتك.',
+                style: context.text.bodySmall,
+                textAlign: TextAlign.center,
+              ),
               MqSpacing.gapMd,
               if (filtered)
                 MqButton.tonal(
@@ -1386,24 +1462,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildSkeleton(BuildContext context) {
     final mq = context.mq;
     Widget bar(double w, double h) => Container(
-          width: w, height: h,
-          decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brSm),
-        );
+      width: w,
+      height: h,
+      decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brSm),
+    );
     return ListView.separated(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        MqSpacing.lg,
+        MqSpacing.lg,
+        MqSpacing.lg,
+        MqSpacing.lg,
+      ),
       itemCount: 6,
       separatorBuilder: (_, _) => const SizedBox(height: MqSpacing.sm),
       itemBuilder: (_, _) => MqCard(
         child: Row(
           children: [
-            Container(width: 44, height: 44, decoration: BoxDecoration(color: mq.fill2, borderRadius: MqRadius.brMd)),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: mq.fill2,
+                borderRadius: MqRadius.brMd,
+              ),
+            ),
             MqSpacing.gapMd,
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
-                children: [bar(160, 12), const SizedBox(height: 8), bar(220, 10), const SizedBox(height: 8), bar(90, 9)],
+                children: [
+                  bar(160, 12),
+                  const SizedBox(height: 8),
+                  bar(220, 10),
+                  const SizedBox(height: 8),
+                  bar(90, 9),
+                ],
               ),
             ),
           ],
@@ -1414,37 +1509,68 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   bool _isVideoCourseNotif(Map<String, dynamic> n) {
     final payload = _parsePayload(n);
-    final subType =
-        (payload['subType'] ?? payload['sub_type'] ?? n['subType'])?.toString();
+    final subType = (payload['subType'] ?? payload['sub_type'] ?? n['subType'])
+        ?.toString();
     final route = _inAppRouteFromPayload(payload, n);
     return isVideoCourseNotification(subType, route);
   }
 
-  ({IconData icon, Color color, String label}) _typeStyle(BuildContext context, Map<String, dynamic> n) {
+  ({IconData icon, Color color, String label}) _typeStyle(
+    BuildContext context,
+    Map<String, dynamic> n,
+  ) {
     final mq = context.mq;
     final t = (_canonicalType(n) ?? '').toLowerCase();
     bool has(String s) => t.contains(s);
-    if (has('assign') || has('homework')) return (icon: Icons.assignment_rounded, color: mq.accent, label: 'واجب');
-    if (has('grade') || t == 'exam_grade' || has('result')) return (icon: Icons.fact_check_rounded, color: mq.success, label: 'نتيجة');
-    if (has('exam') || t == 'class_reminder' || has('quiz')) return (icon: Icons.quiz_rounded, color: mq.accent, label: 'اختبار');
-    if (has('message') || has('chat') || t == 'teacher_message') return (icon: Icons.forum_rounded, color: mq.accent, label: 'رسالة');
-    if (has('payment') || has('invoice') || has('installment')) return (icon: Icons.payments_rounded, color: mq.orange, label: 'دفع');
+    if (has('assign') || has('homework'))
+      return (icon: Icons.assignment_rounded, color: mq.accent, label: 'واجب');
+    if (has('grade') || t == 'exam_grade' || has('result'))
+      return (
+        icon: Icons.fact_check_rounded,
+        color: mq.success,
+        label: 'نتيجة',
+      );
+    if (has('exam') || t == 'class_reminder' || has('quiz'))
+      return (icon: Icons.quiz_rounded, color: mq.accent, label: 'اختبار');
+    if (has('message') || has('chat') || t == 'teacher_message')
+      return (icon: Icons.forum_rounded, color: mq.accent, label: 'رسالة');
+    if (has('payment') || has('invoice') || has('installment'))
+      return (icon: Icons.payments_rounded, color: mq.orange, label: 'دفع');
     if (has('attendance') || has('session') || has('lecture')) {
-      return (icon: Icons.event_available_rounded, color: mq.accent, label: 'محاضرة');
+      return (
+        icon: Icons.event_available_rounded,
+        color: mq.accent,
+        label: 'محاضرة',
+      );
     }
     if (has('course_update') && _isVideoCourseNotif(n)) {
-      return (icon: Icons.video_library_outlined, color: mq.accent, label: 'دورة مرئية');
+      return (
+        icon: Icons.video_library_outlined,
+        color: mq.accent,
+        label: 'دورة مرئية',
+      );
     }
     if (has('course_update')) {
-      return (icon: Icons.event_available_rounded, color: mq.accent, label: 'محاضرة');
+      return (
+        icon: Icons.event_available_rounded,
+        color: mq.accent,
+        label: 'محاضرة',
+      );
     }
-    if (has('booking')) return (icon: Icons.event_note_rounded, color: mq.accent, label: 'حجز');
-    if (has('system') || has('announcement') || has('news')) return (icon: Icons.campaign_rounded, color: mq.orange, label: 'إعلان');
-    return (icon: Icons.notifications_rounded, color: mq.accent, label: 'إشعار');
+    if (has('booking'))
+      return (icon: Icons.event_note_rounded, color: mq.accent, label: 'حجز');
+    if (has('system') || has('announcement') || has('news'))
+      return (icon: Icons.campaign_rounded, color: mq.orange, label: 'إعلان');
+    return (
+      icon: Icons.notifications_rounded,
+      color: mq.accent,
+      label: 'إشعار',
+    );
   }
 
   DateTime? _notifDate(Map<String, dynamic> n) {
-    final raw = n['createdAt']?.toString() ??
+    final raw =
+        n['createdAt']?.toString() ??
         n['created_at']?.toString() ??
         n['timestamp']?.toString() ??
         n['time']?.toString() ??
@@ -1468,7 +1594,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final weekStart = today.subtract(const Duration(days: 7));
 
     final order = ['اليوم', 'أمس', 'هذا الأسبوع', 'الأقدم'];
-    final buckets = <String, List<Map<String, dynamic>>>{for (final k in order) k: []};
+    final buckets = <String, List<Map<String, dynamic>>>{
+      for (final k in order) k: [],
+    };
 
     for (final n in _items) {
       final d = _notifDate(n);
@@ -1502,7 +1630,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final title = n['title']?.toString() ?? 'إشعار';
     final message = n['message']?.toString() ?? '';
     final payload = _parsePayload(n);
-    final senderName = payload['sender'] is Map ? (payload['sender']['name']?.toString() ?? '') : '';
+    final senderName = payload['sender'] is Map
+        ? (payload['sender']['name']?.toString() ?? '')
+        : '';
     final d = _notifDate(n);
     final time = d != null ? _formatDate(d.toIso8601String()) : '';
     final unread = _isUnread(n);
@@ -1516,7 +1646,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final idx = _items.indexWhere((e) => (e['id'] ?? e['_id']) == id);
         if (idx != -1) {
           final current = _items[idx];
-          final alreadyRead = current['isRead'] == true || current['readAt'] != null || current['status'] == 'read';
+          final alreadyRead =
+              current['isRead'] == true ||
+              current['readAt'] != null ||
+              current['status'] == 'read';
           if (!alreadyRead) {
             setState(() {
               _items[idx]['status'] = 'read';
@@ -1534,7 +1667,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Container(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(color: style.color.withValues(alpha: 0.12), borderRadius: MqRadius.brMd),
+            decoration: BoxDecoration(
+              color: style.color.withValues(alpha: 0.12),
+              borderRadius: MqRadius.brMd,
+            ),
             child: Icon(style.icon, color: style.color, size: MqSize.iconMd),
           ),
           MqSpacing.gapMd,
@@ -1549,7 +1685,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       child: Text(
                         title,
                         style: context.text.titleSmall?.copyWith(
-                          fontWeight: unread ? FontWeight.w700 : FontWeight.w600,
+                          fontWeight: unread
+                              ? FontWeight.w700
+                              : FontWeight.w600,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1557,24 +1695,49 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                     if (unread) ...[
                       MqSpacing.gapXs,
-                      Container(width: 8, height: 8, decoration: BoxDecoration(color: mq.accent, shape: BoxShape.circle)),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: mq.accent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                     ],
                   ],
                 ),
                 if (message.isNotEmpty) ...[
                   const SizedBox(height: 3),
-                  Text(message, style: context.text.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(
+                    message,
+                    style: context.text.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
                 MqSpacing.gapSm,
                 Row(
                   children: [
-                    MqBadge(label: style.label, tone: MqBadgeTone.accent, icon: style.icon),
+                    MqBadge(
+                      label: style.label,
+                      tone: MqBadgeTone.accent,
+                      icon: style.icon,
+                    ),
                     const Spacer(),
                     if (senderName.isNotEmpty) ...[
-                      Icon(Icons.person_outline_rounded, size: 12, color: mq.ink3),
+                      Icon(
+                        Icons.person_outline_rounded,
+                        size: 12,
+                        color: mq.ink3,
+                      ),
                       const SizedBox(width: 3),
                       Flexible(
-                        child: Text(senderName, style: context.text.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          senderName,
+                          style: context.text.labelSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       MqSpacing.gapSm,
                     ],
@@ -1590,7 +1753,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
-
 
   String? _canonicalType(Map<String, dynamic> n) {
     final rawType =
@@ -1630,7 +1792,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (diff.inHours < 24) return 'منذ ${diff.inHours} س';
       if (diff.inDays < 7) return 'منذ ${diff.inDays} يوم';
 
-      return DateFormat('dd/MM HH:mm').format(d);
+      return formatDateTime12(d);
     } catch (_) {
       return '';
     }

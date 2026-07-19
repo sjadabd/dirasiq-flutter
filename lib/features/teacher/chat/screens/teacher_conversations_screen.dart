@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
+import '../../../../core/utils/time_format.dart';
 import '../../shared/design/teacher_design.dart';
 import '../controllers/conversations_controller.dart';
 import '../models/chat_models.dart';
@@ -65,8 +66,9 @@ class _TeacherConversationsScreenState
         return all;
       case _Filter.students:
         return all
-            .where((c) =>
-                !c.isGroup && (c.peer?.userType ?? 'student') == 'student')
+            .where(
+              (c) => !c.isGroup && (c.peer?.userType ?? 'student') == 'student',
+            )
             .toList();
       case _Filter.groups:
         return all.where((c) => c.isGroup).toList();
@@ -82,62 +84,73 @@ class _TeacherConversationsScreenState
       data: isDark ? MqTheme.dark() : MqTheme.light(),
       child: Directionality(
         textDirection: TextDirection.rtl,
-        child: Builder(builder: (context) {
-          final mq = context.mq;
-          return Scaffold(
-            backgroundColor: mq.page,
-            appBar: _appBar(context),
-            body: Obx(() {
-              final all = _ctrl.conversations;
-              final totalUnread =
-                  all.fold<int>(0, (s, c) => s + c.unreadCount);
+        child: Builder(
+          builder: (context) {
+            final mq = context.mq;
+            return Scaffold(
+              backgroundColor: mq.page,
+              appBar: _appBar(context),
+              body: Obx(() {
+                final all = _ctrl.conversations;
+                final totalUnread = all.fold<int>(
+                  0,
+                  (s, c) => s + c.unreadCount,
+                );
 
-              if (_ctrl.loading.value && all.isEmpty) {
-                return Center(
-                    child: CircularProgressIndicator(color: mq.accent));
-              }
-              if (_ctrl.error.value != null && all.isEmpty) {
-                return _ErrorView(
-                    message: _ctrl.error.value!, onRetry: _ctrl.fetch);
-              }
+                if (_ctrl.loading.value && all.isEmpty) {
+                  return Center(
+                    child: CircularProgressIndicator(color: mq.accent),
+                  );
+                }
+                if (_ctrl.error.value != null && all.isEmpty) {
+                  return _ErrorView(
+                    message: _ctrl.error.value!,
+                    onRetry: _ctrl.fetch,
+                  );
+                }
 
-              final list = _applyFilter(all);
-              return Column(
-                children: [
-                  _filters(context, totalUnread),
-                  Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: () => _ctrl.fetch(isRefresh: true),
-                      color: mq.accent,
-                      child: list.isEmpty
-                          ? ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              children: const [
-                                SizedBox(height: 100),
-                                _EmptyConversations(),
-                              ],
-                            )
-                          : ListView.separated(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.only(bottom: MqSpacing.lg),
-                              itemCount: list.length,
-                              separatorBuilder: (_, _) => Padding(
-                                padding: const EdgeInsetsDirectional.only(
-                                    start: 72, end: MqSpacing.lg),
-                                child: Divider(height: 1, color: mq.line),
+                final list = _applyFilter(all);
+                return Column(
+                  children: [
+                    _filters(context, totalUnread),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: () => _ctrl.fetch(isRefresh: true),
+                        color: mq.accent,
+                        child: list.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: const [
+                                  SizedBox(height: 100),
+                                  _EmptyConversations(),
+                                ],
+                              )
+                            : ListView.separated(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.only(
+                                  bottom: MqSpacing.lg,
+                                ),
+                                itemCount: list.length,
+                                separatorBuilder: (_, _) => Padding(
+                                  padding: const EdgeInsetsDirectional.only(
+                                    start: 72,
+                                    end: MqSpacing.lg,
+                                  ),
+                                  child: Divider(height: 1, color: mq.line),
+                                ),
+                                itemBuilder: (ctx, i) => _ConversationTile(
+                                  conversation: list[i],
+                                  onTap: () => _openConversation(list[i]),
+                                ),
                               ),
-                              itemBuilder: (ctx, i) => _ConversationTile(
-                                conversation: list[i],
-                                onTap: () => _openConversation(list[i]),
-                              ),
-                            ),
+                      ),
                     ),
-                  ),
-                ],
-              );
-            }),
-          );
-        }),
+                  ],
+                );
+              }),
+            );
+          },
+        ),
       ),
     );
   }
@@ -162,18 +175,23 @@ class _TeacherConversationsScreenState
             )
           : null,
       title: Obx(() {
-        final unread =
-            _ctrl.conversations.fold<int>(0, (s, c) => s + c.unreadCount);
+        final unread = _ctrl.conversations.fold<int>(
+          0,
+          (s, c) => s + c.unreadCount,
+        );
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('المحادثات',
-                style: context.text.titleMedium?.copyWith(color: mq.ink)),
+            Text(
+              'المحادثات',
+              style: context.text.titleMedium?.copyWith(color: mq.ink),
+            ),
             Text(
               unread > 0 ? '$unread رسائل غير مقروءة' : 'كل الرسائل مقروءة',
               style: context.text.labelSmall?.copyWith(
-                  color: unread > 0 ? mq.accent : mq.ink3),
+                color: unread > 0 ? mq.accent : mq.ink3,
+              ),
             ),
           ],
         );
@@ -204,7 +222,11 @@ class _TeacherConversationsScreenState
     return Container(
       color: context.mq.card,
       padding: const EdgeInsets.fromLTRB(
-          MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.md),
+        MqSpacing.lg,
+        MqSpacing.sm,
+        MqSpacing.lg,
+        MqSpacing.md,
+      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -302,15 +324,18 @@ class _ConversationTile extends StatelessWidget {
     final mq = context.mq;
     final c = conversation;
     final unread = c.unreadCount > 0;
-    final timeStr =
-        c.lastMessageAt != null ? _relativeTime(c.lastMessageAt!) : '';
+    final timeStr = c.lastMessageAt != null
+        ? _relativeTime(c.lastMessageAt!)
+        : '';
     final (roleLabel, roleTone) = _role(c);
 
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: MqSpacing.lg, vertical: MqSpacing.md),
+          horizontal: MqSpacing.lg,
+          vertical: MqSpacing.md,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -328,7 +353,9 @@ class _ConversationTile extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: context.text.bodyMedium?.copyWith(
-                              color: mq.ink, fontWeight: FontWeight.w700),
+                            color: mq.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       const SizedBox(width: MqSpacing.sm),
@@ -338,9 +365,12 @@ class _ConversationTile extends StatelessWidget {
                         Icon(Icons.campaign_outlined, size: 14, color: mq.ink3),
                       ],
                       const Spacer(),
-                      Text(timeStr,
-                          style: context.text.labelSmall?.copyWith(
-                              color: unread ? mq.accent : mq.ink3)),
+                      Text(
+                        timeStr,
+                        style: context.text.labelSmall?.copyWith(
+                          color: unread ? mq.accent : mq.ink3,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 3),
@@ -353,8 +383,9 @@ class _ConversationTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: context.text.bodySmall?.copyWith(
                             color: unread ? mq.ink : mq.ink2,
-                            fontWeight:
-                                unread ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight: unread
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                         ),
                       ),
@@ -400,7 +431,7 @@ class _ConversationTile extends StatelessWidget {
     final diff = now.difference(t);
     if (diff.inMinutes < 1) return 'الآن';
     if (diff.inHours < 1) return '${diff.inMinutes} د';
-    if (diff.inDays < 1) return DateFormat('HH:mm').format(t);
+    if (diff.inDays < 1) return formatTime12(t);
     if (diff.inDays < 7) return DateFormat('EEEE', 'ar').format(t);
     return DateFormat('dd/MM').format(t);
   }
@@ -428,9 +459,14 @@ class _Avatar extends StatelessWidget {
       alignment: Alignment.center,
       child: isGroup
           ? Icon(Icons.groups_2_outlined, color: fg, size: 22)
-          : Text(initials,
+          : Text(
+              initials,
               style: MqTypography.mono(
-                  color: fg, size: 18, weight: FontWeight.w700)),
+                color: fg,
+                size: 18,
+                weight: FontWeight.w700,
+              ),
+            ),
     );
   }
 }
@@ -445,12 +481,18 @@ class _UnreadBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 20),
       height: 20,
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(color: mq.accent, borderRadius: MqRadius.brPill),
+      decoration: BoxDecoration(
+        color: mq.accent,
+        borderRadius: MqRadius.brPill,
+      ),
       alignment: Alignment.center,
       child: Text(
         count > 99 ? '99+' : '$count',
         style: const TextStyle(
-            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -469,7 +511,9 @@ class _EmptyConversations extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-                color: mq.accentSoft, shape: BoxShape.circle),
+              color: mq.accentSoft,
+              shape: BoxShape.circle,
+            ),
             child: Icon(Icons.forum_outlined, size: 34, color: mq.accent),
           ),
           const SizedBox(height: MqSpacing.md),
@@ -501,8 +545,11 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(Icons.wifi_off_rounded, size: 48, color: mq.error),
             const SizedBox(height: MqSpacing.md),
-            Text(message,
-                textAlign: TextAlign.center, style: context.text.bodyMedium),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: context.text.bodyMedium,
+            ),
             const SizedBox(height: MqSpacing.lg),
             MqButton(
               label: 'إعادة المحاولة',

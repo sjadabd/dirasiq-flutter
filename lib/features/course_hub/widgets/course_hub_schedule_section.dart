@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mulhimiq/core/utils/time_format.dart';
 import 'package:mulhimiq/features/course_hub/controllers/course_hub_controller.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_section_shell.dart';
 import 'package:mulhimiq/features/enrollments/screens/course_weekly_schedule_screen.dart';
@@ -14,14 +15,21 @@ class CourseHubScheduleSection extends StatefulWidget {
   const CourseHubScheduleSection({super.key});
 
   @override
-  State<CourseHubScheduleSection> createState() => _CourseHubScheduleSectionState();
+  State<CourseHubScheduleSection> createState() =>
+      _CourseHubScheduleSectionState();
 }
 
 class _CourseHubScheduleSectionState extends State<CourseHubScheduleSection> {
   CourseHubController get _c => Get.find<CourseHubController>();
 
   static const List<String> _arWeekday = [
-    'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت',
+    'الأحد',
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
   ];
 
   @override
@@ -48,8 +56,10 @@ class _CourseHubScheduleSectionState extends State<CourseHubScheduleSection> {
       } else if (_c.scheduleRows.isEmpty) {
         body = const Padding(
           padding: EdgeInsets.symmetric(vertical: 8),
-          child: Text('لا يوجد جدول معتمد لهذا الكورس بعد.',
-              style: TextStyle(fontSize: 12)),
+          child: Text(
+            'لا يوجد جدول معتمد لهذا الكورس بعد.',
+            style: TextStyle(fontSize: 12),
+          ),
         );
       } else {
         body = Column(
@@ -61,10 +71,12 @@ class _CourseHubScheduleSectionState extends State<CourseHubScheduleSection> {
         icon: Icons.calendar_today_outlined,
         title: 'الجدول الأسبوعي',
         action: TextButton(
-          onPressed: () => Get.to(() => CourseWeeklyScheduleScreen(
-                courseId: _c.courseId,
-                courseName: _c.initialCourseName,
-              )),
+          onPressed: () => Get.to(
+            () => CourseWeeklyScheduleScreen(
+              courseId: _c.courseId,
+              courseName: _c.initialCourseName,
+            ),
+          ),
           style: TextButton.styleFrom(
             visualDensity: VisualDensity.compact,
             minimumSize: const Size(0, 28),
@@ -81,9 +93,15 @@ class _CourseHubScheduleSectionState extends State<CourseHubScheduleSection> {
     // The API keys the weekday as `weekday` (Postgres EXTRACT(DOW): 0=Sun..6=Sat),
     // NOT `day_of_week`. Reading the wrong key made every row default to 0 (الأحد).
     final raw = slot['weekday'] ?? slot['day_of_week'] ?? slot['dayOfWeek'];
-    final dayIndex = (raw is int) ? raw : int.tryParse(raw?.toString() ?? '') ?? -1;
-    final start = _ar12((slot['startTime'] ?? slot['start_time'] ?? '').toString());
-    final end = _ar12((slot['endTime'] ?? slot['end_time'] ?? '').toString());
+    final dayIndex = (raw is int)
+        ? raw
+        : int.tryParse(raw?.toString() ?? '') ?? -1;
+    final start = formatTime12(
+      (slot['startTime'] ?? slot['start_time'] ?? '').toString(),
+    );
+    final end = formatTime12(
+      (slot['endTime'] ?? slot['end_time'] ?? '').toString(),
+    );
     final dayLabel = (dayIndex >= 0 && dayIndex < _arWeekday.length)
         ? _arWeekday[dayIndex]
         : '—';
@@ -92,16 +110,5 @@ class _CourseHubScheduleSectionState extends State<CourseHubScheduleSection> {
       label: dayLabel,
       subtitle: start.isNotEmpty && end.isNotEmpty ? '$start – $end' : '',
     );
-  }
-
-  /// Localises the English AM/PM suffix on the backend's 12-hour time strings.
-  static String _ar12(String s) {
-    final t = s.trim();
-    if (t.isEmpty) return '';
-    return t
-        .replaceAll('AM', 'ص')
-        .replaceAll('PM', 'م')
-        .replaceAll('am', 'ص')
-        .replaceAll('pm', 'م');
   }
 }

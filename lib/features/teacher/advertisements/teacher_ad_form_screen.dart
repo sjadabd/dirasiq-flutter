@@ -38,6 +38,8 @@ class _TeacherAdFormScreenState extends State<TeacherAdFormScreen> {
   String _visibility = 'public';
   String? _coverDataUrl;
   bool _saving = false;
+  bool _loadingSettings = true;
+  bool _freeClicksEnabled = false;
 
   bool get _isEdit =>
       !widget.republishMode && widget.adId != null && widget.adId!.isNotEmpty;
@@ -50,15 +52,42 @@ class _TeacherAdFormScreenState extends State<TeacherAdFormScreen> {
       _title.text = (init['title'] ?? '').toString();
       _description.text = (init['description'] ?? '').toString();
       _visibility = (init['visibility'] ?? 'public').toString();
-      _coverDataUrl = adCoverUrl(init['coverImageUrl'] ?? init['cover_image_url']);
+      _coverDataUrl = adCoverUrl(
+        init['coverImageUrl'] ?? init['cover_image_url'],
+      );
       if (widget.republishMode) {
         _budget.text = '';
       } else {
-        _budget.text =
-            (init['budgetTotal'] ?? init['budget_total'] ?? '10000').toString();
+        _budget.text = (init['budgetTotal'] ?? init['budget_total'] ?? '10000')
+            .toString();
       }
     } else if (!widget.republishMode) {
       _budget.text = '10000';
+    }
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final settings = await _api.fetchAdvertisementSettings();
+      if (!mounted) return;
+      setState(() {
+        _freeClicksEnabled =
+            settings['freeClicksEnabled'] == true ||
+            settings['free_clicks_enabled'] == true;
+        if (_freeClicksEnabled) {
+          _budget.clear();
+        } else if (_budget.text.trim().isEmpty && !widget.republishMode) {
+          _budget.text =
+              (settings['minBudget'] ?? settings['min_budget'] ?? 10000)
+                  .toString();
+        }
+      });
+    } catch (_) {
+      // Safe fallback: keep paid mode so a missing settings response cannot
+      // accidentally submit an unbudgeted advertisement.
+    } finally {
+      if (mounted) setState(() => _loadingSettings = false);
     }
   }
 
@@ -71,8 +100,10 @@ class _TeacherAdFormScreenState extends State<TeacherAdFormScreen> {
   }
 
   Future<void> _pickImage() async {
-    final picked =
-        await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     final bytes = await File(picked.path).readAsBytes();
     final ext = picked.path.split('.').last.toLowerCase();
@@ -90,7 +121,8 @@ class _TeacherAdFormScreenState extends State<TeacherAdFormScreen> {
         'title': _title.text.trim(),
         'description': _description.text.trim(),
         'visibility': _visibility,
-        'budgetTotal': double.tryParse(_budget.text.trim()) ?? 0,
+        if (!_freeClicksEnabled)
+          'budgetTotal': double.tryParse(_budget.text.trim()) ?? 0,
         if (_coverDataUrl != null && _coverDataUrl!.isNotEmpty)
           'coverImageUrl': _coverDataUrl,
       };
@@ -137,102 +169,152 @@ class _TeacherAdFormScreenState extends State<TeacherAdFormScreen> {
         appBar: TeacherAppBar(title: _titleText),
         body: Form(
           key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(MqSpacing.lg),
-            children: [
-              if (widget.republishMode)
-                Container(
-                  margin: const EdgeInsets.only(bottom: MqSpacing.md),
-                  padding: const EdgeInsets.all(MqSpacing.md),
-                  decoration: BoxDecoration(
-                    color: mq.accentSoft,
-                    borderRadius: MqRadius.brMd,
-                    border: Border.all(color: mq.accentLine),
-                  ),
-                  child: Text(
-                    'يمكنك تعديل العنوان والوصف والصورة وتحديد ميزانية جديدة. '
-                    'سيُرسل الطلب للسوبر أدمن للموافقة قبل النشر.',
-                    style: context.text.bodySmall?.copyWith(color: mq.ink2, height: 1.5),
-                  ),
-                ),
-              if (_coverDataUrl != null && _coverDataUrl!.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: MqRadius.brMd,
-                  child: Image.network(
-                    _coverDataUrl!,
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      height: 160,
-                      color: mq.fill,
-                      child: Icon(Icons.image_not_supported_outlined, color: mq.ink3),
+          child: _loadingSettings
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.all(MqSpacing.lg),
+                  children: [
+                    if (widget.republishMode)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: MqSpacing.md),
+                        padding: const EdgeInsets.all(MqSpacing.md),
+                        decoration: BoxDecoration(
+                          color: mq.accentSoft,
+                          borderRadius: MqRadius.brMd,
+                          border: Border.all(color: mq.accentLine),
+                        ),
+                        child: Text(
+                          _freeClicksEnabled
+                              ? 'يمكنك تعديل العنوان والوصف والصورة. النشر مجاني حالياً ولا يحتاج إلى ميزانية. سيُرسل الطلب للسوبر أدمن للموافقة قبل النشر.'
+                              : 'يمكنك تعديل العنوان والوصف والصورة وتحديد ميزانية جديدة. '
+                                    'سيُرسل الطلب للسوبر أدمن للموافقة قبل النشر.',
+                          style: context.text.bodySmall?.copyWith(
+                            color: mq.ink2,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    if (_coverDataUrl != null && _coverDataUrl!.isNotEmpty) ...[
+                      ClipRRect(
+                        borderRadius: MqRadius.brMd,
+                        child: Image.network(
+                          _coverDataUrl!,
+                          height: 160,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            height: 160,
+                            color: mq.fill,
+                            child: Icon(
+                              Icons.image_not_supported_outlined,
+                              color: mq.ink3,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: MqSpacing.sm),
+                    ],
+                    TextFormField(
+                      controller: _title,
+                      decoration: const InputDecoration(labelText: 'العنوان'),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
                     ),
-                  ),
+                    const SizedBox(height: MqSpacing.md),
+                    TextFormField(
+                      controller: _description,
+                      decoration: const InputDecoration(labelText: 'الوصف'),
+                      maxLines: 5,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                    ),
+                    const SizedBox(height: MqSpacing.md),
+                    if (_freeClicksEnabled) ...[
+                      Container(
+                        padding: const EdgeInsets.all(MqSpacing.md),
+                        decoration: BoxDecoration(
+                          color: mq.accentSoft,
+                          borderRadius: MqRadius.brMd,
+                          border: Border.all(color: mq.accentLine),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.redeem_outlined, color: mq.accent),
+                            const SizedBox(width: MqSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                'الإعلانات مجانية حالياً — لن تُخصم أي ميزانية مقابل النقرات.',
+                                style: context.text.bodySmall?.copyWith(
+                                  color: mq.ink2,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: MqSpacing.md),
+                    ] else ...[
+                      TextFormField(
+                        controller: _budget,
+                        decoration: InputDecoration(
+                          labelText: widget.republishMode
+                              ? 'الميزانية الجديدة (د.ع)'
+                              : 'الميزانية (د.ع)',
+                          hintText: widget.republishMode ? 'مثال: 10000' : null,
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0
+                            ? 'أدخل ميزانية صحيحة'
+                            : null,
+                      ),
+                      const SizedBox(height: MqSpacing.md),
+                    ],
+                    DropdownButtonFormField<String>(
+                      initialValue: _visibility,
+                      decoration: const InputDecoration(labelText: 'الظهور'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'public',
+                          child: Text('عام — كل الطلاب'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'governorate_only',
+                          child: Text('محافظتي فقط'),
+                        ),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _visibility = v ?? 'public'),
+                    ),
+                    const SizedBox(height: MqSpacing.md),
+                    OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.image_outlined),
+                      label: Text(
+                        _coverDataUrl == null
+                            ? 'اختيار صورة الغلاف'
+                            : 'تغيير الصورة',
+                      ),
+                    ),
+                    const SizedBox(height: MqSpacing.xl),
+                    if (!widget.republishMode) ...[
+                      MqButton(
+                        label: 'حفظ مسودة',
+                        loading: _saving,
+                        onPressed: _saving ? null : () => _save(),
+                      ),
+                      const SizedBox(height: MqSpacing.sm),
+                    ],
+                    MqButton(
+                      label: widget.republishMode
+                          ? 'إرسال إعادة النشر للمراجعة'
+                          : 'حفظ وإرسال للمراجعة',
+                      icon: Icons.send_rounded,
+                      loading: _saving,
+                      onPressed: _saving ? null : () => _save(submit: true),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: MqSpacing.sm),
-              ],
-              TextFormField(
-                controller: _title,
-                decoration: const InputDecoration(labelText: 'العنوان'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-              ),
-              const SizedBox(height: MqSpacing.md),
-              TextFormField(
-                controller: _description,
-                decoration: const InputDecoration(labelText: 'الوصف'),
-                maxLines: 5,
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-              ),
-              const SizedBox(height: MqSpacing.md),
-              TextFormField(
-                controller: _budget,
-                decoration: InputDecoration(
-                  labelText: widget.republishMode
-                      ? 'الميزانية الجديدة (د.ع)'
-                      : 'الميزانية (د.ع)',
-                  hintText: widget.republishMode ? 'مثال: 10000' : null,
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) =>
-                    (double.tryParse(v ?? '') ?? 0) <= 0 ? 'أدخل ميزانية صحيحة' : null,
-              ),
-              const SizedBox(height: MqSpacing.md),
-              DropdownButtonFormField<String>(
-                initialValue: _visibility,
-                decoration: const InputDecoration(labelText: 'الظهور'),
-                items: const [
-                  DropdownMenuItem(value: 'public', child: Text('عام — كل الطلاب')),
-                  DropdownMenuItem(
-                      value: 'governorate_only', child: Text('محافظتي فقط')),
-                ],
-                onChanged: (v) => setState(() => _visibility = v ?? 'public'),
-              ),
-              const SizedBox(height: MqSpacing.md),
-              OutlinedButton.icon(
-                onPressed: _pickImage,
-                icon: const Icon(Icons.image_outlined),
-                label: Text(_coverDataUrl == null ? 'اختيار صورة الغلاف' : 'تغيير الصورة'),
-              ),
-              const SizedBox(height: MqSpacing.xl),
-              if (!widget.republishMode) ...[
-                MqButton(
-                  label: 'حفظ مسودة',
-                  loading: _saving,
-                  onPressed: _saving ? null : () => _save(),
-                ),
-                const SizedBox(height: MqSpacing.sm),
-              ],
-              MqButton(
-                label: widget.republishMode
-                    ? 'إرسال إعادة النشر للمراجعة'
-                    : 'حفظ وإرسال للمراجعة',
-                icon: Icons.send_rounded,
-                loading: _saving,
-                onPressed: _saving ? null : () => _save(submit: true),
-              ),
-            ],
-          ),
         ),
       ),
     );

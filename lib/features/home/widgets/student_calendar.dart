@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/utils/time_format.dart';
 
 class StudentCalendar extends StatefulWidget {
   /// Bump this from the parent (e.g. on pull-to-refresh) to force the
@@ -102,7 +103,7 @@ class _StudentCalendarState extends State<StudentCalendar> {
                     ),
                   ),
                   subtitle: Text(
-                    "المعلم: ${e['teacher']?['name']} \n${e['startTime']} - ${e['endTime']}",
+                    "المعلم: ${e['teacher']?['name']} \n${formatTimeRange12(e['startTime'], e['endTime'])}",
                     style: TextStyle(color: cs.onSurfaceVariant),
                   ),
                 ),

@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/services/teacher_api_service.dart';
+import '../../../core/utils/time_format.dart';
 import '../shared/design/teacher_design.dart';
 
 /// Opens the "add new assignment" sheet for [courseId]. Mirrors the dashboard
@@ -31,14 +32,22 @@ Future<bool?> showAssignmentForm({
       data: isDark ? MqTheme.dark() : MqTheme.light(),
       child: Directionality(
         textDirection: TextDirection.rtl,
-        child: _AssignmentForm(courseId: courseId, api: api, existing: existing),
+        child: _AssignmentForm(
+          courseId: courseId,
+          api: api,
+          existing: existing,
+        ),
       ),
     ),
   );
 }
 
 class _AssignmentForm extends StatefulWidget {
-  const _AssignmentForm({required this.courseId, required this.api, this.existing});
+  const _AssignmentForm({
+    required this.courseId,
+    required this.api,
+    this.existing,
+  });
   final String courseId;
   final TeacherApiService api;
   final Map<String, dynamic>? existing;
@@ -150,7 +159,11 @@ class _AssignmentFormState extends State<_AssignmentForm> {
     try {
       final results = await Future.wait([
         widget.api.fetchMySubjectsCatalog(),
-        widget.api.fetchSessions(courseId: widget.courseId, page: 1, limit: 100),
+        widget.api.fetchSessions(
+          courseId: widget.courseId,
+          page: 1,
+          limit: 100,
+        ),
         widget.api.fetchStudentsByCourse(widget.courseId),
       ]);
       _subjects = (results[0] as List)
@@ -169,7 +182,10 @@ class _AssignmentFormState extends State<_AssignmentForm> {
   List<Map<String, dynamic>> _listOf(Map<String, dynamic> res) {
     final d = res['data'];
     if (d is List) {
-      return d.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList();
+      return d
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
     }
     if (d is Map && d['items'] is List) {
       return (d['items'] as List)
@@ -235,8 +251,11 @@ class _AssignmentFormState extends State<_AssignmentForm> {
       }
       if (mounted) setState(() {});
     } catch (_) {
-      Get.snackbar('خطأ', 'تعذّر اختيار الصور',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'خطأ',
+        'تعذّر اختيار الصور',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
@@ -260,31 +279,42 @@ class _AssignmentFormState extends State<_AssignmentForm> {
       }
       if (mounted) setState(() {});
     } catch (_) {
-      Get.snackbar('خطأ', 'تعذّر اختيار الملفات',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'خطأ',
+        'تعذّر اختيار الملفات',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
   Future<void> _save() async {
     final title = _title.text.trim();
     if (title.isEmpty) {
-      Get.snackbar('تنبيه', 'العنوان مطلوب',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تنبيه',
+        'العنوان مطلوب',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
     if (_visibility == 'specific_students' && _studentIds.isEmpty) {
-      Get.snackbar('تنبيه', 'اختر طالباً واحداً على الأقل',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تنبيه',
+        'اختر طالباً واحداً على الأقل',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
     final resources = _resources
         .where((r) => r.url.text.trim().isNotEmpty)
-        .map((r) => {
-              'type': 'link',
-              'title': r.title.text.trim(),
-              'url': r.url.text.trim(),
-            })
+        .map(
+          (r) => {
+            'type': 'link',
+            'title': r.title.text.trim(),
+            'url': r.url.text.trim(),
+          },
+        )
         .toList();
 
     final payload = <String, dynamic>{
@@ -312,18 +342,26 @@ class _AssignmentFormState extends State<_AssignmentForm> {
     setState(() => _saving = true);
     try {
       if (_isEdit) {
-        await widget.api
-            .updateAssignment(widget.existing!['id'].toString(), payload);
+        await widget.api.updateAssignment(
+          widget.existing!['id'].toString(),
+          payload,
+        );
       } else {
         await widget.api.createAssignment(payload);
       }
       if (mounted) Navigator.pop(context, true);
-      Get.snackbar('تم', _isEdit ? 'تم حفظ التعديلات' : 'تم إنشاء الواجب',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'تم',
+        _isEdit ? 'تم حفظ التعديلات' : 'تم إنشاء الواجب',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } catch (_) {
       if (mounted) setState(() => _saving = false);
-      Get.snackbar('خطأ', _isEdit ? 'تعذّر حفظ التعديلات' : 'تعذّر إنشاء الواجب',
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'خطأ',
+        _isEdit ? 'تعذّر حفظ التعديلات' : 'تعذّر إنشاء الواجب',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
@@ -334,17 +372,23 @@ class _AssignmentFormState extends State<_AssignmentForm> {
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
         constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.92),
+          maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+        ),
         decoration: BoxDecoration(
           color: mq.card,
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(MqRadius.xl)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(MqRadius.xl),
+          ),
         ),
         child: SafeArea(
           top: false,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
-                MqSpacing.lg, MqSpacing.sm, MqSpacing.lg, MqSpacing.lg),
+              MqSpacing.lg,
+              MqSpacing.sm,
+              MqSpacing.lg,
+              MqSpacing.lg,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -355,7 +399,9 @@ class _AssignmentFormState extends State<_AssignmentForm> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: MqSpacing.md),
                     decoration: BoxDecoration(
-                        color: mq.line, borderRadius: MqRadius.brPill),
+                      color: mq.line,
+                      borderRadius: MqRadius.brPill,
+                    ),
                   ),
                 ),
                 _header(context),
@@ -412,9 +458,12 @@ class _AssignmentFormState extends State<_AssignmentForm> {
                 Row(
                   children: [
                     Expanded(
-                        child: _dateField('تاريخ الإسناد', _assignedDate, true)),
+                      child: _dateField('تاريخ الإسناد', _assignedDate, true),
+                    ),
                     const SizedBox(width: MqSpacing.sm),
-                    Expanded(child: _dateField('تاريخ التسليم', _dueDate, false)),
+                    Expanded(
+                      child: _dateField('تاريخ التسليم', _dueDate, false),
+                    ),
                   ],
                 ),
                 const SizedBox(height: MqSpacing.md),
@@ -447,7 +496,9 @@ class _AssignmentFormState extends State<_AssignmentForm> {
                 TextField(
                   controller: _score,
                   keyboardType: const TextInputType.numberWithOptions(
-                      decimal: false, signed: false),
+                    decimal: false,
+                    signed: false,
+                  ),
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'الدرجة القصوى',
@@ -493,14 +544,21 @@ class _AssignmentFormState extends State<_AssignmentForm> {
         Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-              color: mq.accentSoft, borderRadius: MqRadius.brSm),
-          child: Icon(Icons.assignment_add,
-              size: MqSize.iconSm, color: mq.accent),
+            color: mq.accentSoft,
+            borderRadius: MqRadius.brSm,
+          ),
+          child: Icon(
+            Icons.assignment_add,
+            size: MqSize.iconSm,
+            color: mq.accent,
+          ),
         ),
         const SizedBox(width: MqSpacing.sm),
         Expanded(
-          child: Text(_isEdit ? 'تعديل الواجب' : 'إضافة واجب جديد',
-              style: context.text.titleMedium),
+          child: Text(
+            _isEdit ? 'تعديل الواجب' : 'إضافة واجب جديد',
+            style: context.text.titleMedium,
+          ),
         ),
         InkWell(
           onTap: () => Navigator.pop(context),
@@ -515,13 +573,19 @@ class _AssignmentFormState extends State<_AssignmentForm> {
   }
 
   static const _weekdays = [
-    'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'
+    'الأحد',
+    'الإثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
   ];
 
   String _sessionLabel(Map<String, dynamic> s) {
     final wd = (s['weekday'] is num) ? (s['weekday'] as num).toInt() : -1;
     final day = (wd >= 0 && wd < 7) ? _weekdays[wd] : '';
-    final start = (s['start_time'] ?? '').toString();
+    final start = formatTime12(s['start_time']);
     final grade = (s['grade_name'] ?? '').toString();
     final parts = [day, start, grade].where((x) => x.isNotEmpty).toList();
     return parts.isEmpty ? 'حصة' : parts.join(' · ');
@@ -549,8 +613,7 @@ class _AssignmentFormState extends State<_AssignmentForm> {
         for (final e in items.entries)
           DropdownMenuItem(
             value: e.key,
-            child:
-                Text(e.value, maxLines: 1, overflow: TextOverflow.ellipsis),
+            child: Text(e.value, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
       ],
       onChanged: onChanged,
@@ -568,9 +631,12 @@ class _AssignmentFormState extends State<_AssignmentForm> {
           isDense: true,
           prefixIcon: const Icon(Icons.calendar_today_outlined),
         ),
-        child: Text(value == null ? 'اختر' : _fmtDate(value),
-            style: context.text.bodyMedium
-                ?.copyWith(color: value == null ? mq.ink3 : mq.ink)),
+        child: Text(
+          value == null ? 'اختر' : _fmtDate(value),
+          style: context.text.bodyMedium?.copyWith(
+            color: value == null ? mq.ink3 : mq.ink,
+          ),
+        ),
       ),
     );
   }
@@ -599,9 +665,10 @@ class _AssignmentFormState extends State<_AssignmentForm> {
         if (_visibility == 'specific_students') ...[
           const SizedBox(height: MqSpacing.sm),
           if (_students.isEmpty)
-            Text('لا يوجد طلاب في هذه الدورة',
-                style: context.text.bodySmall
-                    ?.copyWith(color: context.mq.ink3))
+            Text(
+              'لا يوجد طلاب في هذه الدورة',
+              style: context.text.bodySmall?.copyWith(color: context.mq.ink3),
+            )
           else
             Wrap(
               spacing: MqSpacing.sm,
@@ -665,25 +732,31 @@ class _AssignmentFormState extends State<_AssignmentForm> {
             child: Row(
               children: [
                 Icon(
-                    _files[i]['type'] == 'pdf'
-                        ? Icons.picture_as_pdf_outlined
-                        : Icons.image_outlined,
-                    size: MqSize.iconSm,
-                    color: mq.accent),
+                  _files[i]['type'] == 'pdf'
+                      ? Icons.picture_as_pdf_outlined
+                      : Icons.image_outlined,
+                  size: MqSize.iconSm,
+                  color: mq.accent,
+                ),
                 const SizedBox(width: MqSpacing.sm),
                 Expanded(
-                  child: Text(_files[i]['name'] ?? 'ملف',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.text.bodySmall),
+                  child: Text(
+                    _files[i]['name'] ?? 'ملف',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.bodySmall,
+                  ),
                 ),
                 InkWell(
                   onTap: () => setState(() => _files.removeAt(i)),
                   customBorder: const CircleBorder(),
                   child: Padding(
                     padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.close_rounded,
-                        size: MqSize.iconSm, color: mq.error),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: MqSize.iconSm,
+                      color: mq.error,
+                    ),
                   ),
                 ),
               ],
@@ -718,7 +791,9 @@ class _AssignmentFormState extends State<_AssignmentForm> {
                   child: TextField(
                     controller: _resources[i].title,
                     decoration: const InputDecoration(
-                        labelText: 'العنوان', isDense: true),
+                      labelText: 'العنوان',
+                      isDense: true,
+                    ),
                   ),
                 ),
                 const SizedBox(width: MqSpacing.sm),
@@ -728,7 +803,9 @@ class _AssignmentFormState extends State<_AssignmentForm> {
                     controller: _resources[i].url,
                     keyboardType: TextInputType.url,
                     decoration: const InputDecoration(
-                        labelText: 'الرابط', isDense: true),
+                      labelText: 'الرابط',
+                      isDense: true,
+                    ),
                   ),
                 ),
                 InkWell(
@@ -739,8 +816,11 @@ class _AssignmentFormState extends State<_AssignmentForm> {
                   customBorder: const CircleBorder(),
                   child: Padding(
                     padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.close_rounded,
-                        size: MqSize.iconSm, color: context.mq.error),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: MqSize.iconSm,
+                      color: context.mq.error,
+                    ),
                   ),
                 ),
               ],

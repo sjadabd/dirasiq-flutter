@@ -13,6 +13,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:mulhimiq/core/services/api_service.dart';
+import 'package:mulhimiq/core/utils/time_format.dart';
 import 'package:mulhimiq/shared/design_system/design_system.dart';
 
 class CourseWeeklyScheduleScreen extends StatefulWidget {
@@ -39,7 +40,13 @@ class _CourseWeeklyScheduleScreenState
 
   // Sunday = 0 … Saturday = 6 (matches backend EXTRACT(DOW)).
   static const List<String> _arWeekday = [
-    'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت',
+    'الأحد',
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
   ];
 
   int _selectedDay = 0;
@@ -135,8 +142,10 @@ class _CourseWeeklyScheduleScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('الجدول الأسبوعي'),
-                  Text('محاضراتك ودروسك خلال الأسبوع',
-                      style: context.text.bodySmall),
+                  Text(
+                    'محاضراتك ودروسك خلال الأسبوع',
+                    style: context.text.bodySmall,
+                  ),
                 ],
               ),
             ),
@@ -160,19 +169,28 @@ class _CourseWeeklyScheduleScreenState
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
-          MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
+        MqSpacing.lg,
+        MqSpacing.lg,
+        MqSpacing.lg,
+        MqSpacing.xxxl,
+      ),
       children: [
         if ((widget.courseName?.trim().isNotEmpty ?? false)) ...[
           Row(
             children: [
-              Icon(Icons.menu_book_outlined,
-                  size: MqSize.iconSm, color: context.mq.accent),
+              Icon(
+                Icons.menu_book_outlined,
+                size: MqSize.iconSm,
+                color: context.mq.accent,
+              ),
               MqSpacing.gapXs,
               Expanded(
-                child: Text(widget.courseName!,
-                    style: context.text.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                child: Text(
+                  widget.courseName!,
+                  style: context.text.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -205,22 +223,39 @@ class _CourseWeeklyScheduleScreenState
 
     final cards = <Widget>[
       Expanded(
-        child: _summaryCard(context, '$total', 'محاضرات هذا الأسبوع',
-            m.accent, Icons.calendar_month_outlined),
+        child: _summaryCard(
+          context,
+          '$total',
+          'محاضرات هذا الأسبوع',
+          m.accent,
+          Icons.calendar_month_outlined,
+        ),
       ),
       MqSpacing.gapSm,
       Expanded(
-        child: _summaryCard(context, '$todayCount', 'محاضرات اليوم',
-            m.success, Icons.today_outlined),
+        child: _summaryCard(
+          context,
+          '$todayCount',
+          'محاضرات اليوم',
+          m.success,
+          Icons.today_outlined,
+        ),
       ),
     ];
     if (next != null) {
       cards
         ..add(MqSpacing.gapSm)
-        ..add(Expanded(
-          child: _summaryCard(context, next, 'أقرب محاضرة', m.orange,
-              Icons.upcoming_outlined),
-        ));
+        ..add(
+          Expanded(
+            child: _summaryCard(
+              context,
+              next,
+              'أقرب محاضرة',
+              m.orange,
+              Icons.upcoming_outlined,
+            ),
+          ),
+        );
     }
     // crossAxisAlignment.start (NOT stretch): inside the outer ListView the row
     // gets an unbounded height, and `stretch` would force an infinite height on
@@ -229,8 +264,13 @@ class _CourseWeeklyScheduleScreenState
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: cards);
   }
 
-  Widget _summaryCard(BuildContext context, String value, String label,
-      Color color, IconData icon) {
+  Widget _summaryCard(
+    BuildContext context,
+    String value,
+    String label,
+    Color color,
+    IconData icon,
+  ) {
     return MqCard(
       padding: const EdgeInsets.all(MqSpacing.md),
       child: Column(
@@ -239,15 +279,21 @@ class _CourseWeeklyScheduleScreenState
         children: [
           Icon(icon, color: color, size: MqSize.iconMd),
           MqSpacing.gapXs,
-          Text(value,
-              style: context.text.titleMedium
-                  ?.copyWith(color: color, fontWeight: FontWeight.w700),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-          Text(label,
-              style: context.text.labelSmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis),
+          Text(
+            value,
+            style: context.text.titleMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            label,
+            style: context.text.labelSmall,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
@@ -268,7 +314,7 @@ class _CourseWeeklyScheduleScreenState
     }
     if (bestSlot == null) return null;
     final day = _arWeekday[_weekdayOf(bestSlot)];
-    final time = _ar12(bestSlot['startTime']);
+    final time = formatTime12(bestSlot['startTime']);
     return time.isEmpty ? day : '$day • $time';
   }
 
@@ -312,33 +358,43 @@ class _CourseWeeklyScheduleScreenState
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(_arWeekday[index],
-                  style: context.text.labelMedium?.copyWith(
-                      color: fg,
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
+              Text(
+                _arWeekday[index],
+                style: context.text.labelMedium?.copyWith(
+                  color: fg,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 4),
               if (count > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 1),
+                    horizontal: 7,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: selected
                         ? m.onAccent.withValues(alpha: 0.22)
                         : m.accentSoft,
                     borderRadius: MqRadius.brPill,
                   ),
-                  child: Text('$count',
-                      style: context.text.labelSmall?.copyWith(
-                          color: selected ? m.onAccent : m.accent,
-                          fontWeight: FontWeight.w700)),
+                  child: Text(
+                    '$count',
+                    style: context.text.labelSmall?.copyWith(
+                      color: selected ? m.onAccent : m.accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 )
               else
-                Text('—',
-                    style: context.text.labelSmall
-                        ?.copyWith(color: fg.withValues(alpha: 0.5))),
+                Text(
+                  '—',
+                  style: context.text.labelSmall?.copyWith(
+                    color: fg.withValues(alpha: 0.5),
+                  ),
+                ),
             ],
           ),
         ),
@@ -353,8 +409,8 @@ class _CourseWeeklyScheduleScreenState
     final courseName = (s['courseName'] ?? widget.courseName ?? '').toString();
     final title = (s['title'] ?? '').toString();
     final teacher = (s['teacherName'] ?? '').toString();
-    final start = _ar12(s['startTime']);
-    final end = _ar12(s['endTime']);
+    final start = formatTime12(s['startTime']);
+    final end = formatTime12(s['endTime']);
 
     final status = _statusOf(s); // null | today | upcoming | past
     final (String? statusLabel, MqBadgeTone statusTone) = switch (status) {
@@ -377,9 +433,14 @@ class _CourseWeeklyScheduleScreenState
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                    color: m.accentSoft, borderRadius: MqRadius.brMd),
-                child: Icon(Icons.schedule_rounded,
-                    color: m.accent, size: MqSize.iconMd),
+                  color: m.accentSoft,
+                  borderRadius: MqRadius.brMd,
+                ),
+                child: Icon(
+                  Icons.schedule_rounded,
+                  color: m.accent,
+                  size: MqSize.iconMd,
+                ),
               ),
               MqSpacing.gapMd,
               Expanded(
@@ -387,18 +448,21 @@ class _CourseWeeklyScheduleScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                        courseName.isNotEmpty
-                            ? courseName
-                            : (title.isNotEmpty ? title : 'محاضرة'),
-                        style: context.text.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                      courseName.isNotEmpty
+                          ? courseName
+                          : (title.isNotEmpty ? title : 'محاضرة'),
+                      style: context.text.titleSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     if (title.isNotEmpty && title != courseName) ...[
                       const SizedBox(height: 2),
-                      Text(title,
-                          style: context.text.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        title,
+                        style: context.text.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ],
                 ),
@@ -416,20 +480,23 @@ class _CourseWeeklyScheduleScreenState
                 Icon(Icons.access_time_rounded, size: 13, color: m.ink3),
                 MqSpacing.gapXxs,
                 Text(
-                    start.isNotEmpty && end.isNotEmpty
-                        ? '$start - $end'
-                        : (start.isNotEmpty ? start : end),
-                    style: context.text.labelSmall),
+                  start.isNotEmpty && end.isNotEmpty
+                      ? '$start - $end'
+                      : (start.isNotEmpty ? start : end),
+                  style: context.text.labelSmall,
+                ),
               ],
               if (teacher.isNotEmpty) ...[
                 MqSpacing.gapMd,
                 Icon(Icons.person_outline_rounded, size: 13, color: m.ink3),
                 MqSpacing.gapXxs,
                 Expanded(
-                  child: Text(teacher,
-                      style: context.text.labelSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    teacher,
+                    style: context.text.labelSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ] else
                 const Spacer(),
@@ -461,14 +528,19 @@ class _CourseWeeklyScheduleScreenState
     final m = context.mq;
     return MqCard(
       padding: const EdgeInsets.symmetric(
-          vertical: MqSpacing.xl, horizontal: MqSpacing.lg),
+        vertical: MqSpacing.xl,
+        horizontal: MqSpacing.lg,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.event_available_outlined, size: 40, color: m.ink3),
           MqSpacing.gapSm,
-          Text('لا توجد محاضرات في هذا اليوم',
-              style: context.text.bodyMedium, textAlign: TextAlign.center),
+          Text(
+            'لا توجد محاضرات في هذا اليوم',
+            style: context.text.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -486,16 +558,24 @@ class _CourseWeeklyScheduleScreenState
             children: [
               Container(
                 padding: const EdgeInsets.all(MqSpacing.lg),
-                decoration:
-                    BoxDecoration(color: m.accentSoft, shape: BoxShape.circle),
-                child: Icon(Icons.calendar_today_outlined,
-                    size: 44, color: m.accent),
+                decoration: BoxDecoration(
+                  color: m.accentSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.calendar_today_outlined,
+                  size: 44,
+                  color: m.accent,
+                ),
               ),
               MqSpacing.gapMd,
               Text('لا يوجد جدول معتمد بعد', style: context.text.titleMedium),
               MqSpacing.gapXs,
-              Text('سيظهر هنا جدول محاضراتك الأسبوعي بمجرد اعتماده.',
-                  textAlign: TextAlign.center, style: context.text.bodySmall),
+              Text(
+                'سيظهر هنا جدول محاضراتك الأسبوعي بمجرد اعتماده.',
+                textAlign: TextAlign.center,
+                style: context.text.bodySmall,
+              ),
             ],
           ),
         ),
@@ -516,14 +596,18 @@ class _CourseWeeklyScheduleScreenState
             children: [
               Icon(Icons.wifi_off_rounded, size: 44, color: m.error),
               MqSpacing.gapMd,
-              Text(_error ?? 'حدث خطأ',
-                  textAlign: TextAlign.center, style: context.text.bodyMedium),
+              Text(
+                _error ?? 'حدث خطأ',
+                textAlign: TextAlign.center,
+                style: context.text.bodyMedium,
+              ),
               MqSpacing.gapMd,
               MqButton(
-                  label: 'إعادة المحاولة',
-                  icon: Icons.refresh_rounded,
-                  expand: false,
-                  onPressed: _fetch),
+                label: 'إعادة المحاولة',
+                icon: Icons.refresh_rounded,
+                expand: false,
+                onPressed: _fetch,
+              ),
             ],
           ),
         ),
@@ -534,28 +618,32 @@ class _CourseWeeklyScheduleScreenState
   Widget _skeleton(BuildContext context) {
     final m = context.mq;
     Widget box(double h, {double? w}) => Container(
-        width: w,
-        height: h,
-        decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brLg));
+      width: w,
+      height: h,
+      decoration: BoxDecoration(color: m.fill2, borderRadius: MqRadius.brLg),
+    );
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(MqSpacing.lg),
       children: [
-        Row(children: [
-          Expanded(child: box(72)),
-          MqSpacing.gapSm,
-          Expanded(child: box(72)),
-          MqSpacing.gapSm,
-          Expanded(child: box(72)),
-        ]),
+        Row(
+          children: [
+            Expanded(child: box(72)),
+            MqSpacing.gapSm,
+            Expanded(child: box(72)),
+            MqSpacing.gapSm,
+            Expanded(child: box(72)),
+          ],
+        ),
         MqSpacing.gapLg,
         Row(
           children: List.generate(
-              5,
-              (i) => Padding(
-                    padding: const EdgeInsets.only(left: MqSpacing.xs),
-                    child: box(60, w: 62),
-                  )),
+            5,
+            (i) => Padding(
+              padding: const EdgeInsets.only(left: MqSpacing.xs),
+              child: box(60, w: 62),
+            ),
+          ),
         ),
         MqSpacing.gapLg,
         for (var i = 0; i < 3; i++)
@@ -563,19 +651,28 @@ class _CourseWeeklyScheduleScreenState
             padding: const EdgeInsets.only(bottom: MqSpacing.sm),
             child: MqCard(
               padding: const EdgeInsets.all(MqSpacing.md),
-              child: Row(children: [
-                Container(
+              child: Row(
+                children: [
+                  Container(
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                        color: m.fill2, borderRadius: MqRadius.brMd)),
-                MqSpacing.gapMd,
-                Expanded(
+                      color: m.fill2,
+                      borderRadius: MqRadius.brMd,
+                    ),
+                  ),
+                  MqSpacing.gapMd,
+                  Expanded(
                     child: Container(
-                        height: 14,
-                        decoration: BoxDecoration(
-                            color: m.fill2, borderRadius: MqRadius.brSm))),
-              ]),
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: m.fill2,
+                        borderRadius: MqRadius.brSm,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -592,16 +689,5 @@ class _CourseWeeklyScheduleScreenState
     } catch (_) {
       return null;
     }
-  }
-
-  /// Localises the English AM/PM suffix on the backend's 12-hour strings.
-  String _ar12(dynamic v) {
-    final s = v?.toString().trim() ?? '';
-    if (s.isEmpty) return '';
-    return s
-        .replaceAll('AM', 'ص')
-        .replaceAll('PM', 'م')
-        .replaceAll('am', 'ص')
-        .replaceAll('pm', 'م');
   }
 }

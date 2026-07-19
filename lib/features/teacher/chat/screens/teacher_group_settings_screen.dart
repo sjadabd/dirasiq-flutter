@@ -17,7 +17,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/time_format.dart';
 
 import '../models/chat_models.dart';
 import '../services/chat_api_service.dart';
@@ -57,8 +57,9 @@ class _TeacherGroupSettingsScreenState
       _error = null;
     });
     try {
-      final convData =
-          await ChatApiService.instance.getConversation(widget.conversationId);
+      final convData = await ChatApiService.instance.getConversation(
+        widget.conversationId,
+      );
       final c = convData['conversation'];
       if (c is Map) {
         final conv = ChatConversation.fromJson(Map<String, dynamic>.from(c));
@@ -78,8 +79,9 @@ class _TeacherGroupSettingsScreenState
         }
         _conv = conv;
       }
-      _members =
-          await ChatApiService.instance.listMembers(widget.conversationId);
+      _members = await ChatApiService.instance.listMembers(
+        widget.conversationId,
+      );
     } catch (e) {
       _error = _humanise(e);
     } finally {
@@ -94,51 +96,50 @@ class _TeacherGroupSettingsScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        FilledButton.tonalIcon(
-                          onPressed: _load,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('إعادة المحاولة'),
-                        ),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: _load,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('إعادة المحاولة'),
                     ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      _HeaderCard(
-                        conversation: _conv!,
-                        canEdit: _conv!.isOwner,
-                        saving: _saving,
-                        onSave: _saveHeader,
-                      ),
-                      _MembersSection(
-                        conv: _conv!,
-                        members: _members,
-                        myUserId: widget.myUserId,
-                        onPromote: (uid) => _setRole(uid, MemberRole.admin),
-                        onDemote: (uid) => _setRole(uid, MemberRole.member),
-                        onMute: _muteMember,
-                        onUnmute: _unmuteMember,
-                        onRemove: _removeMember,
-                        onAdd: _addMembersFlow,
-                      ),
-                      if (_conv!.isOwner)
-                        _DangerZone(onArchive: _archive),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+                  ],
                 ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  _HeaderCard(
+                    conversation: _conv!,
+                    canEdit: _conv!.isOwner,
+                    saving: _saving,
+                    onSave: _saveHeader,
+                  ),
+                  _MembersSection(
+                    conv: _conv!,
+                    members: _members,
+                    myUserId: widget.myUserId,
+                    onPromote: (uid) => _setRole(uid, MemberRole.admin),
+                    onDemote: (uid) => _setRole(uid, MemberRole.member),
+                    onMute: _muteMember,
+                    onUnmute: _unmuteMember,
+                    onRemove: _removeMember,
+                    onAdd: _addMembersFlow,
+                  ),
+                  if (_conv!.isOwner) _DangerZone(onArchive: _archive),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
     );
   }
 
@@ -214,8 +215,9 @@ class _TeacherGroupSettingsScreenState
         content: Text('هل تريد إزالة "$name" من المجموعة؟'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('إلغاء')),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton.tonal(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('إزالة'),
@@ -225,8 +227,7 @@ class _TeacherGroupSettingsScreenState
     );
     if (ok != true) return;
     try {
-      await ChatApiService.instance
-          .removeMember(widget.conversationId, userId);
+      await ChatApiService.instance.removeMember(widget.conversationId, userId);
       await _load();
     } catch (e) {
       _showError(e);
@@ -269,8 +270,9 @@ class _TeacherGroupSettingsScreenState
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('إلغاء')),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton.tonal(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(
@@ -293,9 +295,9 @@ class _TeacherGroupSettingsScreenState
 
   void _showError(Object e) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('فشلت العملية: ${_humanise(e)}')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('فشلت العملية: ${_humanise(e)}')));
   }
 
   String _humanise(Object e) {
@@ -325,7 +327,8 @@ class _HeaderCard extends StatefulWidget {
     required String name,
     required String description,
     required ConversationMode mode,
-  }) onSave;
+  })
+  onSave;
 
   @override
   State<_HeaderCard> createState() => _HeaderCardState();
@@ -340,8 +343,9 @@ class _HeaderCardState extends State<_HeaderCard> {
   void initState() {
     super.initState();
     _name = TextEditingController(text: widget.conversation.name ?? '');
-    _description =
-        TextEditingController(text: widget.conversation.description ?? '');
+    _description = TextEditingController(
+      text: widget.conversation.description ?? '',
+    );
     _mode = widget.conversation.mode;
   }
 
@@ -362,13 +366,16 @@ class _HeaderCardState extends State<_HeaderCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Icon(Icons.groups_outlined, color: cs.primary),
-              const SizedBox(width: 8),
-              const Text('بيانات المجموعة',
-                  style:
-                      TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            ]),
+            Row(
+              children: [
+                Icon(Icons.groups_outlined, color: cs.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'بيانات المجموعة',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _name,
@@ -389,8 +396,10 @@ class _HeaderCardState extends State<_HeaderCard> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text('الوضع',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const Text(
+              'الوضع',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
             const SizedBox(height: 4),
             SegmentedButton<ConversationMode>(
               segments: const [
@@ -418,10 +427,10 @@ class _HeaderCardState extends State<_HeaderCard> {
                   onPressed: widget.saving
                       ? null
                       : () => widget.onSave(
-                            name: _name.text.trim(),
-                            description: _description.text.trim(),
-                            mode: _mode,
-                          ),
+                          name: _name.text.trim(),
+                          description: _description.text.trim(),
+                          mode: _mode,
+                        ),
                   icon: widget.saving
                       ? const SizedBox(
                           width: 16,
@@ -476,9 +485,10 @@ class _MembersSection extends StatelessWidget {
               children: [
                 Icon(Icons.people_outline, color: cs.primary),
                 const SizedBox(width: 8),
-                const Text('الأعضاء',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text(
+                  'الأعضاء',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
                 const Spacer(),
                 if (conv.canManage)
                   TextButton.icon(
@@ -540,11 +550,10 @@ class _MemberTile extends StatelessWidget {
     final subtitleBits = <String>[
       if (isOwner) 'مالك' else if (isAdmin) 'مشرف' else 'عضو',
       if (member.isMutedNow)
-        'مكتوم حتى ${DateFormat('HH:mm dd/MM').format(member.isMutedByAdminUntil!.toLocal())}',
+        'مكتوم حتى ${formatDateTime12(member.isMutedByAdminUntil!)}',
     ];
 
-    final canActOnThisMember =
-        viewerCanManage && !isMe && !isOwner;
+    final canActOnThisMember = viewerCanManage && !isMe && !isOwner;
     final canChangeRole = viewerIsOwner && !isMe && !isOwner;
 
     return ListTile(
@@ -557,26 +566,43 @@ class _MemberTile extends StatelessWidget {
           style: TextStyle(color: cs.primary, fontWeight: FontWeight.bold),
         ),
       ),
-      title: Text(name,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-      subtitle: Text(subtitleBits.join(' · '),
-          style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+      title: Text(
+        name,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+      ),
+      subtitle: Text(
+        subtitleBits.join(' · '),
+        style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+      ),
       trailing: (canActOnThisMember || canChangeRole)
           ? PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               itemBuilder: (_) => [
                 if (canChangeRole && !isAdmin)
                   const PopupMenuItem(
-                      value: 'promote', child: Text('ترقية إلى مشرف')),
+                    value: 'promote',
+                    child: Text('ترقية إلى مشرف'),
+                  ),
                 if (canChangeRole && isAdmin)
                   const PopupMenuItem(
-                      value: 'demote', child: Text('إنزال إلى عضو عادي')),
+                    value: 'demote',
+                    child: Text('إنزال إلى عضو عادي'),
+                  ),
                 if (canActOnThisMember && !member.isMutedNow) ...[
-                  const PopupMenuItem(value: 'mute_1h', child: Text('كتم ساعة')),
-                  const PopupMenuItem(value: 'mute_24h', child: Text('كتم يوم')),
+                  const PopupMenuItem(
+                    value: 'mute_1h',
+                    child: Text('كتم ساعة'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'mute_24h',
+                    child: Text('كتم يوم'),
+                  ),
                 ],
                 if (canActOnThisMember && member.isMutedNow)
-                  const PopupMenuItem(value: 'unmute', child: Text('إلغاء الكتم')),
+                  const PopupMenuItem(
+                    value: 'unmute',
+                    child: Text('إلغاء الكتم'),
+                  ),
                 if (canActOnThisMember)
                   const PopupMenuItem(value: 'remove', child: Text('إزالة')),
               ],
@@ -616,18 +642,23 @@ class _DangerZone extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Icon(Icons.warning_amber_outlined, color: cs.error),
-              const SizedBox(width: 8),
-              Text('منطقة خطرة',
+            Row(
+              children: [
+                Icon(Icons.warning_amber_outlined, color: cs.error),
+                const SizedBox(width: 8),
+                Text(
+                  'منطقة خطرة',
                   style: TextStyle(
-                      color: cs.error, fontWeight: FontWeight.bold)),
-            ]),
+                    color: cs.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text(
               'أرشفة المجموعة عملية نهائية — لا يمكن استرجاعها.',
-              style: TextStyle(
-                  fontSize: 12, color: cs.onErrorContainer),
+              style: TextStyle(fontSize: 12, color: cs.onErrorContainer),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(

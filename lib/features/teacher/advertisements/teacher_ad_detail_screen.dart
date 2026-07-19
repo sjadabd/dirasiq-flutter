@@ -59,7 +59,9 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+      ..showSnackBar(
+        SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+      );
   }
 
   Future<void> _stop() async {
@@ -78,7 +80,9 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
   }
 
   Future<void> _continueDraft() async {
-    final ok = await Get.to(() => TeacherAdFormScreen(adId: widget.adId, initial: _ad));
+    final ok = await Get.to(
+      () => TeacherAdFormScreen(adId: widget.adId, initial: _ad),
+    );
     if (ok == true && mounted) await _load();
   }
 
@@ -87,12 +91,20 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
     final mq = context.mq;
     final status = (_ad['status'] ?? '').toString();
     final cover = adCoverUrl(_ad['coverImageUrl'] ?? _ad['cover_image_url']);
+    final costPerClick =
+        num.tryParse(
+          (_ad['costPerClick'] ?? _ad['cost_per_click'] ?? 0).toString(),
+        ) ??
+        0;
+    final isFree = costPerClick <= 0 && status != 'draft';
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: mq.page,
-        appBar: TeacherAppBar(title: (_ad['title'] ?? 'تفاصيل الإعلان').toString()),
+        appBar: TeacherAppBar(
+          title: (_ad['title'] ?? 'تفاصيل الإعلان').toString(),
+        ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
@@ -129,14 +141,35 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
                     tone: TeacherTone.info,
                     child: Column(
                       children: [
-                        _row(context, 'الميزانية', fmtIQD(_ad['budgetTotal'] ?? _ad['budget_total'])),
-                        _row(context, 'مصروف النقرات', fmtIQD(adClickSpend(_ad))),
-                        _row(context, 'المتبقي المحجوز',
-                            fmtIQD(_ad['budgetRemaining'] ?? _ad['budget_remaining'])),
-                        _row(context, 'سعر النقرة',
-                            fmtIQD(_ad['costPerClick'] ?? _ad['cost_per_click'])),
-                        _row(context, 'النقرات الفريدة',
-                            (_ad['uniqueClicks'] ?? _ad['unique_clicks'] ?? 0).toString()),
+                        if (isFree)
+                          _row(context, 'نوع الإعلان', 'مجاني')
+                        else
+                          _row(
+                            context,
+                            'الميزانية',
+                            fmtIQD(_ad['budgetTotal'] ?? _ad['budget_total']),
+                          ),
+                        _row(
+                          context,
+                          'مصروف النقرات',
+                          fmtIQD(adClickSpend(_ad)),
+                        ),
+                        if (!isFree) ...[
+                          _row(
+                            context,
+                            'المتبقي المحجوز',
+                            fmtIQD(
+                              _ad['budgetRemaining'] ?? _ad['budget_remaining'],
+                            ),
+                          ),
+                          _row(context, 'سعر النقرة', fmtIQD(costPerClick)),
+                        ],
+                        _row(
+                          context,
+                          'النقرات الفريدة',
+                          (_ad['uniqueClicks'] ?? _ad['unique_clicks'] ?? 0)
+                              .toString(),
+                        ),
                       ],
                     ),
                   ),
@@ -157,7 +190,9 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
                             await _api.deleteAdvertisement(widget.adId);
                             if (mounted) Get.back(result: true);
                           } catch (e) {
-                            _toast(e.toString().replaceFirst('Exception: ', ''));
+                            _toast(
+                              e.toString().replaceFirst('Exception: ', ''),
+                            );
                           }
                         },
                       ),
@@ -181,7 +216,10 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
                       'يمكنك تعديل البيانات والصورة وتحديد ميزانية جديدة. '
                       'سيُرسل الطلب للسوبر أدمن للموافقة.',
                       textAlign: TextAlign.center,
-                      style: context.text.labelSmall?.copyWith(color: mq.ink3, height: 1.5),
+                      style: context.text.labelSmall?.copyWith(
+                        color: mq.ink3,
+                        height: 1.5,
+                      ),
                     ),
                   ],
                   if (status == 'rejected') ...[
@@ -195,7 +233,9 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
                       ),
                       child: Text(
                         'سبب الرفض: ${(_ad['rejectionReason'] ?? _ad['rejection_reason'] ?? '—')}',
-                        style: context.text.bodySmall?.copyWith(color: mq.error),
+                        style: context.text.bodySmall?.copyWith(
+                          color: mq.error,
+                        ),
                       ),
                     ),
                   ],
@@ -211,10 +251,17 @@ class _TeacherAdDetailScreenState extends State<TeacherAdDetailScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Text(label, style: context.text.bodySmall?.copyWith(color: context.mq.ink2)),
+            child: Text(
+              label,
+              style: context.text.bodySmall?.copyWith(color: context.mq.ink2),
+            ),
           ),
-          Text(value,
-              style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: context.text.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
