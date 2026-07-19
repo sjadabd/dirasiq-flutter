@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/services/api_service.dart';
+import '../../../core/services/notification_events.dart';
 import '../../../core/services/teacher_api_service.dart';
+import '../../../shared/controllers/global_controller.dart';
+import '../advertisements/teacher_ad_ui.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
 import '../shared/teacher_helpers.dart' show fmtRelative;
-import '../shared/teacher_workspace.dart';
-import '../advertisements/teacher_ad_ui.dart';
 import '../shared/teacher_notification_routing.dart';
+import '../shared/teacher_workspace.dart';
 
 /// Teacher → "الإشعارات" (Teacher Design System pass).
 ///
@@ -37,6 +39,7 @@ class _TeacherNotificationsScreenState
 
   _Box _box = _Box.received;
   bool _loading = false;
+  bool _markingAllRead = false;
   List<Map<String, dynamic>> _items = [];
   String? _subType;
   String _search = '';
@@ -108,8 +111,14 @@ class _TeacherNotificationsScreenState
     return _items;
   }
 
-  bool _isUnread(Map n) =>
-      !(n['isRead'] == true || n['readAt'] != null || n['status'] == 'read');
+  bool _isUnread(Map n) {
+    if (n['is_unread'] == true || n['isUnread'] == true) return true;
+    if (n['is_read'] == true || n['isRead'] == true) return false;
+    if (n['user_read_at'] != null || n['userReadAt'] != null) return false;
+    if (n['read_at'] != null || n['readAt'] != null) return false;
+    if (n['status'] == 'read') return false;
+    return true;
+  }
 
   Future<void> _markRead(Map<String, dynamic> n) async {
     if (!_isUnread(n)) return;
@@ -119,6 +128,44 @@ class _TeacherNotificationsScreenState
     try {
       await _api.markNotificationAsRead(id);
     } catch (_) {}
+  }
+
+  bool get _hasUnreadReceived =>
+      _box == _Box.received && _items.any(_isUnread);
+
+  Future<void> _markAllAsRead() async {
+    if (_markingAllRead || !_hasUnreadReceived) return;
+    setState(() => _markingAllRead = true);
+    try {
+      await _api.markAllNotificationsAsRead();
+      if (!mounted) return;
+      final now = DateTime.now().toIso8601String();
+      setState(() {
+        for (final n in _items) {
+          n['isRead'] = true;
+          n['readAt'] = now;
+          n['status'] = 'read';
+        }
+        _markingAllRead = false;
+      });
+      if (Get.isRegistered<GlobalController>()) {
+        Get.find<GlobalController>().clearUnreadLocally();
+      }
+      NotificationEvents.instance.emitNewNotification();
+      Get.snackbar(
+        'تم',
+        'تم تعليم كل الإشعارات كمقروءة',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _markingAllRead = false);
+      Get.snackbar(
+        'خطأ',
+        e.toString().replaceFirst(RegExp(r'^❌\s*'), ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   /// Tap on a received notification: mark it read, then route by type.
@@ -155,6 +202,14 @@ class _TeacherNotificationsScreenState
         context,
         courseId: (data['courseId'] ?? data['videoCourseId'])?.toString(),
       );
+      return;
+    }
+    if (isIntroVideoNotification(
+      type: type,
+      dataType: (data['type'] ?? data['subType'] ?? data['sub_type'])?.toString(),
+      routeOrPath: route,
+    )) {
+      openTeacherProfileFromNotification(context);
       return;
     }
   }
@@ -374,7 +429,14 @@ class _TeacherNotificationsScreenState
             backgroundColor: mq.page,
             appBar: TeacherAppBar(
               title: 'الإشعارات',
-              actions: [_RefreshAction(loading: _loading, onTap: _fetch)],
+              actions: [
+                if (_hasUnreadReceived || _markingAllRead)
+                  _MarkAllReadAction(
+                    loading: _markingAllRead,
+                    onTap: _markAllAsRead,
+                  ),
+                _RefreshAction(loading: _loading, onTap: _fetch),
+              ],
             ),
             drawer: const TeacherDrawer(),
             floatingActionButton: _box == _Box.sent
@@ -609,6 +671,62 @@ class _RefreshAction extends StatelessWidget {
                   )
                 : Icon(Icons.refresh_rounded,
                     size: MqSize.iconSm, color: mq.ink2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MarkAllReadAction extends StatelessWidget {
+  const _MarkAllReadAction({required this.loading, required this.onTap});
+  final bool loading;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = context.mq;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MqSpacing.xs),
+      child: Material(
+        color: mq.fill,
+        shape: RoundedRectangleBorder(
+          borderRadius: MqRadius.brMd,
+          side: BorderSide(color: mq.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: loading ? null : () => onTap(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: loading
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: mq.ink3,
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.done_all_rounded,
+                        size: MqSize.iconSm,
+                        color: mq.accent,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'تعليم الكل',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: mq.accent,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),

@@ -29,6 +29,7 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
   final _api = TeacherApiService();
   bool _loading = false;
   List<Map<String, dynamic>> _items = [];
+  final Set<String> _updatingRegistrationIds = {};
   _Filter _filter = _Filter.all;
   String _search = '';
   final _searchCtl = TextEditingController();
@@ -120,6 +121,60 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
     }
   }
 
+  Future<void> _toggleRegistration(Map<String, dynamic> course) async {
+    final id = course['id']?.toString();
+    if (id == null || id.isEmpty || _updatingRegistrationIds.contains(id)) {
+      return;
+    }
+    final currentlyOpen = course['registration_open'] != false;
+    final nextOpen = !currentlyOpen;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(nextOpen ? 'فتح باب التسجيل' : 'غلق باب التسجيل'),
+        content: Text(
+          nextOpen
+              ? 'سيتمكن الطلاب من إرسال طلبات حجز جديدة لهذه الدورة.'
+              : 'لن يتمكن الطلاب من إرسال أو إعادة تفعيل طلبات الحجز لهذه الدورة. الحجوزات الحالية لن تتأثر.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(nextOpen ? 'فتح التسجيل' : 'غلق التسجيل'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _updatingRegistrationIds.add(id));
+    try {
+      await _api.setCourseRegistrationOpen(id, isOpen: nextOpen);
+      if (!mounted) return;
+      setState(() {
+        course['registration_open'] = nextOpen;
+        _updatingRegistrationIds.remove(id);
+      });
+      Get.snackbar(
+        'تم',
+        nextOpen ? 'تم فتح باب التسجيل' : 'تم غلق باب التسجيل',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _updatingRegistrationIds.remove(id));
+      Get.snackbar(
+        'خطأ',
+        'تعذّر تحديث حالة التسجيل',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
   Future<void> _openManage(Map<String, dynamic> c, {int tab = 0}) async {
     await Get.to(() => TeacherCourseManageScreen(
           courseId: c['id'].toString(),
@@ -202,8 +257,14 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
                           child: _CourseCard(
                             course: c,
                             ended: _isEnded(c),
+                            updatingRegistration:
+                                _updatingRegistrationIds.contains(
+                              c['id']?.toString(),
+                            ),
                             onManage: ({int tab = 0}) =>
                                 _openManage(c, tab: tab),
+                            onToggleRegistration: () =>
+                                _toggleRegistration(c),
                             onDelete: () => _delete(c),
                             onRestore: () => _restore(c),
                           ),
@@ -413,14 +474,17 @@ class _CourseCard extends StatelessWidget {
   const _CourseCard({
     required this.course,
     required this.ended,
+    required this.updatingRegistration,
     required this.onManage,
+    required this.onToggleRegistration,
     required this.onDelete,
     required this.onRestore,
   });
   final Map<String, dynamic> course;
   final bool ended;
+  final bool updatingRegistration;
   final void Function({int tab}) onManage;
-  final VoidCallback onDelete, onRestore;
+  final VoidCallback onToggleRegistration, onDelete, onRestore;
 
   static const _chips = <(String, int, IconData)>[
     ('الطلاب', 1, Icons.group_outlined),
@@ -440,6 +504,7 @@ class _CourseCard extends StatelessWidget {
     final grade = (c['grade_name'] ?? '').toString();
     final meta = [subject, grade].where((s) => s.isNotEmpty).join(' · ');
     final hasReservation = c['has_reservation'] == true;
+    final registrationOpen = c['registration_open'] != false;
 
     final (statusLabel, statusTone) = isDeleted
         ? ('محذوفة', TeacherTone.danger)
@@ -486,7 +551,20 @@ class _CourseCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: MqSpacing.sm),
-              TeacherStatusPill(label: statusLabel, tone: statusTone),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  TeacherStatusPill(label: statusLabel, tone: statusTone),
+                  if (!isDeleted && !registrationOpen) ...[
+                    const SizedBox(height: 4),
+                    const TeacherStatusPill(
+                      label: 'التسجيل مغلق',
+                      tone: TeacherTone.warning,
+                      dense: true,
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
           const SizedBox(height: MqSpacing.md),
@@ -541,6 +619,41 @@ class _CourseCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: MqSpacing.sm),
+            if (!ended) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed:
+                      updatingRegistration ? null : onToggleRegistration,
+                  icon: updatingRegistration
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          registrationOpen
+                              ? Icons.lock_outline_rounded
+                              : Icons.lock_open_rounded,
+                        ),
+                  label: Text(
+                    registrationOpen
+                        ? 'غلق باب التسجيل'
+                        : 'فتح باب التسجيل',
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor:
+                        registrationOpen ? t.warning : t.success,
+                    side: BorderSide(
+                      color: registrationOpen
+                          ? t.warningLine
+                          : t.successLine,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: MqSpacing.sm),
+            ],
             // quick-action chips → open management at the matching tab
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,

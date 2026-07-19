@@ -630,6 +630,25 @@ class ApiService {
     }
   }
 
+  /// ✅ تعليم كل الإشعارات كمقروءة
+  Future<int> markAllNotificationsAsRead() async {
+    try {
+      final response = await _dio.put("/notifications/user/mark-all-read");
+      if (response.statusCode != 200 || response.data["success"] != true) {
+        throw Exception(
+          response.data["message"] ?? "فشل تعليم الإشعارات كمقروءة",
+        );
+      }
+      final data = response.data["data"];
+      if (data is Map && data["marked"] is num) {
+        return (data["marked"] as num).toInt();
+      }
+      return 0;
+    } catch (e) {
+      throw Exception("❌ خطأ أثناء تعليم كل الإشعارات: $e");
+    }
+  }
+
   /// ✅ عدد الإشعارات غير المقروءة (حل مرن حتى لو الواجهة لا تدعم العد مباشرة)
   Future<int> fetchUnreadNotificationsCount() async {
     try {

@@ -88,6 +88,15 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
   }
 
   Future<void> _onEnrollPressed() async {
+    if (course?['registration_open'] == false) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم غلق باب التسجيل في هذه الدورة'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     final message = await _askMessage();
     if (message == null) return;
     try {
@@ -482,6 +491,20 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
         Expanded(child: Text('طلبك: ${_translateBookingStatus(bookingStatus)}', style: context.text.titleSmall)),
         MqBadge(label: _translateBookingStatus(bookingStatus), tone: tone),
       ]);
+    } else if (c['registration_open'] == false) {
+      child = Row(
+        children: [
+          Icon(Icons.lock_outline_rounded, color: m.orange),
+          MqSpacing.gapSm,
+          Expanded(
+            child: Text(
+              'باب التسجيل مغلق حالياً',
+              style: context.text.titleSmall?.copyWith(color: m.orange),
+            ),
+          ),
+          const MqBadge(label: 'مغلق', tone: MqBadgeTone.orange),
+        ],
+      );
     } else {
       // Not enrolled, no request → enrollment CTA (preserved flow).
       child = MqButton(

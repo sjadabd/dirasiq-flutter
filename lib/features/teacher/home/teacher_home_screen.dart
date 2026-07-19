@@ -10,6 +10,7 @@ import '../courses/teacher_course_manage_screen.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
+import '../shared/teacher_helpers.dart' show fmtRelative;
 import '../shared/teacher_workspace.dart';
 import 'widgets/teacher_platform_news_section.dart';
 
@@ -25,9 +26,9 @@ import 'widgets/teacher_platform_news_section.dart';
 ///   3. Revenue pair         (real: collected / outstanding from student invoices)
 ///   4. Today's schedule     (real: /teacher/dashboard/upcoming-today)
 ///   5. Quick actions        (navigation only — wired to real workspace tabs)
-///   6. Performance KPIs      → honest empty state (no backend aggregate)
+///   6. Performance KPIs      (real: /teacher/dashboard/performance)
 ///   7. Financial summary    (real: student-invoice breakdown; monthly bars omitted — no data)
-///   8. Recent activity       → honest empty state (no backend feed)
+///   8. Recent activity       (real: /teacher/dashboard/activity)
 ///
 /// Real data only. No KPI value is fabricated; unsupported sections show honest
 /// empty states with TODO(backend) markers rather than mock numbers.
@@ -45,9 +46,11 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   bool _firstLoad = true;
   bool _online = true;
   Map<String, dynamic> _kpis = {};
+  Map<String, dynamic> _perfKpis = {};
   List<Map<String, dynamic>> _todaySessions = [];
   List<Map<String, dynamic>> _activeCoursesList = [];
   List<Map<String, dynamic>> _platformNews = [];
+  List<Map<String, dynamic>> _recentActivityItems = [];
   int? _pendingBookings;
   String _teacherName = '';
   String? _studyYear;
@@ -72,61 +75,103 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   Future<void> _fetch() async {
     setState(() => _loading = true);
-    try {
-      final results = await Future.wait([
-        _api.fetchDashboardOverview(),
-        _api.fetchTodayUpcomingSessions(),
-        _api.fetchAcademicYears(),
-        _api.fetchCourses(deleted: false, limit: 100),
-        _api.fetchTeacherPlatformNews(limit: 8),
-      ]);
 
-      final overview = _dataMap(results[0] as Map<String, dynamic>);
-      final sessions = _dataList(results[1] as Map<String, dynamic>);
-      final studyYear = _activeStudyYear(results[2] as Map<String, dynamic>);
-      final now = DateTime.now();
-      final courses = _dataList(results[3] as Map<String, dynamic>).where((c) {
-        final end = DateTime.tryParse((c['end_date'] ?? '').toString());
-        return end == null || !end.isBefore(now);
-      }).toList();
-      final newsRaw = results[4];
+    Map<String, dynamic> overview = {};
+    List<Map<String, dynamic>> sessions = [];
+    List<Map<String, dynamic>> courses = [];
+    List<Map<String, dynamic>> news = [];
+    Map<String, dynamic> performance = {};
+    String? studyYear;
+    int? pending;
+    var anyOk = false;
 
-      int? pending;
+    Future<T?> safe<T>(Future<T> Function() run) async {
       try {
+        final v = await run();
+        anyOk = true;
+        return v;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final results = await Future.wait([
+      safe(() => _api.fetchDashboardOverview()),
+      safe(() => _api.fetchTodayUpcomingSessions()),
+      safe(() => _api.fetchAcademicYears()),
+      safe(() => _api.fetchCourses(deleted: false, limit: 100)),
+      safe(() => _api.fetchTeacherPlatformNews(limit: 8)),
+      safe(() => _api.fetchDashboardPerformance()),
+      safe(() => _api.fetchDashboardActivity(limit: 10)),
+    ]);
+
+    final overviewRes = results[0] as Map<String, dynamic>?;
+    if (overviewRes != null) overview = _dataMap(overviewRes);
+
+    final sessionsRes = results[1] as Map<String, dynamic>?;
+    if (sessionsRes != null) sessions = _dataList(sessionsRes);
+
+    final yearsRes = results[2] as Map<String, dynamic>?;
+    if (yearsRes != null) studyYear = _activeStudyYear(yearsRes);
+
+    final coursesRes = results[3] as Map<String, dynamic>?;
+    if (coursesRes != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      courses = _dataList(coursesRes).where((c) {
+        final raw = (c['end_date'] ?? c['endDate'] ?? '').toString();
+        final end = DateTime.tryParse(raw);
+        if (end == null) return true;
+        final endDay = DateTime(end.year, end.month, end.day);
+        return !endDay.isBefore(today);
+      }).toList();
+    }
+
+    final newsRaw = results[4];
+    if (newsRaw is List) {
+      news = newsRaw
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+    }
+
+    final perfRes = results[5] as Map<String, dynamic>?;
+    if (perfRes != null) performance = _dataMap(perfRes);
+
+    List<Map<String, dynamic>> activity = [];
+    final activityRes = results[6] as Map<String, dynamic>?;
+    if (activityRes != null) activity = _dataList(activityRes);
+
+    try {
+      if (studyYear != null && studyYear.isNotEmpty) {
         final stats = await _api.fetchBookingStats(studyYear);
         final v = _dataMap(stats)['pendingBookings'];
         pending = (v is num) ? v.toInt() : int.tryParse('${v ?? ''}');
-      } catch (_) {
-        // Non-fatal: pending KPI degrades to "—".
+        anyOk = true;
       }
+    } catch (_) {}
 
-      if (!mounted) return;
-      setState(() {
-        _kpis = overview;
-        _todaySessions = sessions;
-        _activeCoursesList = courses;
-        _platformNews = newsRaw is List
-            ? newsRaw
-                  .whereType<Map>()
-                  .map((m) => Map<String, dynamic>.from(m))
-                  .toList()
-            : const [];
-        _pendingBookings = pending;
-        _studyYear = studyYear;
-        _online = true;
-        _firstLoad = false;
-      });
-    } catch (_) {
-      if (mounted) {
-        setState(() => _online = false);
-        Get.snackbar(
-          'خطأ',
-          'تعذّر جلب بيانات اللوحة',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    if (!mounted) return;
+    setState(() {
+      _kpis = overview;
+      _todaySessions = sessions;
+      _activeCoursesList = courses;
+      _platformNews = news;
+      _perfKpis = performance;
+      _recentActivityItems = activity;
+      _pendingBookings = pending;
+      _studyYear = studyYear;
+      _online = anyOk;
+      _firstLoad = false;
+      _loading = false;
+    });
+
+    if (!anyOk) {
+      Get.snackbar(
+        'خطأ',
+        'تعذّر جلب بيانات اللوحة',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
@@ -144,6 +189,15 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           .whereType<Map>()
           .map((m) => Map<String, dynamic>.from(m))
           .toList();
+    }
+    if (d is Map) {
+      final nested = d['items'] ?? d['courses'] ?? d['sessions'] ?? d['data'];
+      if (nested is List) {
+        return nested
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+      }
     }
     return const [];
   }
@@ -501,9 +555,13 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   Widget _todaySchedule(BuildContext context) {
     final n = _todaySessions.length;
+    final remaining =
+        _todaySessions.where((s) => s['isPast'] != true).length;
     return TeacherDashboardCard(
       title: 'جدول اليوم',
-      subtitle: n > 0 ? '$n حصص قادمة' : null,
+      subtitle: n > 0
+          ? (remaining > 0 ? '$remaining متبقّية من $n' : '$n حصص اليوم')
+          : null,
       icon: Icons.today_outlined,
       tone: TeacherTone.info,
       trailing: _SeeAll(
@@ -512,7 +570,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       ),
       child: _todaySessions.isEmpty
           ? const TeacherEmptyState(
-              message: 'لا توجد حصص متبقّية لهذا اليوم',
+              message: 'لا توجد حصص لهذا اليوم',
               icon: Icons.event_busy_outlined,
               dense: true,
             )
@@ -535,61 +593,67 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     required bool last,
   }) {
     final mq = context.mq;
-    final (label, tone) = _sessionState(s['state']);
+    final isPast = s['isPast'] == true;
+    final (label, tone) = isPast
+        ? ('انتهت', TeacherTone.neutral)
+        : _sessionState(s['state']);
     final title = (s['courseName'] ?? s['title'] ?? 'حصة').toString();
 
     final row = InkWell(
       borderRadius: MqRadius.brMd,
       onTap: () => _go(TeacherWorkspaceState.sessionsIdx),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
-        child: Row(
-          children: [
-            Container(
-              width: 58,
-              padding: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
-              decoration: BoxDecoration(
-                color: mq.fill,
-                borderRadius: MqRadius.brSm,
-                border: Border.all(color: mq.line),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    _time(s['startTime']),
-                    style: MqTypography.mono(
-                      color: mq.ink,
-                      size: 14,
-                      weight: FontWeight.w700,
+      child: Opacity(
+        opacity: isPast ? 0.65 : 1,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
+          child: Row(
+            children: [
+              Container(
+                width: 58,
+                padding: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
+                decoration: BoxDecoration(
+                  color: mq.fill,
+                  borderRadius: MqRadius.brSm,
+                  border: Border.all(color: mq.line),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      _time(s['startTime']),
+                      style: MqTypography.mono(
+                        color: mq.ink,
+                        size: 14,
+                        weight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  Text(
-                    _period(s['startTime']),
-                    style: context.text.labelSmall?.copyWith(color: mq.ink3),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: MqSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.text.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    Text(
+                      _period(s['startTime']),
+                      style: context.text.labelSmall?.copyWith(color: mq.ink3),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  TeacherStatusPill(label: label, tone: tone, dense: true),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.chevron_left_rounded, color: mq.ink3),
-          ],
+              const SizedBox(width: MqSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    TeacherStatusPill(label: label, tone: tone, dense: true),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_left_rounded, color: mq.ink3),
+            ],
+          ),
         ),
       ),
     );
@@ -637,9 +701,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     required bool last,
   }) {
     final mq = context.mq;
-    final name = (c['course_name'] ?? 'دورة').toString();
-    final grade = (c['grade_name'] ?? '').toString();
-    final year = (c['study_year'] ?? '').toString();
+    final name = (c['course_name'] ?? c['courseName'] ?? 'دورة').toString();
+    final grade = (c['grade_name'] ?? c['gradeName'] ?? '').toString();
+    final year = (c['study_year'] ?? c['studyYear'] ?? '').toString();
     final meta = [grade, year].where((s) => s.isNotEmpty).join(' · ');
 
     final row = InkWell(
@@ -747,22 +811,105 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     );
   }
 
-  // ---- 6. performance (honest gap) ------------------------------------------
+  // ---- 6. performance -------------------------------------------------------
 
   Widget _performance(BuildContext context) {
-    // TODO(backend): no aggregate endpoint for attendance rate, assignment
-    //   submission rate, or exam participation. Render an honest empty state
-    //   instead of the mock's 94% / 81% / 88%. Wire up when the endpoint ships
-    //   (e.g. GET /teacher/dashboard/performance).
+    final mq = context.mq;
+    final att = _perfKpis['attendanceRate'];
+    final hw = _perfKpis['homeworkRate'];
+    final col = _perfKpis['collectionRate'];
+    final hasAny = att != null || hw != null || col != null;
+
     return TeacherDashboardCard(
       title: 'مؤشّرات الأداء',
       subtitle: 'هذا الشهر',
       icon: Icons.insights_outlined,
       tone: TeacherTone.neutral,
-      child: const TeacherEmptyState(
-        message: 'ستتوفّر مؤشّرات الأداء عند جاهزية البيانات',
-        icon: Icons.query_stats_outlined,
-        dense: true,
+      child: !hasAny
+          ? const TeacherEmptyState(
+              message: 'لا توجد بيانات كافية لحساب المؤشرات بعد',
+              icon: Icons.query_stats_outlined,
+              dense: true,
+            )
+          : Column(
+              children: [
+                _perfRow(
+                  context,
+                  label: 'الحضور',
+                  value: att,
+                  icon: Icons.event_available_outlined,
+                  tone: TeacherTone.info,
+                ),
+                Divider(height: 1, color: mq.line),
+                _perfRow(
+                  context,
+                  label: 'تسليم الواجبات',
+                  value: hw,
+                  icon: Icons.assignment_turned_in_outlined,
+                  tone: TeacherTone.success,
+                ),
+                Divider(height: 1, color: mq.line),
+                _perfRow(
+                  context,
+                  label: 'تحصيل الفواتير',
+                  value: col,
+                  icon: Icons.payments_outlined,
+                  tone: TeacherTone.warning,
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _perfRow(
+    BuildContext context, {
+    required String label,
+    required dynamic value,
+    required IconData icon,
+    required TeacherTone tone,
+  }) {
+    final mq = context.mq;
+    final t = context.teacher;
+    final pct = value is num ? value.toInt() : null;
+    final color = switch (tone) {
+      TeacherTone.success => t.success,
+      TeacherTone.warning => t.warning,
+      TeacherTone.danger => t.danger,
+      TeacherTone.info => t.info,
+      _ => mq.accent,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: MqRadius.brSm,
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: MqSpacing.md),
+          Expanded(
+            child: Text(
+              label,
+              style: context.text.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
+            pct == null ? '—' : '$pct٪',
+            style: MqTypography.mono(
+              color: pct == null ? mq.ink3 : mq.ink,
+              size: 16,
+              weight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -859,22 +1006,138 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     );
   }
 
-  // ---- 8. recent activity (honest gap) --------------------------------------
+  // ---- 8. recent activity ---------------------------------------------------
 
   Widget _recentActivity(BuildContext context) {
-    // TODO(backend): no recent-activity feed endpoint exists (enrollments,
-    //   booking approvals, submissions, payments, parent messages). Render an
-    //   honest empty state rather than the mock's sample feed. Wire up when an
-    //   endpoint such as GET /teacher/dashboard/activity ships.
+    final items = _recentActivityItems;
     return TeacherDashboardCard(
       title: 'آخر النشاطات',
       icon: Icons.history_outlined,
       tone: TeacherTone.neutral,
-      child: const TeacherEmptyState(
-        message: 'سيظهر هنا أحدث النشاطات عند توفّرها',
-        icon: Icons.notifications_none_outlined,
-        dense: true,
+      trailing: items.isEmpty
+          ? null
+          : _SeeAll(
+              label: 'الحجوزات',
+              onTap: () => _go(TeacherWorkspaceState.bookingsIdx),
+            ),
+      child: items.isEmpty
+          ? const TeacherEmptyState(
+              message: 'سيظهر هنا أحدث النشاطات عند توفّرها',
+              icon: Icons.notifications_none_outlined,
+              dense: true,
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  _activityRow(
+                    context,
+                    items[i],
+                    last: i == items.length - 1,
+                  ),
+              ],
+            ),
+    );
+  }
+
+  Widget _activityRow(
+    BuildContext context,
+    Map<String, dynamic> a, {
+    required bool last,
+  }) {
+    final mq = context.mq;
+    final kind = (a['kind'] ?? '').toString();
+    final title = (a['title'] ?? 'نشاط').toString();
+    final subtitle = (a['subtitle'] ?? '').toString();
+    final when = fmtRelative(
+      (a['occurredAt'] ?? a['occurred_at'])?.toString(),
+    );
+    final (icon, tone) = switch (kind) {
+      'deposit' || 'invoice' => (
+          Icons.payments_outlined,
+          TeacherTone.success,
+        ),
+      'booking' => (Icons.how_to_reg_outlined, TeacherTone.info),
+      _ => (Icons.notifications_none_outlined, TeacherTone.neutral),
+    };
+    final t = context.teacher;
+    final color = switch (tone) {
+      TeacherTone.success => t.success,
+      TeacherTone.warning => t.warning,
+      TeacherTone.danger => t.danger,
+      TeacherTone.info => t.info,
+      TeacherTone.neutral => mq.ink2,
+    };
+    final soft = switch (tone) {
+      TeacherTone.success => t.successSoft,
+      TeacherTone.warning => t.warningSoft,
+      TeacherTone.danger => t.dangerSoft,
+      TeacherTone.info => t.infoSoft,
+      TeacherTone.neutral => mq.fill2,
+    };
+
+    final row = InkWell(
+      borderRadius: MqRadius.brMd,
+      onTap: () {
+        if (kind == 'invoice') {
+          _go(TeacherWorkspaceState.invoicesIdx);
+        } else {
+          _go(TeacherWorkspaceState.bookingsIdx);
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: MqSpacing.sm),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: soft,
+                borderRadius: MqRadius.brSm,
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(width: MqSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.labelSmall?.copyWith(color: mq.ink3),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (when.isNotEmpty)
+              Text(
+                when,
+                style: context.text.labelSmall?.copyWith(color: mq.ink3),
+              ),
+          ],
+        ),
       ),
+    );
+
+    if (last) return row;
+    return Column(
+      children: [
+        row,
+        Divider(height: 1, color: mq.line),
+      ],
     );
   }
 }

@@ -79,6 +79,12 @@ class GlobalController extends GetxController {
     }
   }
 
+  /// صفّر شارة الإشعارات محلياً (بعد تعليم الكل كمقروء)
+  void clearUnreadLocally() {
+    unreadCount.value = 0;
+    _removeBadge();
+  }
+
   /// ✅ تسجيل الخروج الكامل (يُستخدم فقط عند الحاجة العامة)
   Future<void> logout() async {
     try {

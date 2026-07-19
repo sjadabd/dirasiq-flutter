@@ -20,6 +20,7 @@ import 'package:mulhimiq/features/invoices/screens/invoice_details_screen.dart';
 import 'package:mulhimiq/features/teacher/shared/teacher_workspace.dart';
 import 'package:mulhimiq/features/teacher/advertisements/teacher_ad_ui.dart';
 import 'package:mulhimiq/features/teacher/shared/teacher_notification_routing.dart';
+import 'package:mulhimiq/shared/controllers/global_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -43,6 +44,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   // Role drives booking-notification routing: a teacher goes to the bookings
   // screen, a student to that booking's details.
   bool _isTeacher = false;
+  bool _markingAllRead = false;
 
   static const List<Map<String, dynamic>> _filters = [
     {"text": "الكل", "value": null, "icon": Icons.notifications_rounded},
@@ -232,6 +234,53 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _api.markNotificationAsRead(id);
       NotificationEvents.instance.emitNewNotification();
     } catch (_) {}
+  }
+
+  Future<void> _markAllAsRead() async {
+    if (_markingAllRead || !_hasUnread) return;
+    setState(() => _markingAllRead = true);
+    try {
+      await _api.markAllNotificationsAsRead();
+      if (!mounted) return;
+      final now = DateTime.now().toIso8601String();
+      setState(() {
+        for (final n in _items) {
+          n['status'] = 'read';
+          n['isRead'] = true;
+          n['is_read'] = true;
+          n['readAt'] = now;
+          n['read_at'] = now;
+          n['userReadAt'] = now;
+          n['user_read_at'] = now;
+        }
+        _markingAllRead = false;
+      });
+      if (Get.isRegistered<GlobalController>()) {
+        Get.find<GlobalController>().clearUnreadLocally();
+      }
+      NotificationEvents.instance.emitNewNotification();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('تم تعليم كل الإشعارات كمقروءة'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _markingAllRead = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst(RegExp(r'^❌\s*'), '')),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _showNotificationDialog(Map<String, dynamic> n) async {
@@ -873,6 +922,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return;
     }
 
+    // Intro-video approve/reject → teacher profile
+    final dataType = (payload['type'] ?? payload['subType'] ?? payload['sub_type'])
+        ?.toString();
+    if (_isTeacher &&
+        isIntroVideoNotification(
+          type: typeLower,
+          dataType: dataType,
+          routeOrPath: route,
+        )) {
+      openTeacherProfileFromNotification(context);
+      return;
+    }
+
+    // Explicit in-app teacher profile route
+    if (_isTeacher &&
+        (route == '/teacher/profile' ||
+            (route?.endsWith('/teacher/profile') ?? false))) {
+      openTeacherProfileFromNotification(context);
+      return;
+    }
+
     // Invoice routing
     final invoiceId =
         (payload['invoiceId'] ??
@@ -1239,6 +1309,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             backgroundColor: context.mq.page,
             appBar: AppBar(
               title: const Text('الإشعارات'),
+              actions: [
+                if (_hasUnread || _markingAllRead)
+                  TextButton(
+                    onPressed: _markingAllRead ? null : _markAllAsRead,
+                    child: _markingAllRead
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('تعليم الكل مقروءة'),
+                  ),
+              ],
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(20),
                 child: Padding(
@@ -1252,6 +1335,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             body: Column(
               children: [
+                if (_hasUnread || _markingAllRead) _markAllBar(context),
                 _filtersRow(context),
                 Expanded(
                   child: RefreshIndicator(
@@ -1261,6 +1345,53 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _markAllBar(BuildContext context) {
+    final mq = context.mq;
+    return Material(
+      color: mq.accentSoft,
+      child: InkWell(
+        onTap: _markingAllRead ? null : _markAllAsRead,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: MqSpacing.lg,
+            vertical: MqSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.done_all_rounded,
+                size: 20,
+                color: mq.accent,
+              ),
+              const SizedBox(width: MqSpacing.sm),
+              Expanded(
+                child: Text(
+                  'تعليم الكل مقروءة',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: mq.accent,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (_markingAllRead)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: mq.accent,
+                  ),
+                )
+              else
+                Icon(Icons.chevron_left_rounded, color: mq.accent),
+            ],
           ),
         ),
       ),
@@ -1524,6 +1655,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     bool has(String s) => t.contains(s);
     if (has('assign') || has('homework'))
       return (icon: Icons.assignment_rounded, color: mq.accent, label: 'واجب');
+    final payloadType =
+        (_parsePayload(n)['type'] ?? '').toString().toLowerCase();
+    if (has('intro_video') || payloadType.startsWith('intro_video'))
+      return (
+        icon: Icons.videocam_rounded,
+        color: mq.accent,
+        label: 'فيديو تعريفي',
+      );
     if (has('grade') || t == 'exam_grade' || has('result'))
       return (
         icon: Icons.fact_check_rounded,
@@ -1581,12 +1720,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   bool _isUnread(Map<String, dynamic> n) {
-    final status = n['status']?.toString() ?? 'sent';
-    return !(n['isRead'] == true || n['readAt'] != null || status == 'read');
+    if (n['is_unread'] == true || n['isUnread'] == true) return true;
+    if (n['is_read'] == true || n['isRead'] == true) return false;
+    if (n['user_read_at'] != null || n['userReadAt'] != null) return false;
+    if (n['read_at'] != null || n['readAt'] != null) return false;
+    final status = (n['status'] ?? '').toString().toLowerCase();
+    // Global notification.status can be "read" for another recipient — prefer
+    // per-user flags above; only treat as read when no per-user signal exists.
+    if (status == 'seen' || status == 'opened') return false;
+    return true;
   }
 
-  /// Groups [_items] into اليوم / أمس / هذا الأسبوع / الأقدم, preserving order
-  /// and dropping empty buckets.
+  bool get _hasUnread {
+    if (_items.any(_isUnread)) return true;
+    if (Get.isRegistered<GlobalController>()) {
+      return Get.find<GlobalController>().unreadCount.value > 0;
+    }
+    return false;
+  }
   List<({String title, List<Map<String, dynamic>> items})> _groupedSections() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);

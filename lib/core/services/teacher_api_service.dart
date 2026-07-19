@@ -35,6 +35,21 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  /// Monthly performance aggregates (attendance / homework / collection %).
+  Future<Map<String, dynamic>> fetchDashboardPerformance() async {
+    final res = await _dio.get('/teacher/dashboard/performance');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Recent teacher activity feed (bookings, deposits, invoices).
+  Future<Map<String, dynamic>> fetchDashboardActivity({int limit = 10}) async {
+    final res = await _dio.get(
+      '/teacher/dashboard/activity',
+      queryParameters: {'limit': limit},
+    );
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   Future<Map<String, dynamic>> fetchAcademicYears() async {
     final res = await _dio.get('/teacher/academic-years');
     return Map<String, dynamic>.from(res.data ?? {});
@@ -665,6 +680,17 @@ class TeacherApiService {
 
   Future<Map<String, dynamic>> deleteCourse(String id) async {
     final res = await _dio.delete('/teacher/courses/$id');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> setCourseRegistrationOpen(
+    String id, {
+    required bool isOpen,
+  }) async {
+    final res = await _dio.patch(
+      '/teacher/courses/$id/registration',
+      data: {'registration_open': isOpen},
+    );
     return Map<String, dynamic>.from(res.data ?? {});
   }
 

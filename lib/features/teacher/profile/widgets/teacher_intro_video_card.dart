@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../core/services/teacher_api_service.dart';
+import '../../../../shared/widgets/unified_video_player/unified_video_player.dart';
 import '../../shared/design/teacher_design.dart';
 
 const int _kMaxBytes = 50 * 1024 * 1024;
@@ -60,6 +61,13 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
 
   String get _status => (_intro['status'] ?? 'none').toString();
 
+  String get _manifestUrl => (_intro['manifestUrl'] ?? '').toString().trim();
+
+  String? get _thumbnailUrl {
+    final value = (_intro['thumbnailUrl'] ?? '').toString().trim();
+    return value.isEmpty ? null : value;
+  }
+
   (String, Color, IconData) _statusVisual(BuildContext context) {
     final t = context.teacher;
     final mq = context.mq;
@@ -71,7 +79,7 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
         return (
           'بانتظار مراجعة الإدارة',
           t.warning,
-          Icons.hourglass_top_rounded
+          Icons.hourglass_top_rounded,
         );
       case 'processing':
       case 'uploaded':
@@ -124,13 +132,17 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
       final h = ctrl.value.size.height.round();
       await ctrl.dispose();
       if (dur > _kMaxDurationSec) {
-        setState(() => _error =
-            'مدة الفيديو يجب ألا تتجاوز 60 ثانية (المدة الحالية: $dur ث)');
+        setState(
+          () => _error =
+              'مدة الفيديو يجب ألا تتجاوز 60 ثانية (المدة الحالية: $dur ث)',
+        );
         return;
       }
       if (h > 0 && (h < _kMinHeight || h > _kMaxHeight)) {
-        setState(() => _error =
-            'الدقة يجب أن تكون بين 720p و 1080p (الارتفاع الحالي: $h)');
+        setState(
+          () => _error =
+              'الدقة يجب أن تكون بين 720p و 1080p (الارتفاع الحالي: $h)',
+        );
         return;
       }
     } catch (_) {
@@ -163,7 +175,9 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
       setState(() => _phase = 'تأكيد الرفع…');
       try {
         await _api.confirmIntroVideoUpload();
-      } catch (_) {/* sync below will reconcile */}
+      } catch (_) {
+        /* sync below will reconcile */
+      }
 
       setState(() => _phase = 'تحديث الحالة…');
       try {
@@ -171,8 +185,10 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
         if (mounted) setState(() => _intro = synced);
       } catch (e) {
         if (mounted) {
-          setState(() => _error =
-              'تم الرفع لكن فشلت المزامنة: ${_humanize(e)}. اضغط تحديث لاحقاً.');
+          setState(
+            () => _error =
+                'تم الرفع لكن فشلت المزامنة: ${_humanize(e)}. اضغط تحديث لاحقاً.',
+          );
         }
         await _load();
       }
@@ -190,13 +206,16 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
       await _load();
       final s = _status;
       if (s == 'awaiting_review' || s == 'ready') {
-        setState(() =>
-            _phase = 'اكتملت المعالجة — الفيديو بانتظار موافقة الإدارة.');
+        setState(
+          () => _phase = 'اكتملت المعالجة — الفيديو بانتظار موافقة الإدارة.',
+        );
       } else if (s == 'failed' || s == 'rejected') {
         setState(() => _phase = '');
       } else {
-        setState(() => _phase =
-            'ما زال قيد المعالجة. اضغط تحديث لاحقاً، أو انتظر إشعار اكتمال المعالجة.');
+        setState(
+          () => _phase =
+              'ما زال قيد المعالجة. اضغط تحديث لاحقاً، أو انتظر إشعار اكتمال المعالجة.',
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -233,7 +252,9 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
         try {
           await _load();
           if (terminal.contains(_status)) return;
-        } catch (_) {/* keep polling */}
+        } catch (_) {
+          /* keep polling */
+        }
       }
     }
   }
@@ -293,8 +314,11 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
                   color: mq.accentSoft,
                   borderRadius: MqRadius.brSm,
                 ),
-                child: Icon(Icons.video_camera_front_outlined,
-                    size: MqSize.iconSm, color: mq.accent),
+                child: Icon(
+                  Icons.video_camera_front_outlined,
+                  size: MqSize.iconSm,
+                  color: mq.accent,
+                ),
               ),
               const SizedBox(width: MqSpacing.sm),
               Text('الفيديو التعريفي', style: context.text.titleSmall),
@@ -321,14 +345,20 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(label,
-                            style: context.text.titleSmall
-                                ?.copyWith(color: color)),
+                        Text(
+                          label,
+                          style: context.text.titleSmall?.copyWith(
+                            color: color,
+                          ),
+                        ),
                         if (duration != null) ...[
                           const SizedBox(height: 2),
-                          Text('المدة: ${duration}ث',
-                              style: context.text.bodySmall
-                                  ?.copyWith(color: mq.ink3)),
+                          Text(
+                            'المدة: $durationث',
+                            style: context.text.bodySmall?.copyWith(
+                              color: mq.ink3,
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -341,10 +371,35 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
                 ],
               ),
             ),
+            if (_manifestUrl.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: MqRadius.brLg,
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: UnifiedVideoPlayer(
+                    key: ValueKey(_manifestUrl),
+                    videoUrl: _manifestUrl,
+                    videoId: 'teacher-own-intro-video',
+                    title: 'الفيديو التعريفي',
+                    thumbnailUrl: _thumbnailUrl,
+                    autoPlay: false,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'هذه معاينة الفيديو كما سيظهر للطلاب بعد اعتماده.',
+                textAlign: TextAlign.center,
+                style: context.text.bodySmall?.copyWith(color: mq.ink3),
+              ),
+            ],
             if (notes.isNotEmpty && _status == 'rejected') ...[
               const SizedBox(height: 10),
-              Text('ملاحظة الإدارة: $notes',
-                  style: context.text.bodySmall?.copyWith(color: t.danger)),
+              Text(
+                'ملاحظة الإدارة: $notes',
+                style: context.text.bodySmall?.copyWith(color: t.danger),
+              ),
             ],
             const SizedBox(height: 10),
             Text(
@@ -353,8 +408,10 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
             ),
             if (_error.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text(_error,
-                  style: context.text.bodySmall?.copyWith(color: t.danger)),
+              Text(
+                _error,
+                style: context.text.bodySmall?.copyWith(color: t.danger),
+              ),
             ],
             if (_uploading) ...[
               const SizedBox(height: 12),
@@ -363,18 +420,24 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
               Text('$_phase ($_progress%)', style: context.text.bodySmall),
             ] else if (_phase.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(_phase,
-                  style: context.text.bodySmall?.copyWith(color: t.success)),
+              Text(
+                _phase,
+                style: context.text.bodySmall?.copyWith(color: t.success),
+              ),
             ],
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _uploading ? null : _pickAndUpload,
-              icon: Icon(_status == 'none'
-                  ? Icons.upload_rounded
-                  : Icons.swap_horiz_rounded),
-              label: Text(_status == 'none' || _status == 'failed'
-                  ? 'رفع فيديو تعريفي'
-                  : 'استبدال الفيديو'),
+              icon: Icon(
+                _status == 'none'
+                    ? Icons.upload_rounded
+                    : Icons.swap_horiz_rounded,
+              ),
+              label: Text(
+                _status == 'none' || _status == 'failed'
+                    ? 'رفع فيديو تعريفي'
+                    : 'استبدال الفيديو',
+              ),
             ),
           ],
         ],
