@@ -165,34 +165,61 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
 
   Future<void> _openChat() async {
     if (_chatLoading) return;
-    if (_myUserId == null || _myUserId!.isEmpty) {
-      _snack('تعذّر فتح المحادثة');
+
+    var myId = _myUserId;
+    if (myId == null || myId.isEmpty) {
+      await _loadMe();
+      myId = _myUserId;
+    }
+    if (myId == null || myId.isEmpty) {
+      _snack('تعذّر التحقق من حسابك. يرجى تسجيل الدخول مجدداً.');
       return;
     }
+
     setState(() => _chatLoading = true);
     try {
       final res = await ChatApiService.instance.openPrivate(widget.teacherId);
       final data = res['data'] is Map
           ? Map<String, dynamic>.from(res['data'])
-          : res;
-      final convId = (data['id'] ?? data['conversationId'] ?? data['_id'])
+          : Map<String, dynamic>.from(res);
+      final conv = data['conversation'] is Map
+          ? Map<String, dynamic>.from(data['conversation'])
+          : data;
+      final convId = (conv['id'] ??
+              data['conversationId'] ??
+              data['id'] ??
+              data['_id'])
           ?.toString();
       if (convId == null || convId.isEmpty) {
-        _snack('تعذّر فتح المحادثة');
+        _snack('تم فتح المحادثة، لكن تعذّر قراءة بياناتها. حاول مرة أخرى.');
         return;
       }
       await Get.to(
         () => StudentConversationScreen(
           conversationId: convId,
           initialTitle: _name.isEmpty ? 'المعلّم' : _name,
-          myUserId: _myUserId!,
+          myUserId: myId!,
         ),
       );
+    } on ChatApiException catch (e) {
+      _snack(_chatErrorMessage(e));
     } catch (_) {
-      _snack('لا يمكنك مراسلة هذا المعلّم حالياً');
+      _snack('تعذّر الاتصال بخدمة المحادثات. تحقق من الإنترنت وحاول مجدداً.');
     } finally {
       if (mounted) setState(() => _chatLoading = false);
     }
+  }
+
+  String _chatErrorMessage(ChatApiException e) {
+    if (e.statusCode == 401) {
+      return 'انتهت جلسة تسجيل الدخول. يرجى تسجيل الدخول مجدداً.';
+    }
+    if (e.statusCode == 403) {
+      return 'المراسلة متاحة فقط للطلاب المرتبطين بدورة مع هذا الأستاذ.';
+    }
+    final msg = e.message.trim();
+    if (msg.isNotEmpty && msg != 'فشل في معالجة الطلب') return msg;
+    return 'لا يمكنك مراسلة هذا المعلّم حالياً.';
   }
 
   void _scrollToCourses() {
@@ -284,7 +311,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
       _toDouble(_teacher?['longitude']) != null;
 
   bool get _introReady =>
-      (_introData?['status']?.toString() == 'ready') &&
+      (_introData?['status']?.toString() == 'approved') &&
       (_introData?['manifestUrl']?.toString().isNotEmpty ?? false);
 
   // ── build ─────────────────────────────────────────────────────────────────

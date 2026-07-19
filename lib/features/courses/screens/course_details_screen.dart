@@ -331,7 +331,10 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       if (i > 0) spaced.add(MqSpacing.gapSm);
       spaced.add(Expanded(child: cards[i]));
     }
-    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: spaced);
+    // Do not use CrossAxisAlignment.stretch here: this Row lives inside a
+    // scrollable Column, so stretch gets infinite max height and breaks layout
+    // (blank page + unbounded scroll).
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: spaced);
   }
 
   Widget _infoCard(BuildContext context, IconData icon, String label, String value, Color color) {

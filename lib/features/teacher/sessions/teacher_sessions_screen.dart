@@ -158,8 +158,12 @@ class _TeacherSessionsScreenState extends State<TeacherSessionsScreen> {
     'السبت',
   ];
 
+  /// Canonical 24h value for API payloads only.
   String _fmtTod(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  /// User-facing label after the teacher picks a time.
+  String _displayTod(TimeOfDay t) => formatTime12(_fmtTod(t));
 
   String? _apiMessage(Object e) {
     try {
@@ -361,7 +365,7 @@ class _TeacherSessionsScreenState extends State<TeacherSessionsScreen> {
                         prefixIcon: const Icon(Icons.schedule_outlined),
                       ),
                       child: Text(
-                        value == null ? 'اختر' : _fmtTod(value),
+                        value == null ? 'اختر' : _displayTod(value),
                         style: sheetCtx.text.bodyMedium?.copyWith(
                           color: value == null ? mq.ink3 : mq.ink,
                         ),

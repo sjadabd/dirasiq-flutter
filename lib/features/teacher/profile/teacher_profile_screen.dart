@@ -8,6 +8,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/teacher_api_service.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
+import 'widgets/teacher_intro_video_card.dart';
 import 'widgets/teacher_location_picker.dart';
 
 /// Teacher profile — view + edit + logout (Teacher Design System pass).
@@ -349,6 +350,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                             _header(context),
                             const SizedBox(height: MqSpacing.lg),
                             _basicCard(context),
+                            const SizedBox(height: MqSpacing.md),
+                            const TeacherIntroVideoCard(),
                             const SizedBox(height: MqSpacing.md),
                             _bioCard(context),
                             const SizedBox(height: MqSpacing.md),

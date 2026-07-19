@@ -977,6 +977,23 @@ class TeacherApiService {
     onProgress?.call(100);
   }
 
+  // ---- Teacher intro video (Bunny + admin review) ---------------------------
+
+  Future<Map<String, dynamic>> getIntroVideo() async {
+    final res = await _dio.get('/teacher/profile/intro-video');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> startBunnyIntroVideoUpload() async {
+    final res = await _dio.post('/teacher/profile/intro-video/bunny');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
+  Future<Map<String, dynamic>> syncIntroVideo() async {
+    final res = await _dio.post('/teacher/profile/intro-video/sync');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
   // ---- Teacher catalog dropdowns (subjects + grades) ----------------------
   // These already exist as side methods elsewhere in the app, but we expose
   // narrow wrappers here so the video-courses UI doesn't reach into other
