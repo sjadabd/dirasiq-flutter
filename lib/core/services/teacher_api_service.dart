@@ -994,6 +994,11 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
   }
 
+  Future<Map<String, dynamic>> confirmIntroVideoUpload() async {
+    final res = await _dio.post('/teacher/profile/intro-video/confirm-upload');
+    return Map<String, dynamic>.from(res.data?['data'] ?? res.data ?? {});
+  }
+
   // ---- Teacher catalog dropdowns (subjects + grades) ----------------------
   // These already exist as side methods elsewhere in the app, but we expose
   // narrow wrappers here so the video-courses UI doesn't reach into other

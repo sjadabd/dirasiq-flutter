@@ -160,11 +160,20 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
         },
       );
 
+      setState(() => _phase = 'تأكيد الرفع…');
+      try {
+        await _api.confirmIntroVideoUpload();
+      } catch (_) {/* sync below will reconcile */}
+
       setState(() => _phase = 'تحديث الحالة…');
       try {
         final synced = await _api.syncIntroVideo();
         if (mounted) setState(() => _intro = synced);
-      } catch (_) {
+      } catch (e) {
+        if (mounted) {
+          setState(() => _error =
+              'تم الرفع لكن فشلت المزامنة: ${_humanize(e)}. اضغط تحديث لاحقاً.');
+        }
         await _load();
       }
 
