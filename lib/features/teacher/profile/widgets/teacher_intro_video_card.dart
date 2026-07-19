@@ -171,11 +171,24 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
       if (!mounted) return;
       setState(() {
         _uploading = false;
-        _phase = 'تم الرفع. سيُراجع الفيديو من الإدارة بعد اكتمال المعالجة.';
+        _phase = 'تم الرفع. جاري انتظار اكتمال معالجة Bunny…';
         _progress = 100;
       });
-      await Future<void>.delayed(const Duration(milliseconds: 800));
+
+      // Poll until Bunny finishes (awaiting_review / failed) or timeout ~3 min.
+      await _pollUntilReviewable();
+      if (!mounted) return;
       await _load();
+      final s = _status;
+      if (s == 'awaiting_review' || s == 'ready') {
+        setState(() =>
+            _phase = 'اكتملت المعالجة — الفيديو بانتظار موافقة الإدارة.');
+      } else if (s == 'failed' || s == 'rejected') {
+        setState(() => _phase = '');
+      } else {
+        setState(() => _phase =
+            'ما زال قيد المعالجة. اضغط تحديث لاحقاً، أو انتظر إشعار اكتمال المعالجة.');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -183,6 +196,56 @@ class _TeacherIntroVideoCardState extends State<TeacherIntroVideoCard> {
         _error = _humanize(e);
         _phase = '';
       });
+    }
+  }
+
+  Future<void> _pollUntilReviewable() async {
+    const terminal = {
+      'awaiting_review',
+      'approved',
+      'rejected',
+      'failed',
+      'ready',
+    };
+    for (var i = 0; i < 36; i++) {
+      await Future<void>.delayed(const Duration(seconds: 5));
+      if (!mounted) return;
+      try {
+        final synced = await _api.syncIntroVideo();
+        if (!mounted) return;
+        setState(() {
+          _intro = synced;
+          _phase =
+              'معالجة Bunny… (${(i + 1) * 5}ث) — الحالة: ${_statusLabel(synced['status']?.toString())}';
+        });
+        final s = (synced['status'] ?? '').toString();
+        if (terminal.contains(s)) return;
+      } catch (_) {
+        try {
+          await _load();
+          if (terminal.contains(_status)) return;
+        } catch (_) {/* keep polling */}
+      }
+    }
+  }
+
+  String _statusLabel(String? s) {
+    switch (s) {
+      case 'awaiting_review':
+      case 'ready':
+        return 'بانتظار المراجعة';
+      case 'processing':
+      case 'uploaded':
+      case 'pending':
+        return 'قيد المعالجة';
+      case 'approved':
+        return 'معتمد';
+      case 'rejected':
+        return 'مرفوض';
+      case 'failed':
+        return 'فشل';
+      default:
+        return s ?? '—';
     }
   }
 
