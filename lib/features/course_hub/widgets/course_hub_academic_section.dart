@@ -45,27 +45,34 @@ class _CourseHubAcademicSectionState extends State<CourseHubAcademicSection> {
           onRetry: () => _c.ensureSectionLoaded(CourseHubSection.academic),
         );
       } else {
+        final archive = _c.isArchiveMode;
         body = Column(
           children: [
             CourseHubRow(
               icon: Icons.assignment_outlined,
-              label: 'الواجبات',
-              subtitle: _c.assignmentsCount > 0
-                  ? 'لديك ${_c.assignmentsCount} واجب'
-                  : 'لا توجد واجبات حالياً',
-              trailing: _c.assignmentsCount > 0
+              label: archive ? 'أرشيف الواجبات' : 'الواجبات',
+              subtitle: archive
+                  ? 'مراجعة الواجبات السابقة لهذه الدورة'
+                  : (_c.assignmentsCount > 0
+                      ? 'لديك ${_c.assignmentsCount} واجب'
+                      : 'لا توجد واجبات حالياً'),
+              trailing: (!archive && _c.assignmentsCount > 0)
                   ? CourseHubBadge(label: '${_c.assignmentsCount}')
                   : null,
               onTap: () => Get.to(() => const StudentAssignmentsScreen()),
             ),
             CourseHubRow(
               icon: Icons.fact_check_outlined,
-              label: 'الامتحانات',
-              subtitle: _c.upcomingExamsCount > 0
-                  ? '${_c.upcomingExamsCount} امتحان قادم'
-                  : 'لا توجد امتحانات قادمة',
-              trailing: _c.upcomingExamsCount > 0
-                  ? CourseHubBadge(label: '${_c.upcomingExamsCount}', color: context.mq.orange)
+              label: archive ? 'أرشيف الامتحانات' : 'الامتحانات',
+              subtitle: archive
+                  ? 'مراجعة امتحانات هذه الدورة المؤرشفة'
+                  : (_c.upcomingExamsCount > 0
+                      ? '${_c.upcomingExamsCount} امتحان قادم'
+                      : 'لا توجد امتحانات قادمة'),
+              trailing: (!archive && _c.upcomingExamsCount > 0)
+                  ? CourseHubBadge(
+                      label: '${_c.upcomingExamsCount}',
+                      color: context.mq.orange)
                   : null,
               onTap: () => Get.to(() => const StudentExamsScreen(
                     fixedType: 'daily',
@@ -75,13 +82,17 @@ class _CourseHubAcademicSectionState extends State<CourseHubAcademicSection> {
             CourseHubRow(
               icon: Icons.grade_outlined,
               label: 'الدرجات والتقارير',
-              subtitle: 'اعرض درجاتك في الامتحانات',
+              subtitle: archive
+                  ? 'درجاتك وتقاريرك في أرشيف الدورة'
+                  : 'اعرض درجاتك في الامتحانات',
               onTap: () => Get.to(() => const StudentExamGradesScreen()),
             ),
             CourseHubRow(
               icon: Icons.star_border_outlined,
               label: 'تقييمات الأستاذ',
-              subtitle: 'تقييم أدائك من الأستاذ',
+              subtitle: archive
+                  ? 'تقييمات الأستاذ السابقة'
+                  : 'تقييم أدائك من الأستاذ',
               onTap: () => Get.to(() => const StudentEvaluationsScreen()),
             ),
           ],
@@ -89,7 +100,7 @@ class _CourseHubAcademicSectionState extends State<CourseHubAcademicSection> {
       }
       return CourseHubSectionShell(
         icon: Icons.book_outlined,
-        title: 'الأكاديمي',
+        title: _c.isArchiveMode ? 'الأرشيف الأكاديمي' : 'الأكاديمي',
         child: body,
       );
     });

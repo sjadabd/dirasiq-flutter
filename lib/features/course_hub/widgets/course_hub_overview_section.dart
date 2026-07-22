@@ -86,7 +86,16 @@ class _CourseHubOverviewSectionState extends State<CourseHubOverviewSection> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: Text(name, style: context.text.titleMedium)),
-                if (type != null) ...[MqSpacing.gapXs, MqBadge(label: type, tone: MqBadgeTone.accent)],
+                if (_c.isArchiveMode) ...[
+                  MqSpacing.gapXs,
+                  MqBadge(
+                    label: _c.isCourseDeleted ? 'محذوفة' : 'منتهية',
+                    tone: MqBadgeTone.orange,
+                  ),
+                ] else if (type != null) ...[
+                  MqSpacing.gapXs,
+                  MqBadge(label: type, tone: MqBadgeTone.accent),
+                ],
               ],
             ),
             if (teacherName.isNotEmpty) ...[

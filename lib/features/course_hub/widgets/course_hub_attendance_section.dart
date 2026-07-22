@@ -38,29 +38,35 @@ class _CourseHubAttendanceSectionState extends State<CourseHubAttendanceSection>
 
   @override
   Widget build(BuildContext context) {
-    return CourseHubSectionShell(
-      icon: Icons.event_available_outlined,
-      title: 'الحضور',
-      child: Column(
-        children: [
-          CourseHubRow(
-            icon: Icons.qr_code_scanner,
-            label: 'تسجيل حضور (QR)',
-            subtitle: 'استخدم الكاميرا لمسح رمز الأستاذ',
-            onTap: _busy ? null : _onScanAttendance,
-          ),
-          CourseHubRow(
-            icon: Icons.list_alt_outlined,
-            label: 'سجل الحضور والغياب',
-            subtitle: _attendanceSummary(),
-            onTap: () => Get.to(() => CourseAttendanceScreen(
-                  courseId: _c.courseId,
-                  courseName: _c.initialCourseName,
-                )),
-          ),
-        ],
-      ),
-    );
+    return Obx(() {
+      final archive = _c.isArchiveMode;
+      return CourseHubSectionShell(
+        icon: Icons.event_available_outlined,
+        title: archive ? 'أرشيف الحضور' : 'الحضور',
+        child: Column(
+          children: [
+            if (!archive)
+              CourseHubRow(
+                icon: Icons.qr_code_scanner,
+                label: 'تسجيل حضور (QR)',
+                subtitle: 'استخدم الكاميرا لمسح رمز الأستاذ',
+                onTap: _busy ? null : _onScanAttendance,
+              ),
+            CourseHubRow(
+              icon: Icons.list_alt_outlined,
+              label: archive ? 'سجل الحضور السابق' : 'سجل الحضور والغياب',
+              subtitle: archive
+                  ? 'عرض سجل الحضور لهذه الدورة المؤرشفة'
+                  : _attendanceSummary(),
+              onTap: () => Get.to(() => CourseAttendanceScreen(
+                    courseId: _c.courseId,
+                    courseName: _c.initialCourseName,
+                  )),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   String _attendanceSummary() {

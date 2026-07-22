@@ -50,6 +50,51 @@ class CourseHubController extends GetxController {
   /// section for "open teacher details" quick action.
   final String? teacherId;
 
+  /// Finished or soft-deleted course → student sees archive-only hub.
+  bool get isArchiveMode {
+    final course = _overviewCourse;
+    if (course == null) return false;
+    return _truthy(course['is_archived']) ||
+        _truthy(course['is_ended']) ||
+        _truthy(course['is_deleted']) ||
+        _truthy(course['isDeleted']) ||
+        _endDatePassed(course['end_date'] ?? course['endDate']);
+  }
+
+  bool get isCourseDeleted {
+    final course = _overviewCourse;
+    if (course == null) return false;
+    return _truthy(course['is_deleted']) || _truthy(course['isDeleted']);
+  }
+
+  bool get isCourseEnded {
+    final course = _overviewCourse;
+    if (course == null) return false;
+    return _truthy(course['is_ended']) ||
+        _endDatePassed(course['end_date'] ?? course['endDate']);
+  }
+
+  Map<String, dynamic>? get _overviewCourse {
+    final ov = overview.value;
+    if (ov == null) return null;
+    if (ov['course'] is Map) {
+      return Map<String, dynamic>.from(ov['course'] as Map);
+    }
+    return ov;
+  }
+
+  static bool _truthy(dynamic v) =>
+      v == true || v == 1 || v?.toString().toLowerCase() == 'true';
+
+  static bool _endDatePassed(dynamic raw) {
+    final end = DateTime.tryParse('${raw ?? ''}');
+    if (end == null) return false;
+    final today = DateTime.now();
+    final endDay = DateTime(end.year, end.month, end.day);
+    final todayDay = DateTime(today.year, today.month, today.day);
+    return endDay.isBefore(todayDay);
+  }
+
   // ---------------------------------------------------------------------------
   // Per-section state
   //

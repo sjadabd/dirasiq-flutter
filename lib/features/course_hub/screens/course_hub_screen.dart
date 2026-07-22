@@ -14,6 +14,7 @@ import 'package:get/get.dart';
 import 'package:mulhimiq/features/course_hub/controllers/course_hub_controller.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_academic_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_announcements_section.dart';
+import 'package:mulhimiq/features/course_hub/widgets/course_hub_archive_banner.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_attendance_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_billing_section.dart';
 import 'package:mulhimiq/features/course_hub/widgets/course_hub_materials_section.dart';
@@ -81,11 +82,15 @@ class _CourseHubScreenState extends State<CourseHubScreen> {
           builder: (context) => Scaffold(
             backgroundColor: context.mq.page,
             appBar: AppBar(
-              title: Text(
-                widget.courseName ?? 'بيئة الدورة',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              title: Obx(() {
+                final archive = _controller.isArchiveMode;
+                final name = widget.courseName ?? 'بيئة الدورة';
+                return Text(
+                  archive ? 'أرشيف الدورة' : name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                );
+              }),
               actions: [
                 // Preserves the old app bar's notifications entry point
                 // (course announcements arrive via the notifications feed).
@@ -100,24 +105,45 @@ class _CourseHubScreenState extends State<CourseHubScreen> {
               top: false,
               child: RefreshIndicator(
                 onRefresh: _controller.refreshAll,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                      MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    CourseHubOverviewSection(),
-                    CourseHubAnnouncementsSection(),
-                    CourseHubAcademicSection(),
-                    CourseHubAttendanceSection(),
-                    CourseHubScheduleSection(),
-                    CourseHubMaterialsSection(),
-                    CourseHubVideosSection(),
-                    CourseHubBillingSection(),
-                    // Discovery tail — same teacher's other catalog. Self-hides
-                    // when empty so the hub stays clean for single-course teachers.
-                    CourseHubOtherTeacherCoursesSection(),
-                  ],
-                ),
+                child: Obx(() {
+                  final loadingOverview = _controller.overviewLoading.value &&
+                      _controller.overview.value == null;
+                  final archive = _controller.isArchiveMode;
+                  if (loadingOverview) {
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                          MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        CourseHubOverviewSection(),
+                      ],
+                    );
+                  }
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                        MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, MqSpacing.xxxl),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      const CourseHubArchiveBanner(),
+                      const CourseHubOverviewSection(),
+                      // Archive: historical record only — no active course tools.
+                      if (archive) ...[
+                        const CourseHubBillingSection(),
+                        const CourseHubAttendanceSection(),
+                        const CourseHubAcademicSection(),
+                      ] else ...[
+                        const CourseHubAnnouncementsSection(),
+                        const CourseHubAcademicSection(),
+                        const CourseHubAttendanceSection(),
+                        const CourseHubScheduleSection(),
+                        const CourseHubMaterialsSection(),
+                        const CourseHubVideosSection(),
+                        const CourseHubBillingSection(),
+                        const CourseHubOtherTeacherCoursesSection(),
+                      ],
+                    ],
+                  );
+                }),
               ),
             ),
           ),
