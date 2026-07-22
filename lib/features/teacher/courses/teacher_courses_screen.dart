@@ -85,11 +85,21 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
   }
 
   Future<void> _delete(Map<String, dynamic> c) async {
+    if (_isEnded(c)) {
+      Get.snackbar(
+        'تنبيه',
+        'الكورس المنتهي يبقى في الأرشيف ولا يُحذف',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
     final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
               title: const Text('تأكيد الحذف'),
-              content: const Text('سيتم حذف الدورة. يمكن استرجاعها لاحقاً.'),
+              content: const Text(
+                'يمكن حذف الكورس فقط إذا لم يُسجَّل فيه أي طالب ولم توجد بيانات مرتبطة.\nيمكن استرجاعه لاحقاً من تبويب «محذوفة» ما دام تاريخه لم ينتهِ.',
+              ),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
@@ -105,20 +115,40 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
       await _api.deleteCourse(c['id'].toString());
       Get.snackbar('تم', 'تم الحذف', snackPosition: SnackPosition.BOTTOM);
       await _fetch();
-    } catch (_) {
-      Get.snackbar('خطأ', 'تعذّر الحذف', snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('خطأ', _apiError(e, 'تعذّر الحذف'),
+          snackPosition: SnackPosition.BOTTOM);
     }
   }
 
   Future<void> _restore(Map<String, dynamic> c) async {
+    if (_isEnded(c)) {
+      Get.snackbar(
+        'تنبيه',
+        'لا يمكن استرجاع كورس منتهٍ — يظهر في الأرشيف ضمن المنتهية',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
     try {
       await _api.restoreCourse(c['id'].toString());
       Get.snackbar('تم', 'تم الاسترجاع', snackPosition: SnackPosition.BOTTOM);
       await _fetch();
-    } catch (_) {
-      Get.snackbar('خطأ', 'تعذّر الاسترجاع',
+    } catch (e) {
+      Get.snackbar('خطأ', _apiError(e, 'تعذّر الاسترجاع'),
           snackPosition: SnackPosition.BOTTOM);
     }
+  }
+
+  String _apiError(Object e, String fallback) {
+    try {
+      final dynamic err = e;
+      final data = err.response?.data;
+      if (data is Map && data['message'] != null) {
+        return data['message'].toString();
+      }
+    } catch (_) {}
+    return fallback;
   }
 
   Future<void> _toggleRegistration(Map<String, dynamic> course) async {
@@ -594,30 +624,37 @@ class _CourseCard extends StatelessWidget {
           ),
           const SizedBox(height: MqSpacing.md),
           if (isDeleted)
-            MqButton.secondary(
-              label: 'استرجاع الدورة',
-              icon: Icons.restore_rounded,
-              size: MqButtonSize.small,
-              onPressed: onRestore,
-            )
+            ended
+                ? const SizedBox.shrink()
+                : MqButton.secondary(
+                    label: 'استرجاع الدورة',
+                    icon: Icons.restore_rounded,
+                    size: MqButtonSize.small,
+                    onPressed: onRestore,
+                  )
           else ...[
             Row(
               children: [
                 Expanded(
                   child: MqButton(
-                    label: 'إدارة الدورة',
-                    icon: Icons.tune_rounded,
+                    label: ended ? 'عرض الأرشيف' : 'إدارة الدورة',
+                    icon: ended
+                        ? Icons.archive_outlined
+                        : Icons.tune_rounded,
                     size: MqButtonSize.small,
                     onPressed: () => onManage(),
                   ),
                 ),
-                const SizedBox(width: MqSpacing.sm),
-                _IconBtn(
-                    icon: Icons.delete_outline_rounded,
-                    color: mq.error,
-                    onTap: onDelete),
+                if (!ended) ...[
+                  const SizedBox(width: MqSpacing.sm),
+                  _IconBtn(
+                      icon: Icons.delete_outline_rounded,
+                      color: mq.error,
+                      onTap: onDelete),
+                ],
               ],
             ),
+            if (!ended) ...[
             const SizedBox(height: MqSpacing.sm),
             SizedBox(
               width: double.infinity,
@@ -651,6 +688,7 @@ class _CourseCard extends StatelessWidget {
                 ),
               ),
             ),
+            ],
             const SizedBox(height: MqSpacing.sm),
             // quick-action chips → open management at the matching tab
             SingleChildScrollView(
