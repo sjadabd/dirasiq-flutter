@@ -64,7 +64,11 @@ class _StudentInvoicesScreenState extends State<StudentInvoicesScreen> {
         if (yearArg != null && yearArg.isNotEmpty) _studyYear = yearArg;
       }
     } catch (_) {}
-    _studyYear ??= _currentStudyYear();
+    // When filtering a specific course (e.g. from course hub / archive),
+    // don't force the current academic year — show all invoices for that course.
+    if (_courseId == null || _courseId!.isEmpty) {
+      _studyYear ??= _currentStudyYear();
+    }
     _load();
   }
 

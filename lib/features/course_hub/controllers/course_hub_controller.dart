@@ -349,10 +349,20 @@ class CourseHubController extends GetxController {
       final res = await _api.fetchStudentInvoices(
         courseId: courseId,
         page: 1,
-        limit: 5,
+        limit: 10,
       );
-      final list = _safeList(res['data']);
-      invoices.assignAll(list.map((e) => Map<String, dynamic>.from(e as Map)));
+      // API envelope: data: { invoices, report, page, limit }
+      final data = res['data'];
+      final rawList = data is Map
+          ? (data['invoices'] ?? data['items'] ?? data['data'])
+          : data;
+      final list = _safeList(rawList);
+      invoices.assignAll(
+        list
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList(),
+      );
     } catch (e) {
       invoicesError.value = 'تعذّر تحميل الفواتير';
     } finally {
