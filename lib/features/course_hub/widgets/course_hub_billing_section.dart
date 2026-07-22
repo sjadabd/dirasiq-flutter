@@ -24,7 +24,8 @@ class _CourseHubBillingSectionState extends State<CourseHubBillingSection> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _c.ensureSectionLoaded(CourseHubSection.billing);
+      // Force refresh so stale empty/zero rows from older hub logic are replaced.
+      _c.ensureSectionLoaded(CourseHubSection.billing, force: true);
     });
   }
 
@@ -81,33 +82,38 @@ class _CourseHubBillingSectionState extends State<CourseHubBillingSection> {
   }
 
   Widget _buildInvoiceRow(Map<String, dynamic> invoice) {
-    final amount = _money(
-      invoice['amount_due'] ??
-          invoice['amountDue'] ??
-          invoice['amount'] ??
-          invoice['total'],
+    final due = _toDouble(
+      invoice['amount_due'] ?? invoice['amountDue'] ?? invoice['amount'],
     );
-    final remaining = _money(
+    final paid = _toDouble(
+      invoice['amount_paid'] ?? invoice['amountPaid'] ?? invoice['paid'],
+    );
+    // remaining_amount is a generated DB column; fall back to due - paid.
+    var remain = _toDouble(
       invoice['remaining_amount'] ??
           invoice['remainingAmount'] ??
           invoice['remaining'],
     );
-    final paid = _money(
-      invoice['amount_paid'] ?? invoice['amountPaid'] ?? invoice['paid'],
-    );
+    if (remain <= 0 && due > 0 && paid < due) {
+      remain = due - paid;
+    }
     final status = (invoice['invoice_status'] ??
             invoice['invoiceStatus'] ??
             invoice['status'] ??
             '')
-        .toString();
+        .toString()
+        .toLowerCase();
     final id = (invoice['id'] ?? '').toString();
     final courseName =
         (invoice['course_name'] ?? invoice['courseName'] ?? '').toString();
 
     return CourseHubRow(
       icon: Icons.payments_outlined,
-      label: courseName.isNotEmpty ? courseName : 'فاتورة بـ $amount د.ع',
-      subtitle: 'المدفوع: $paid د.ع · المتبقّي: $remaining د.ع',
+      label: courseName.isNotEmpty
+          ? courseName
+          : 'فاتورة بـ ${_fmt(due)} د.ع',
+      subtitle:
+          'قيمة الفاتورة: ${_fmt(due)} د.ع · المدفوع: ${_fmt(paid)} د.ع · المتبقّي: ${_fmt(remain)} د.ع',
       trailing: CourseHubBadge(
         label: _statusLabel(status),
         color: _statusColor(status),
@@ -118,10 +124,25 @@ class _CourseHubBillingSectionState extends State<CourseHubBillingSection> {
     );
   }
 
-  String _money(dynamic v) {
-    final n = v is num ? v.toDouble() : double.tryParse('${v ?? ''}') ?? 0;
-    if (n == n.roundToDouble()) return n.toInt().toString();
-    return n.toStringAsFixed(0);
+  double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    final s = v.toString().replaceAll(',', '').trim();
+    return double.tryParse(s) ?? 0;
+  }
+
+  String _fmt(double v) {
+    if (v == v.roundToDouble()) {
+      final n = v.toInt().toString();
+      final buf = StringBuffer();
+      for (var i = 0; i < n.length; i++) {
+        final fromEnd = n.length - i;
+        buf.write(n[i]);
+        if (fromEnd > 1 && fromEnd % 3 == 1) buf.write(',');
+      }
+      return buf.toString();
+    }
+    return v.toStringAsFixed(0);
   }
 
   String _statusLabel(String s) {
@@ -133,7 +154,10 @@ class _CourseHubBillingSectionState extends State<CourseHubBillingSection> {
       case 'overdue':
         return 'متأخر';
       case 'pending':
-        return 'معلّق';
+        return 'قيد السداد';
+      case 'cancelled':
+      case 'canceled':
+        return 'ملغاة';
       default:
         return s.isEmpty ? '—' : s;
     }
@@ -147,6 +171,8 @@ class _CourseHubBillingSectionState extends State<CourseHubBillingSection> {
         return Colors.orange;
       case 'overdue':
         return Colors.red;
+      case 'pending':
+        return Colors.blueGrey;
       default:
         return Colors.blueGrey;
     }

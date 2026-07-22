@@ -60,6 +60,18 @@ class TeacherApiService {
     return Map<String, dynamic>.from(res.data ?? {});
   }
 
+  /// Unpaid invoices + pending reservation deposits, grouped by course.
+  Future<Map<String, dynamic>> fetchCourseFinancialAlerts() async {
+    final res = await _dio.get('/teacher/courses/financial-alerts');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
+  /// Settlement debt for a single course (invoices + deposits).
+  Future<Map<String, dynamic>> fetchCourseFinancialAlert(String courseId) async {
+    final res = await _dio.get('/teacher/courses/$courseId/financial-alert');
+    return Map<String, dynamic>.from(res.data ?? {});
+  }
+
   Future<Map<String, dynamic>> fetchAllGrades() async {
     final res = await _dio.get('/grades/all');
     return Map<String, dynamic>.from(res.data ?? {});

@@ -7,6 +7,8 @@ import '../sessions/teacher_attendance_screen.dart';
 import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_helpers.dart' show initialsOf;
+import '../shared/teacher_workspace.dart';
+import '../shared/widgets/teacher_course_debt_banner.dart';
 import 'teacher_assignment_detail_screen.dart';
 import 'teacher_assignment_form.dart';
 import 'teacher_evaluation_form.dart';
@@ -56,6 +58,7 @@ class _TeacherCourseManageScreenState extends State<TeacherCourseManageScreen> {
   bool _evalLoading = false;
   bool _evalLoaded = false;
   bool _evalError = false;
+  Map<String, dynamic>? _financialAlert;
 
   static const _tabs = [
     'نظرة عامة',
@@ -81,6 +84,7 @@ class _TeacherCourseManageScreenState extends State<TeacherCourseManageScreen> {
         _api.fetchSessions(courseId: widget.courseId, page: 1, limit: 100),
         _api.fetchAssignments(page: 1, limit: 100),
         _api.fetchExams(page: 1, limit: 100),
+        _api.fetchCourseFinancialAlert(widget.courseId),
       ]);
       _students = _list(results[0]);
       _sessions = _list(results[1]);
@@ -90,6 +94,11 @@ class _TeacherCourseManageScreenState extends State<TeacherCourseManageScreen> {
       _exams = _list(results[3])
           .where((e) => (e['course_id'] ?? '').toString() == widget.courseId)
           .toList();
+      final alertEnv = results[4];
+      final alertData = alertEnv['data'];
+      _financialAlert = alertData is Map
+          ? Map<String, dynamic>.from(alertData)
+          : null;
     } catch (_) {
       Get.snackbar(
         'خطأ',
@@ -123,6 +132,13 @@ class _TeacherCourseManageScreenState extends State<TeacherCourseManageScreen> {
     return end != null && end.isBefore(DateTime.now());
   }
 
+  double _num(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse('${v ?? ''}') ?? 0;
+  }
+
+  int _intN(dynamic v) => _num(v).toInt();
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -148,6 +164,39 @@ class _TeacherCourseManageScreenState extends State<TeacherCourseManageScreen> {
                   ),
                   children: [
                     _headerCard(context),
+                    if (_financialAlert != null &&
+                        (_financialAlert!['hasDebt'] == true ||
+                            _num(_financialAlert!['totalOutstanding']) > 0)) ...[
+                      const SizedBox(height: MqSpacing.md),
+                      TeacherCourseDebtBanner(
+                        unpaidInvoiceAmount: _num(
+                          _financialAlert!['unpaidInvoiceAmount'],
+                        ),
+                        unpaidInvoiceCount: _intN(
+                          _financialAlert!['unpaidInvoiceCount'],
+                        ),
+                        pendingDepositAmount: _num(
+                          _financialAlert!['pendingDepositAmount'],
+                        ),
+                        pendingDepositCount: _intN(
+                          _financialAlert!['pendingDepositCount'],
+                        ),
+                        isEnded: _financialAlert!['isEnded'] == true || _isEnded,
+                        courseName:
+                            (_financialAlert!['courseName'] ??
+                                    widget.course['course_name'] ??
+                                    '')
+                                .toString(),
+                        onOpenInvoices: () => TeacherWorkspace.switchTo(
+                          context,
+                          TeacherWorkspaceState.invoicesIdx,
+                        ),
+                        onOpenDeposits: () => TeacherWorkspace.switchTo(
+                          context,
+                          TeacherWorkspaceState.reservationPaymentsIdx,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: MqSpacing.md),
                     _tabBar(context),
                     const SizedBox(height: MqSpacing.md),

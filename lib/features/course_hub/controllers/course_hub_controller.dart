@@ -160,37 +160,35 @@ class CourseHubController extends GetxController {
   // etc.).
   // ---------------------------------------------------------------------------
 
-  Future<void> ensureSectionLoaded(CourseHubSection section) async {
+  Future<void> ensureSectionLoaded(CourseHubSection section, {bool force = false}) async {
     switch (section) {
       case CourseHubSection.overview:
-        if (overview.value != null || overviewLoading.value) return;
+        if (!force && (overview.value != null || overviewLoading.value)) return;
         return _loadOverview();
       case CourseHubSection.academic:
-        if (academic.value != null || academicLoading.value) return;
+        if (!force && (academic.value != null || academicLoading.value)) return;
         return _loadAcademic();
       case CourseHubSection.attendance:
-        if (attendance.value != null || attendanceLoading.value) return;
+        if (!force && (attendance.value != null || attendanceLoading.value)) return;
         return _loadAttendance();
       case CourseHubSection.schedule:
-        if (scheduleRows.isNotEmpty || scheduleLoading.value) return;
+        if (!force && (scheduleRows.isNotEmpty || scheduleLoading.value)) return;
         return _loadSchedule();
       case CourseHubSection.videos:
-        if (videos.isNotEmpty || videosLoading.value) return;
+        if (!force && (videos.isNotEmpty || videosLoading.value)) return;
         return _loadVideos();
       case CourseHubSection.billing:
-        if (invoices.isNotEmpty || invoicesLoading.value) return;
+        if (!force && (invoices.isNotEmpty || invoicesLoading.value)) return;
         return _loadBilling();
       case CourseHubSection.otherTeacherCourses:
-        if ((otherLiveCourses.isNotEmpty || otherVideoCourses.isNotEmpty) ||
-            otherTeacherCoursesLoading.value) {
+        if (!force &&
+            ((otherLiveCourses.isNotEmpty || otherVideoCourses.isNotEmpty) ||
+                otherTeacherCoursesLoading.value)) {
           return;
         }
         return _loadOtherTeacherCourses();
       case CourseHubSection.announcements:
       case CourseHubSection.materials:
-        // Phase 6 does not own a per-course fetch for these — the
-        // section widgets render static "open notifications / contact
-        // teacher" CTAs. A future phase wires per-course filters.
         return;
     }
   }
@@ -349,19 +347,37 @@ class CourseHubController extends GetxController {
       final res = await _api.fetchStudentInvoices(
         courseId: courseId,
         page: 1,
-        limit: 10,
+        limit: 20,
       );
       // API envelope: data: { invoices, report, page, limit }
       final data = res['data'];
-      final rawList = data is Map
-          ? (data['invoices'] ?? data['items'] ?? data['data'])
-          : data;
-      final list = _safeList(rawList);
+      List rawList = const [];
+      if (data is Map) {
+        final invoicesRaw = data['invoices'];
+        final report = data['report'];
+        if (invoicesRaw is List && invoicesRaw.isNotEmpty) {
+          rawList = invoicesRaw;
+        } else if (report is Map && report['by_invoices'] is List) {
+          rawList = report['by_invoices'] as List;
+        } else {
+          rawList = (invoicesRaw ?? data['items'] ?? data['data'] ?? []) as List? ?? const [];
+        }
+      } else if (data is List) {
+        rawList = data;
+      }
+
       invoices.assignAll(
-        list
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList(),
+        rawList.whereType<Map>().map((e) {
+          final m = Map<String, dynamic>.from(e);
+          // Normalize aliases so UI never misses DB snake_case fields.
+          m['amount_due'] ??= m['amountDue'] ?? m['amount'] ?? m['total'];
+          m['amount_paid'] ??= m['amountPaid'] ?? m['paid'];
+          m['remaining_amount'] ??=
+              m['remainingAmount'] ?? m['remaining'] ?? m['remain'];
+          m['invoice_status'] ??= m['invoiceStatus'] ?? m['status'];
+          m['course_name'] ??= m['courseName'];
+          return m;
+        }).toList(),
       );
     } catch (e) {
       invoicesError.value = 'تعذّر تحميل الفواتير';

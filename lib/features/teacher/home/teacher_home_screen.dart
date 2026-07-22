@@ -12,6 +12,7 @@ import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
 import '../shared/teacher_helpers.dart' show fmtRelative;
 import '../shared/teacher_workspace.dart';
+import '../shared/widgets/teacher_course_debt_banner.dart';
 import 'widgets/teacher_platform_news_section.dart';
 
 /// Teacher dashboard — layout matched 1:1 to `Teacher_Dashboard_Light.html`
@@ -54,6 +55,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   int? _pendingBookings;
   String _teacherName = '';
   String? _studyYear;
+  Map<String, dynamic> _financialTotals = {};
+  List<Map<String, dynamic>> _financialCourses = [];
 
   @override
   void initState() {
@@ -103,6 +106,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       safe(() => _api.fetchTeacherPlatformNews(limit: 8)),
       safe(() => _api.fetchDashboardPerformance()),
       safe(() => _api.fetchDashboardActivity(limit: 10)),
+      safe(() => _api.fetchCourseFinancialAlerts()),
     ]);
 
     final overviewRes = results[0] as Map<String, dynamic>?;
@@ -146,6 +150,22 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     final activityRes = results[6] as Map<String, dynamic>?;
     if (activityRes != null) activity = _dataList(activityRes);
 
+    Map<String, dynamic> financialTotals = {};
+    List<Map<String, dynamic>> financialCourses = [];
+    final alertsRes = results[7] as Map<String, dynamic>?;
+    if (alertsRes != null) {
+      final alerts = _dataMap(alertsRes);
+      if (alerts['totals'] is Map) {
+        financialTotals = Map<String, dynamic>.from(alerts['totals'] as Map);
+      }
+      if (alerts['courses'] is List) {
+        financialCourses = (alerts['courses'] as List)
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+      }
+    }
+
     try {
       if (studyYear != null && studyYear.isNotEmpty) {
         final stats = await _api.fetchBookingStats(studyYear);
@@ -165,6 +185,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       _recentActivityItems = activity;
       _pendingBookings = pending;
       _studyYear = studyYear;
+      _financialTotals = financialTotals;
+      _financialCourses = financialCourses;
       _online = anyOk;
       _firstLoad = false;
       _loading = false;
@@ -219,6 +241,35 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   // ---- formatting -----------------------------------------------------------
 
   num _num(dynamic n) => (n is num) ? n : (num.tryParse('${n ?? ''}') ?? 0);
+
+  int _intN(dynamic n) => _num(n).toInt();
+
+  bool get _hasFinancialDebt =>
+      _intN(_financialTotals['unpaidInvoiceCount']) > 0 ||
+      _intN(_financialTotals['pendingDepositCount']) > 0 ||
+      _num(_financialTotals['unpaidInvoiceAmount']) > 0 ||
+      _num(_financialTotals['pendingDepositAmount']) > 0;
+
+  void _openCourseFromFinancialAlert(Map<String, dynamic> alert) {
+    final id = (alert['courseId'] ?? alert['course_id'] ?? '').toString();
+    if (id.isEmpty) return;
+    Map<String, dynamic>? fromList;
+    for (final c in _activeCoursesList) {
+      if ((c['id'] ?? '').toString() == id) {
+        fromList = c;
+        break;
+      }
+    }
+    final course = fromList ??
+        <String, dynamic>{
+          'id': id,
+          'course_name': alert['courseName'] ?? alert['course_name'],
+          'end_date': alert['endDate'] ?? alert['end_date'],
+        };
+    Get.to(
+      () => TeacherCourseManageScreen(courseId: id, course: course),
+    );
+  }
 
   String _int(dynamic n) => _num(n).toInt().toString().replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
@@ -342,6 +393,34 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                           ],
                           _hero(context),
                           const SizedBox(height: MqSpacing.md),
+                          if (_hasFinancialDebt) ...[
+                            TeacherCourseDebtBanner(
+                              unpaidInvoiceAmount: _num(
+                                _financialTotals['unpaidInvoiceAmount'],
+                              ).toDouble(),
+                              unpaidInvoiceCount: _intN(
+                                _financialTotals['unpaidInvoiceCount'],
+                              ),
+                              pendingDepositAmount: _num(
+                                _financialTotals['pendingDepositAmount'],
+                              ).toDouble(),
+                              pendingDepositCount: _intN(
+                                _financialTotals['pendingDepositCount'],
+                              ),
+                              isEnded: _intN(
+                                    _financialTotals['endedCoursesWithDebt'],
+                                  ) >
+                                  0,
+                              courseSummaries: _financialCourses,
+                              onOpenInvoices: () =>
+                                  _go(TeacherWorkspaceState.invoicesIdx),
+                              onOpenDeposits: () => _go(
+                                TeacherWorkspaceState.reservationPaymentsIdx,
+                              ),
+                              onOpenCourse: _openCourseFromFinancialAlert,
+                            ),
+                            const SizedBox(height: MqSpacing.md),
+                          ],
                           _revenuePair(context),
                           const SizedBox(height: MqSpacing.md),
                           _todaySchedule(context),
@@ -528,30 +607,50 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     final s = (_kpis['studentInvoices'] is Map)
         ? Map<String, dynamic>.from(_kpis['studentInvoices'])
         : const {};
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _RevenueCard(
-              label: 'الإيراد المُحصّل',
-              value: _int(s['amountPaid']),
-              icon: Icons.trending_up_rounded,
-              tone: TeacherTone.success,
-            ),
+    final depositRemaining = _num(
+      _kpis['remainingDeposit'] ??
+          (_kpis['depositInvoices'] is Map
+              ? (_kpis['depositInvoices'] as Map)['remainingAmount']
+              : 0),
+    );
+    return Column(
+      children: [
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _RevenueCard(
+                  label: 'الإيراد المُحصّل',
+                  value: _int(s['amountPaid']),
+                  icon: Icons.trending_up_rounded,
+                  tone: TeacherTone.success,
+                ),
+              ),
+              const SizedBox(width: MqSpacing.md),
+              Expanded(
+                child: _RevenueCard(
+                  label: 'مدفوعات مستحقّة',
+                  value: _int(s['amountRemaining']),
+                  icon: Icons.account_balance_wallet_outlined,
+                  tone: TeacherTone.danger,
+                  onTap: () => _go(TeacherWorkspaceState.invoicesIdx),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: MqSpacing.md),
-          Expanded(
-            child: _RevenueCard(
-              label: 'مدفوعات مستحقّة',
-              value: _int(s['amountRemaining']),
-              icon: Icons.account_balance_wallet_outlined,
-              tone: TeacherTone.danger,
-              onTap: () => _go(TeacherWorkspaceState.invoicesIdx),
-            ),
+        ),
+        if (depositRemaining > 0) ...[
+          const SizedBox(height: MqSpacing.md),
+          _RevenueCard(
+            label: 'عربونات غير مسدّدة',
+            value: _int(depositRemaining),
+            icon: Icons.savings_outlined,
+            tone: TeacherTone.warning,
+            onTap: () => _go(TeacherWorkspaceState.reservationPaymentsIdx),
           ),
         ],
-      ),
+      ],
     );
   }
 

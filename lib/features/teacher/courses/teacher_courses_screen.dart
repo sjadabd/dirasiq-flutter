@@ -6,6 +6,8 @@ import '../shared/design/teacher_design.dart';
 import '../shared/teacher_app_bar.dart';
 import '../shared/teacher_drawer.dart';
 import '../shared/teacher_helpers.dart' show fmtNum, fmtIQDShort;
+import '../shared/teacher_workspace.dart';
+import '../shared/widgets/teacher_course_debt_banner.dart';
 import 'teacher_course_manage_screen.dart';
 import 'widgets/teacher_course_form_dialog.dart';
 
@@ -33,6 +35,8 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
   _Filter _filter = _Filter.all;
   String _search = '';
   final _searchCtl = TextEditingController();
+  Map<String, dynamic> _debtTotals = {};
+  final Map<String, Map<String, dynamic>> _debtByCourseId = {};
 
   @override
   void initState() {
@@ -49,15 +53,40 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
   Future<void> _fetch() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.fetchCourses(
+      final results = await Future.wait([
+        _api.fetchCourses(
           deleted: _filter == _Filter.deleted,
           search: _search.trim().isEmpty ? null : _search.trim(),
           page: 1,
-          limit: 50);
+          limit: 50,
+        ),
+        _api.fetchCourseFinancialAlerts(),
+      ]);
+      final res = results[0];
       final list = res['data'];
       _items = (list is List)
-          ? list.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList()
+          ? list
+              .whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList()
           : [];
+
+      final alertsData = results[1]['data'];
+      _debtByCourseId.clear();
+      _debtTotals = {};
+      if (alertsData is Map) {
+        if (alertsData['totals'] is Map) {
+          _debtTotals = Map<String, dynamic>.from(alertsData['totals'] as Map);
+        }
+        final courses = alertsData['courses'];
+        if (courses is List) {
+          for (final raw in courses.whereType<Map>()) {
+            final m = Map<String, dynamic>.from(raw);
+            final id = (m['courseId'] ?? m['course_id'] ?? '').toString();
+            if (id.isNotEmpty) _debtByCourseId[id] = m;
+          }
+        }
+      }
     } catch (_) {
       Get.snackbar('خطأ', 'تعذّر جلب الدورات',
           snackPosition: SnackPosition.BOTTOM);
@@ -70,6 +99,13 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
     final end = DateTime.tryParse((c['end_date'] ?? '').toString());
     return end != null && end.isBefore(DateTime.now());
   }
+
+  double _toD(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse('${v ?? ''}') ?? 0;
+  }
+
+  int _toI(dynamic v) => _toD(v).toInt();
 
   // Active / ended split is a client-side date filter on the non-deleted set.
   List<Map<String, dynamic>> get _visible {
@@ -267,6 +303,51 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
                     MqSpacing.lg, MqSpacing.lg, MqSpacing.lg, 96),
                 children: [
                   _hero(context, activeCount, endedCount),
+                  if (_debtByCourseId.isNotEmpty) ...[
+                    const SizedBox(height: MqSpacing.md),
+                    TeacherCourseDebtBanner(
+                      unpaidInvoiceAmount: _toD(_debtTotals['unpaidInvoiceAmount']),
+                      unpaidInvoiceCount: _toI(_debtTotals['unpaidInvoiceCount']),
+                      pendingDepositAmount:
+                          _toD(_debtTotals['pendingDepositAmount']),
+                      pendingDepositCount:
+                          _toI(_debtTotals['pendingDepositCount']),
+                      isEnded: _toI(_debtTotals['endedCoursesWithDebt']) > 0,
+                      courseSummaries: _debtByCourseId.values.toList(),
+                      onOpenInvoices: () => TeacherWorkspace.switchTo(
+                        context,
+                        TeacherWorkspaceState.invoicesIdx,
+                      ),
+                      onOpenDeposits: () => TeacherWorkspace.switchTo(
+                        context,
+                        TeacherWorkspaceState.reservationPaymentsIdx,
+                      ),
+                      onOpenCourse: (alert) {
+                        final id =
+                            (alert['courseId'] ?? alert['course_id'] ?? '')
+                                .toString();
+                        Map<String, dynamic>? course;
+                        for (final c in _items) {
+                          if ((c['id'] ?? '').toString() == id) {
+                            course = c;
+                            break;
+                          }
+                        }
+                        course ??= {
+                          'id': id,
+                          'course_name':
+                              alert['courseName'] ?? alert['course_name'],
+                          'end_date': alert['endDate'] ?? alert['end_date'],
+                        };
+                        Get.to(
+                          () => TeacherCourseManageScreen(
+                            courseId: id,
+                            course: course!,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                   const SizedBox(height: MqSpacing.lg),
                   _filterRow(context),
                   const SizedBox(height: MqSpacing.md),
@@ -287,6 +368,7 @@ class _TeacherCoursesScreenState extends State<TeacherCoursesScreen> {
                           child: _CourseCard(
                             course: c,
                             ended: _isEnded(c),
+                            debt: _debtByCourseId[(c['id'] ?? '').toString()],
                             updatingRegistration:
                                 _updatingRegistrationIds.contains(
                               c['id']?.toString(),
@@ -504,6 +586,7 @@ class _CourseCard extends StatelessWidget {
   const _CourseCard({
     required this.course,
     required this.ended,
+    this.debt,
     required this.updatingRegistration,
     required this.onManage,
     required this.onToggleRegistration,
@@ -512,6 +595,7 @@ class _CourseCard extends StatelessWidget {
   });
   final Map<String, dynamic> course;
   final bool ended;
+  final Map<String, dynamic>? debt;
   final bool updatingRegistration;
   final void Function({int tab}) onManage;
   final VoidCallback onToggleRegistration, onDelete, onRestore;
@@ -593,10 +677,43 @@ class _CourseCard extends StatelessWidget {
                       dense: true,
                     ),
                   ],
+                  if (!isDeleted && debt != null) ...[
+                    const SizedBox(height: 4),
+                    TeacherStatusPill(
+                      label: ended ? 'مستحقات معلّقة!' : 'مستحقات غير مسدّدة',
+                      tone: TeacherTone.danger,
+                      dense: true,
+                    ),
+                  ],
                 ],
               ),
             ],
           ),
+          if (!isDeleted && debt != null) ...[
+            const SizedBox(height: MqSpacing.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: MqSpacing.md,
+                vertical: MqSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: mq.error.withValues(alpha: 0.1),
+                borderRadius: MqRadius.brMd,
+                border: Border.all(color: mq.error.withValues(alpha: 0.45)),
+              ),
+              child: Text(
+                ended
+                    ? 'الدورة منتهية وما زال عليها ${fmtNum(debt!['totalOutstanding'])} د.ع غير مسدّدة — سَدّد الفواتير والعربونات لإغلاق الحسابات.'
+                    : 'يوجد ${fmtNum(debt!['totalOutstanding'])} د.ع مستحقة (فواتير/عربونات). سَدّدها قبل انتهاء الدورة.',
+                style: context.text.labelSmall?.copyWith(
+                  color: mq.error,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: MqSpacing.md),
           // meta cells (real: seats / price / reservation)
           Container(
